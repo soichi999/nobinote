@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 匿名サインインしたクライアントのみ許可。
+    // 4桁パスコードはアプリ側での照合であり、ルールでは検証できません
+    // （＝URLとパスコードは身内だけで共有してください）。
+    function ok() { return request.auth != null; }
+
+    match /config/{id}      { allow read, write: if ok(); }
+    match /students/{sid} {
+      allow read, write: if ok();
+      match /{sub=**}       { allow read, write: if ok(); }
+    }
+  }
+}

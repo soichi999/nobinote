@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ノビノート</title>
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b2a5b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ノビノート">
+<link rel="apple-touch-icon" href="icon-180.png">
+</head>
+<body>
+<header id="topbar" hidden>
+  <h1>ノビノート</h1>
+  <div class="who"><span id="whoami"></span><button id="logout" class="ghost">切り替え</button></div>
+</header>
+
+<!-- 入口：役割の選択 -->
+<main id="gate-view" class="card-center">
+  <div class="card gate">
+    <h2>ノビノート</h2>
+    <p class="lead">あなたは</p>
+    <button id="go-family" class="primary big">学生・保護者です</button>
+    <button id="go-tutor" class="outline big">チューターです</button>
+    <p class="hint" id="install-hint" hidden>ホーム画面に追加すると通知を受け取れます。<br>共有ボタン →「ホーム画面に追加」</p>
+  </div>
+</main>
+
+<!-- パスコード入力 -->
+<main id="pass-view" class="card-center" hidden>
+  <div class="card gate">
+    <h2 id="pass-title">パスコード</h2>
+    <p class="lead" id="pass-lead"></p>
+    <input id="pass-input" type="password" inputmode="numeric" autocomplete="one-time-code"
+           maxlength="12" placeholder="････" class="passcode">
+    <button id="pass-ok" class="primary big">入る</button>
+    <button id="pass-back" class="text">もどる</button>
+    <p class="error" id="pass-error"></p>
+  </div>
+</main>
+
+<!-- 本体 -->
+<main id="app-view" hidden>
+  <div id="notif-bar" class="notice" hidden>
+    <span id="notif-text">新しい宿題や連絡を通知で受け取れます。</span>
+    <button id="notif-enable" class="small primary">通知をオンにする</button>
+  </div>
+  <div id="student-picker" class="row" hidden>
+    <label>生徒<select id="student-select"></select></label>
+  </div>
+
+  <nav class="tabs">
+    <button data-tab="lessons" class="active">授業記録</button>
+    <button data-tab="homework">宿題</button>
+    <button data-tab="tests">成績</button>
+    <button data-tab="messages">連絡</button>
+    <button data-tab="settings" class="tutor-only" hidden>設定</button>
+  </nav>
+
+  <!-- 授業記録 -->
+  <section id="tab-lessons" class="tab">
+    <form id="lesson-form" class="card tutor-only" hidden>
+      <h3>授業記録を追加</h3>
+      <div class="grid">
+        <label>日付<input type="date" id="l-date" required></label>
+        <label>科目<input type="text" id="l-subject" placeholder="数学" required></label>
+      </div>
+      <label>学習範囲<input type="text" id="l-range" placeholder="二次関数 p.34-40"></label>
+      <label>授業内容<textarea id="l-content" rows="4"></textarea></label>
+      <label>所感（生徒・保護者にも表示）<textarea id="l-notes" rows="3"></textarea></label>
+      <button class="primary">保存</button>
+    </form>
+    <div id="lesson-list" class="list"></div>
+  </section>
+
+  <!-- 宿題 -->
+  <section id="tab-homework" class="tab" hidden>
+    <form id="hw-form" class="card tutor-only" hidden>
+      <h3>宿題を出す</h3>
+      <label>タイトル<input type="text" id="h-title" placeholder="ワーク p.12-15" required></label>
+      <label>詳細<textarea id="h-detail" rows="3"></textarea></label>
+      <label>提出期限<input type="date" id="h-due" required></label>
+      <button class="primary">追加</button>
+    </form>
+    <div id="hw-list" class="list"></div>
+  </section>
+
+  <!-- 成績 -->
+  <section id="tab-tests" class="tab" hidden>
+    <form id="test-form" class="card tutor-only" hidden>
+      <h3>テスト結果を追加</h3>
+      <div class="grid">
+        <label>日付<input type="date" id="t-date" required></label>
+        <label>科目<input type="text" id="t-subject" placeholder="数学" required></label>
+      </div>
+      <div class="grid">
+        <label>テスト名<input type="text" id="t-name" placeholder="2学期中間"></label>
+        <label>点数<input type="number" id="t-score" min="0" required></label>
+        <label>満点<input type="number" id="t-max" value="100" min="1" required></label>
+      </div>
+      <button class="primary">保存</button>
+    </form>
+    <div class="card"><h3>得点率の推移</h3><div id="chart"></div></div>
+    <div id="test-list" class="list"></div>
+  </section>
+
+  <!-- 連絡 -->
+  <section id="tab-messages" class="tab" hidden>
+    <div id="msg-list" class="list msgs"></div>
+    <form id="msg-form" class="card">
+      <label>メッセージ<textarea id="m-text" rows="3" required></textarea></label>
+      <button class="primary">送信</button>
+    </form>
+  </section>
+
+  <!-- 設定（チューターのみ） -->
+  <section id="tab-settings" class="tab" hidden>
+    <div class="card">
+      <h3>生徒とパスコード</h3>
+      <p class="hint left">ここで設定したパスコードを、学生・保護者が入口で入力します。</p>
+      <div id="student-admin" class="list"></div>
+    </div>
+    <form id="add-student-form" class="card">
+      <h3>生徒を追加</h3>
+      <div class="grid">
+        <label>名前<input type="text" id="s-name" placeholder="山田太郎" required></label>
+        <label>パスコード<input type="text" id="s-pass" inputmode="numeric" placeholder="1234" required></label>
+      </div>
+      <button class="primary">追加</button>
+    </form>
+    <form id="tutor-pass-form" class="card">
+      <h3>チューターのパスコードを変更</h3>
+      <div class="grid">
+        <label>新しいパスコード<input type="text" id="tp-new" inputmode="numeric" required></label>
+      </div>
+      <button class="primary">変更する</button>
+    </form>
+  </section>
+</main>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
