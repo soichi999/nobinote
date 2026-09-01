@@ -98,6 +98,7 @@ function start(r, code) {
   $("whoami").textContent = ROLE_LABEL[role];
   document.querySelectorAll(".tutor-only").forEach(el => { el.hidden = role !== "tutor"; });
   document.querySelectorAll(".student-hide").forEach(el => { el.hidden = role === "student"; });
+  document.querySelectorAll(".parent-hide").forEach(el => { el.hidden = role === "parent"; });
   show("app-view"); $("topbar").hidden = false;
   refreshStudentUI();
   renderStudentAdmin();
@@ -215,9 +216,11 @@ function renderHomework() {
       ${r.type === "page" ? `
         <div class="page-grid">${hwPages(r).map(p => {
           const on = (r.clearedPages ?? []).includes(p);
-          return `<button type="button" class="page-chip${on ? " on" : ""}" data-page-toggle="${esc(r.id)}" data-page="${p}">${p}</button>`;
+          return role === "parent"
+            ? `<span class="page-chip${on ? " on" : ""} readonly">${p}</span>`
+            : `<button type="button" class="page-chip${on ? " on" : ""}" data-page-toggle="${esc(r.id)}" data-page="${p}">${p}</button>`;
         }).join("")}</div>
-      ` : `
+      ` : role === "parent" ? "" : `
         <div class="actions">
           <button class="small outline" data-toggle="${esc(r.id)}" data-done="${r.done ? 1 : 0}">
             ${r.done ? "未完了に戻す" : "完了にする"}</button>
@@ -432,9 +435,9 @@ function renderBooks() {
         ${subjectChip(b.subject)}
         <div class="ring-wrap small"><svg class="book-ring" data-ring="${esc(b.id)}" viewBox="0 0 120 120"></svg>
           <div class="ring-label small">${b.progress ?? 0}%</div></div>
-        <label class="hint left" style="margin-top:.4rem">進捗を更新
+        ${role !== "parent" ? `<label class="hint left" style="margin-top:.4rem">進捗を更新
           <input type="range" min="0" max="100" value="${b.progress ?? 0}" data-progress="${esc(b.id)}"></label>
-        ${role !== null ? `<button class="small outline danger" data-book-del="${esc(b.id)}">削除</button>` : ""}
+        <button class="small outline danger" data-book-del="${esc(b.id)}">削除</button>` : ""}
       </div>
     </article>`).join("") : `<div class="empty">まだ参考書が登録されていません。</div>`;
   books.forEach(b => drawRing2(`.book-ring[data-ring="${b.id}"]`, b.progress ?? 0));

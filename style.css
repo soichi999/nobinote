@@ -211,6 +211,9 @@ button.text:hover{color:var(--blue)}
   background:#fff;color:var(--muted);font-weight:700;font-size:.82rem;cursor:pointer;transition:.12s}
 .page-chip:hover{border-color:var(--blue)}
 .page-chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.page-chip.readonly{cursor:default;display:inline-flex;align-items:center;justify-content:center}
+.page-chip.readonly:hover{border-color:var(--blue-line)}
+.page-chip.readonly.on:hover{border-color:var(--blue)}
 
 /* ---- 月謝 ---- */
 .tuition-date-row{display:flex;gap:.5rem;margin-top:.3rem}
