@@ -57,3 +57,28 @@ exports.homeworkReminder = onSchedule(
     }));
   }
 );
+
+// 5分おきに、1時間以内に始まる指導予定をチェックしてリマインド通知を送る（1件につき1回だけ）
+exports.lessonReminder = onSchedule(
+  { schedule: "every 5 minutes", timeZone: "Asia/Tokyo" },
+  async () => {
+    const db = admin.firestore();
+    const now = new Date();
+    const todayStr = now.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }); // YYYY-MM-DD
+    const snap = await db.collectionGroup("schedule")
+      .where("date", "==", todayStr)
+      .where("reminded", "==", false)
+      .get();
+    await Promise.all(snap.docs.map(async (d) => {
+      const data = d.data();
+      if (!data.time) return;
+      const lessonAt = new Date(`${data.date}T${data.time}:00+09:00`);
+      const diffMin = (lessonAt.getTime() - now.getTime()) / 60000;
+      if (diffMin > 0 && diffMin <= 60) {
+        const sid = d.ref.parent.parent.id;
+        await notify(sid, "まもなく指導開始です（1時間前）", `${data.time} 〜${data.memo ? " " + data.memo : ""}`, "tutor");
+        await d.ref.update({ reminded: true });
+      }
+    }));
+  }
+);

@@ -7,6 +7,14 @@
         { "fieldPath": "dueDate", "order": "ASCENDING" },
         { "fieldPath": "done", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "schedule",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "date", "order": "ASCENDING" },
+        { "fieldPath": "reminded", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

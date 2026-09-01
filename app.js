@@ -8,7 +8,7 @@ import {
   getFirestore, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
   query, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { SUBJECTS, subjectLabel, subjectColor, subjectOptionsHTML } from "./subjects.js";
+import { SUBJECTS, subjectLabel, subjectColor, subjectOptionsHTML, subjectPickerHTML } from "./subjects.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -47,10 +47,15 @@ const off = () => { unsubs.forEach(u => u()); unsubs = []; };
   $(id).innerHTML = subjectOptionsHTML();
 });
 $("h-subject").insertAdjacentHTML("afterbegin", `<option value="">なし</option>`);
-$("p-good").innerHTML = subjectOptionsHTML();
-$("p-weak").innerHTML = subjectOptionsHTML();
+$("p-good").innerHTML = subjectPickerHTML();
+$("p-weak").innerHTML = subjectPickerHTML();
 $("h-type").addEventListener("change", () => {
-  $("h-page-range").hidden = $("h-type").value !== "page";
+  const isCount = $("h-type").value === "count";
+  $("h-count-range").hidden = !isCount;
+  $("h-count-numbers").hidden = !isCount;
+});
+$("h-unit-select").addEventListener("change", () => {
+  $("h-unit-custom-wrap").hidden = $("h-unit-select").value !== "custom";
 });
 
 /* ---------- 起動 ---------- */
@@ -100,12 +105,14 @@ function start(r, code) {
   document.querySelectorAll(".tutor-only").forEach(el => { el.hidden = role !== "tutor"; });
   document.querySelectorAll(".student-hide").forEach(el => { el.hidden = role === "student"; });
   document.querySelectorAll(".parent-hide").forEach(el => { el.hidden = role === "parent"; });
+  document.querySelectorAll(".student-only-form").forEach(el => { el.hidden = role !== "student"; });
   show("app-view"); $("topbar").hidden = false;
   refreshStudentUI();
   renderStudentAdmin();
   watchAll();
   updateNotifBar();
   registerPushToken().catch(() => {});
+  scrollTodayIntoView("calendar");
 }
 $("pass-ok").addEventListener("click", () => {
   const code = $("pass-input").value.trim();
@@ -128,15 +135,21 @@ function refreshStudentUI() {
   sel.value = currentSid ?? "";
   $("student-picker").hidden = !(role === "tutor" && list.length > 1);
   if (!currentSid && list.length) { currentSid = list[0].id; sel.value = currentSid; watchAll(); }
-  if (!list.length) $("hw-list").innerHTML = `<div class="empty">まず「設定」タブで生徒を追加してください。</div>`;
+  if (!list.length) $("calendar-feed").innerHTML = `<div class="empty">まず「設定」タブで生徒を追加してください。</div>`;
 }
 $("student-select").addEventListener("change", e => { currentSid = e.target.value; watchAll(); });
 
 /* ---------- タブ ---------- */
+function scrollTodayIntoView(calendarId) {
+  requestAnimationFrame(() => {
+    $(calendarId).querySelector(".cal-cell.today")?.scrollIntoView({ block: "center", behavior: "smooth" });
+  });
+}
 document.querySelectorAll(".tabs button").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("active", b === btn));
     document.querySelectorAll(".tab").forEach(s => { s.hidden = s.id !== "tab-" + btn.dataset.tab; });
+    if (btn.dataset.tab === "calendar") scrollTodayIntoView("calendar");
   });
 });
 
@@ -150,13 +163,13 @@ const sub = (name, order, dir, apply) => {
 function watchAll() {
   off();
   if (!currentSid) return;
-  sub("lessons", "date", "desc", rows => { lessons = rows; renderLessons(); renderCalendars(); });
-  sub("homework", "dueDate", "asc", rows => { homework = rows; renderHomework(); renderCalendars(); });
+  sub("lessons", "date", "desc", rows => { lessons = rows; renderCalendarFeed(); renderCalendars(); });
+  sub("homework", "dueDate", "asc", rows => { homework = rows; renderHomework(); renderCalendarFeed(); renderCalendars(); });
   sub("tests", "date", "asc", rows => { tests = rows; renderTests(); });
   sub("messages", "createdAt", "asc", renderMessages);
   sub("books", "createdAt", "desc", rows => { books = rows; renderBooks(); refreshBookSelect(); });
   sub("studyLogs", "date", "desc", rows => { studyLogs = rows; renderStudy(); });
-  sub("schedule", "date", "asc", rows => { schedule = rows; renderSchedule(); renderCalendars(); });
+  sub("schedule", "date", "asc", rows => { schedule = rows; renderCalendarFeed(); renderCalendars(); });
   sub("tuition", "createdAt", "desc", rows => { tuition = rows; renderTuition(); });
   unsubs.push(onSnapshot(collection(db, "students", currentSid, "examMeta"), s => {
     examMeta = Object.fromEntries(s.docs.map(d => [d.id, d.data()]));
@@ -165,25 +178,28 @@ function watchAll() {
   loadProfile();
 }
 
-/* ---------- 宿題（ページ制 / TF制） ---------- */
-function hwPages(r) {
-  const from = Number(r.pageFrom) || 1, to = Number(r.pageTo) || from;
+/* ---------- 宿題（単位ごとにチェック / 完了・未完了） ---------- */
+function hwCounts(r) {
+  const from = Number(r.countFrom) || 1, to = Number(r.countTo) || from;
   return Array.from({ length: Math.max(1, to - from + 1) }, (_, i) => from + i);
 }
 function hwProgress(r) {
-  if (r.type === "page") {
-    const pages = hwPages(r);
-    const cleared = (r.clearedPages ?? []).length;
-    return pages.length ? Math.round(cleared / pages.length * 100) : 0;
+  if (r.type === "count") {
+    const counts = hwCounts(r);
+    const cleared = (r.clearedCounts ?? []).length;
+    return counts.length ? Math.round(cleared / counts.length * 100) : 0;
   }
   return r.done ? 100 : 0;
 }
 function hwBadge(r) {
   const pct = hwProgress(r);
-  if (pct >= 100) return `<span class="badge done">達成 100%</span>`;
   const left = (new Date(r.dueDate) - new Date(today())) / 86400000;
   const soonTag = left < 0 ? `<span class="badge late">期限切れ</span>` : left <= 2 ? `<span class="badge soon">まもなく期限</span>` : "";
-  return `<span class="badge">${r.type === "page" ? `達成 ${pct}%` : "未提出"}</span>${soonTag}`;
+  if (r.type === "count") {
+    const cleared = (r.clearedCounts ?? []).length, total = hwCounts(r).length;
+    return `<span class="badge${pct >= 100 ? " done" : ""}">${cleared}/${total}${esc(r.unit ?? "")}</span>${pct >= 100 ? "" : soonTag}`;
+  }
+  return `<span class="badge${pct >= 100 ? " done" : ""}">${pct >= 100 ? "達成 100%" : "未提出"}</span>${pct >= 100 ? "" : soonTag}`;
 }
 function renderHomework() {
   const rows = homework;
@@ -207,21 +223,22 @@ function renderHomework() {
       <span class="subject-bar-pct">${d}/${list.length}</span>
     </div>`;
   }).join("");
-
-  $("hw-list").innerHTML = rows.length ? rows.map(r => `
+}
+function homeworkItemHTML(r) {
+  return `
     <article class="item">
       <div class="meta"><span class="date">期限 ${fmtDate(r.dueDate)}</span>${hwBadge(r)}</div>
       <h4>${esc(r.title)} ${subjectChip(r.subject)}</h4>
       ${r.detail ? `<p>${esc(r.detail)}</p>` : ""}
       ${r.question ? `<p class="label">生徒からの質問</p><p>${esc(r.question)}</p>` : ""}
-      ${r.type === "page" ? `
-        <div class="page-grid">${hwPages(r).map(p => {
-          const on = (r.clearedPages ?? []).includes(p);
-          return role === "parent"
+      ${r.type === "count" ? `
+        <div class="page-grid">${hwCounts(r).map(p => {
+          const on = (r.clearedCounts ?? []).includes(p);
+          return role === "parent" || role === "tutor"
             ? `<span class="page-chip${on ? " on" : ""} readonly">${p}</span>`
-            : `<button type="button" class="page-chip${on ? " on" : ""}" data-page-toggle="${esc(r.id)}" data-page="${p}">${p}</button>`;
+            : `<button type="button" class="page-chip${on ? " on" : ""}" data-count-toggle="${esc(r.id)}" data-count="${p}">${p}</button>`;
         }).join("")}</div>
-      ` : role === "parent" ? "" : `
+      ` : role === "parent" || role === "tutor" ? "" : `
         <div class="actions">
           <button class="small outline" data-toggle="${esc(r.id)}" data-done="${r.done ? 1 : 0}">
             ${r.done ? "未完了に戻す" : "完了にする"}</button>
@@ -234,28 +251,8 @@ function renderHomework() {
         ${role === "tutor" ? `<button class="small outline danger" data-del="${esc(r.id)}">削除</button>` : ""}
       </div>
       <input type="file" accept="image/*" capture="environment" class="hidden-file" data-photo-input="${esc(r.id)}">
-    </article>`).join("") : `<div class="empty">出されている宿題はありません。</div>`;
+    </article>`;
 }
-$("hw-list").addEventListener("click", async (e) => {
-  const t = e.target.closest("[data-toggle]"), a = e.target.closest("[data-ask]"), d = e.target.closest("[data-del]");
-  const p = e.target.closest("[data-photo]"), pg = e.target.closest("[data-page-toggle]");
-  const ref = (id) => doc(db, "students", currentSid, "homework", id);
-  if (t) await updateDoc(ref(t.dataset.toggle), { done: t.dataset.done !== "1", doneAt: serverTimestamp() });
-  else if (a) { const q = prompt("先生への質問を入力してください"); if (q) await updateDoc(ref(a.dataset.ask), { question: q }); }
-  else if (d && confirm("この宿題を削除しますか？")) await deleteDoc(ref(d.dataset.del));
-  else if (p) document.querySelector(`[data-photo-input="${p.dataset.photo}"]`).click();
-  else if (pg) {
-    const page = Number(pg.dataset.page);
-    const op = pg.classList.contains("on") ? arrayRemove(page) : arrayUnion(page);
-    await updateDoc(ref(pg.dataset.pageToggle), { clearedPages: op });
-  }
-});
-$("hw-list").addEventListener("change", async (e) => {
-  const input = e.target.closest("[data-photo-input]");
-  if (!input || !input.files[0]) return;
-  const photo = await fileToDataUrl(input.files[0]).catch(() => "");
-  if (photo) await updateDoc(doc(db, "students", currentSid, "homework", input.dataset.photoInput), { photo });
-});
 $("hw-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const type = $("h-type").value;
@@ -264,16 +261,20 @@ $("hw-form").addEventListener("submit", async (e) => {
     detail: $("h-detail").value.trim(), dueDate: $("h-due").value,
     question: "", createdAt: serverTimestamp()
   };
-  if (type === "page") {
-    base.pageFrom = Number($("h-page-from").value) || 1;
-    base.pageTo = Number($("h-page-to").value) || base.pageFrom;
-    base.clearedPages = [];
+  if (type === "count") {
+    const unit = $("h-unit-select").value === "custom" ? $("h-unit-custom").value.trim() : $("h-unit-select").value;
+    base.unit = unit || "回";
+    base.countFrom = Number($("h-count-from").value) || 1;
+    base.countTo = Number($("h-count-to").value) || base.countFrom;
+    base.clearedCounts = [];
   } else {
     base.done = false;
   }
   await addDoc(collection(db, "students", currentSid, "homework"), base);
   e.target.reset();
-  $("h-page-range").hidden = true;
+  $("h-count-range").hidden = true;
+  $("h-count-numbers").hidden = true;
+  $("h-unit-custom-wrap").hidden = true;
 });
 
 /* ---------- 円形の達成率リング ---------- */
@@ -287,14 +288,14 @@ function drawRing(id, pct) {
 }
 
 /* ---------- 指導記録 ---------- */
-function renderLessons() {
-  $("lesson-list").innerHTML = lessons.length ? lessons.map(r => `
+function lessonItemHTML(r) {
+  return `
     <article class="item">
-      <div class="meta"><span class="date">${fmtDate(r.date)}</span>${subjectChip(r.subject)}</div>
+      <div class="meta"><span class="date">指導記録</span>${subjectChip(r.subject)}</div>
       ${r.range ? `<h4>${esc(r.range)}</h4>` : ""}
       ${r.content ? `<p class="label">授業内容</p><p>${esc(r.content)}</p>` : ""}
       ${r.notes ? `<p class="label">所感</p><p>${esc(r.notes)}</p>` : ""}
-    </article>`).join("") : `<div class="empty">まだ指導記録がありません。</div>`;
+    </article>`;
 }
 $("lesson-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -307,27 +308,64 @@ $("lesson-form").addEventListener("submit", async (e) => {
 });
 
 /* ---------- 指導予定（Zoom URL付き） ---------- */
-function renderSchedule() {
-  const upcoming = schedule.filter(s => s.date >= today());
-  $("schedule-list").innerHTML = upcoming.length ? upcoming.map(s => `
+function scheduleItemHTML(s) {
+  return `
     <article class="item">
-      <div class="meta"><span class="date">${fmtDate(s.date)}${s.time ? " " + s.time : ""}</span>
+      <div class="meta"><span class="date">指導予定${s.time ? " " + s.time : ""}</span>
         ${role === "tutor" ? `<button class="small outline danger" data-sc-del="${esc(s.id)}">削除</button>` : ""}</div>
       ${s.memo ? `<p>${esc(s.memo)}</p>` : ""}
       ${s.zoomUrl ? `<p><a href="${esc(s.zoomUrl)}" target="_blank" rel="noopener" class="zoom-link">Zoomで参加 →</a></p>` : ""}
-    </article>`).join("") : `<div class="empty">次回の指導予定はまだ登録されていません。</div>`;
+    </article>`;
 }
-$("schedule-list").addEventListener("click", async (e) => {
-  const d = e.target.closest("[data-sc-del]");
-  if (d && confirm("この指導予定を削除しますか？")) await deleteDoc(doc(db, "students", currentSid, "schedule", d.dataset.scDel));
-});
 $("schedule-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   await addDoc(collection(db, "students", currentSid, "schedule"), {
     date: $("sc-date").value, time: $("sc-time").value, zoomUrl: $("sc-zoom").value.trim(),
-    memo: $("sc-memo").value.trim(), createdAt: serverTimestamp()
+    memo: $("sc-memo").value.trim(), reminded: false, createdAt: serverTimestamp()
   });
   e.target.reset();
+});
+
+/* ---------- カレンダー下：日付別フィード（宿題・指導予定・指導記録を統合、新しい日付が上） ---------- */
+function renderCalendarFeed() {
+  const dateMap = {};
+  const ensure = (date) => (dateMap[date] ??= { hw: [], lesson: [], sched: [] });
+  homework.forEach(h => { if (h.dueDate) ensure(h.dueDate).hw.push(h); });
+  lessons.forEach(l => { if (l.date) ensure(l.date).lesson.push(l); });
+  schedule.forEach(s => { if (s.date) ensure(s.date).sched.push(s); });
+  const dates = Object.keys(dateMap).sort((a, b) => b.localeCompare(a));
+  $("calendar-feed").innerHTML = dates.length ? dates.map(date => {
+    const { hw, lesson, sched } = dateMap[date];
+    return `<div class="feed-date-group">
+      <h4 class="feed-date-heading">${fmtDateLong(date)}</h4>
+      ${sched.map(scheduleItemHTML).join("")}
+      ${lesson.map(lessonItemHTML).join("")}
+      ${hw.map(homeworkItemHTML).join("")}
+    </div>`;
+  }).join("") : `<div class="empty">まだ予定・記録がありません。</div>`;
+}
+$("calendar-feed").addEventListener("click", async (e) => {
+  const t = e.target.closest("[data-toggle]"), a = e.target.closest("[data-ask]"), d = e.target.closest("[data-del]");
+  const p = e.target.closest("[data-photo]"), pg = e.target.closest("[data-count-toggle]");
+  const scd = e.target.closest("[data-sc-del]");
+  const hwRef = (id) => doc(db, "students", currentSid, "homework", id);
+  if (t) await updateDoc(hwRef(t.dataset.toggle), { done: t.dataset.done !== "1", doneAt: serverTimestamp() });
+  else if (a) { const q = prompt("先生への質問を入力してください"); if (q) await updateDoc(hwRef(a.dataset.ask), { question: q }); }
+  else if (d && confirm("この宿題を削除しますか？")) await deleteDoc(hwRef(d.dataset.del));
+  else if (p) document.querySelector(`[data-photo-input="${p.dataset.photo}"]`).click();
+  else if (pg) {
+    const count = Number(pg.dataset.count);
+    const op = pg.classList.contains("on") ? arrayRemove(count) : arrayUnion(count);
+    await updateDoc(hwRef(pg.dataset.countToggle), { clearedCounts: op });
+  } else if (scd && confirm("この指導予定を削除しますか？")) {
+    await deleteDoc(doc(db, "students", currentSid, "schedule", scd.dataset.scDel));
+  }
+});
+$("calendar-feed").addEventListener("change", async (e) => {
+  const input = e.target.closest("[data-photo-input]");
+  if (!input || !input.files[0]) return;
+  const photo = await fileToDataUrl(input.files[0]).catch(() => "");
+  if (photo) await updateDoc(doc(db, "students", currentSid, "homework", input.dataset.photoInput), { photo });
 });
 
 /* ---------- 月謝 ---------- */
@@ -378,8 +416,8 @@ $("tuition-list").addEventListener("click", async (e) => {
   else if (d && confirm("この月謝の記録を削除しますか？")) await deleteDoc(doc(db, "students", currentSid, "tuition", d.dataset.tuitionDel));
 });
 
-/* ---------- カレンダー（宿題タブ・指導記録タブ共通） ---------- */
-const calState = { hw: new Date(), lesson: new Date() };
+/* ---------- カレンダー（宿題・指導記録・指導予定を統合） ---------- */
+const calState = { main: new Date() };
 document.querySelectorAll("[data-cal]").forEach(btn => {
   btn.addEventListener("click", () => {
     const key = btn.dataset.cal;
@@ -400,10 +438,12 @@ function buildCalendar(baseDate, marksByDate) {
     if (!d) return `<div class="cal-cell empty"></div>`;
     const iso = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const marks = marksByDate[iso] ?? [];
+    const shown = marks.slice(0, 2);
+    const extra = marks.length - shown.length;
     const isToday = iso === today();
     return `<div class="cal-cell${isToday ? " today" : ""}" data-date="${iso}">
       <span class="cal-day">${d}</span>
-      <span class="cal-pills">${marks.map(k => `<span class="pill ${k.kind}">${esc(k.text)}</span>`).join("")}</span>
+      <span class="cal-pills">${shown.map(k => `<span class="pill ${k.kind}">${esc(k.text)}</span>`).join("")}${extra > 0 ? `<span class="pill more">+${extra}</span>` : ""}</span>
     </div>`;
   }).join("");
   return html;
@@ -414,19 +454,22 @@ function renderCalendars() {
   homework.forEach(h => add(h.dueDate, "due", "期限"));
   lessons.forEach(l => add(l.date, "lesson", "指導日"));
   schedule.forEach(s => add(s.date, "lesson", s.time || "指導日"));
+  if (role === "tutor") tuition.forEach(t => (t.dates ?? []).forEach(d => add(d, "tuition", "月謝")));
   const marks = {};
   Object.entries(raw).forEach(([date, list]) => {
     const dueCount = list.filter(k => k.kind === "due").length;
+    const tuitionCount = list.filter(k => k.kind === "tuition").length;
     const merged = list.filter(k => k.kind === "lesson");
     if (dueCount) merged.unshift({ kind: "due", text: dueCount > 1 ? `期限×${dueCount}` : "期限" });
+    if (tuitionCount) merged.push({ kind: "tuition", text: "月謝" });
     marks[date] = merged;
   });
-  $("hw-calendar").innerHTML = buildCalendar(calState.hw, marks);
-  $("lesson-calendar").innerHTML = buildCalendar(calState.lesson, marks);
+  $("calendar").innerHTML = buildCalendar(calState.main, marks);
   const label = (d) => `${d.getFullYear()}年 ${d.getMonth() + 1}月`;
-  $("hw-cal-title").textContent = label(calState.hw);
-  $("lesson-cal-title").textContent = label(calState.lesson);
+  $("cal-title").textContent = label(calState.main);
+  if (!initialScrollDone) { initialScrollDone = true; scrollTodayIntoView("calendar"); }
 }
+let initialScrollDone = false;
 
 /* ---------- 日付の詳細モーダル ---------- */
 const weekdayJP = ["日", "月", "火", "水", "木", "金", "土"];
@@ -478,8 +521,7 @@ function handleCalClick(e) {
   const cell = e.target.closest("[data-date]");
   if (cell) openDayModal(cell.dataset.date);
 }
-$("hw-calendar").addEventListener("click", handleCalClick);
-$("lesson-calendar").addEventListener("click", handleCalClick);
+$("calendar").addEventListener("click", handleCalClick);
 $("day-modal-close").addEventListener("click", () => { $("day-modal").hidden = true; });
 $("day-modal").addEventListener("click", (e) => { if (e.target.id === "day-modal") $("day-modal").hidden = true; });
 
@@ -496,7 +538,7 @@ function renderBooks() {
       <div class="book-body">
         <h4>${esc(b.name)}</h4>
         ${subjectChip(b.subject)}
-        ${role !== "parent" ? `<button class="small outline danger" data-book-del="${esc(b.id)}">削除</button>` : ""}
+        ${role === "student" ? `<button class="small outline danger" data-book-del="${esc(b.id)}">削除</button>` : ""}
       </div>
     </article>`).join("") : `<div class="empty">まだ参考書が登録されていません。</div>`;
 }
@@ -565,7 +607,7 @@ function renderStudy() {
       <details><summary class="hint" style="cursor:pointer">記録一覧（${r.logs.length}件）</summary>
         <div class="list" style="margin-top:.6rem">
           ${r.logs.map(l => `<div class="study-row"><span>${fmtDate(l.date)}</span><span>${l.minutes}分</span>
-            ${role === "tutor" ? "" : `<button class="small outline danger" data-study-del="${esc(l.id)}">削除</button>`}</div>`).join("")}
+            ${role === "student" ? `<button class="small outline danger" data-study-del="${esc(l.id)}">削除</button>` : ""}</div>`).join("")}
         </div>
       </details>
     </article>`).join("") : `<div class="empty">まだ勉強時間の記録がありません。</div>`;
@@ -585,27 +627,44 @@ $("study-form").addEventListener("submit", async (e) => {
 });
 
 /* ---------- 成績（模試） ---------- */
+const JUDGMENT_RANKS = ["A", "B", "C", "D", "E"];
 function renderTests() {
   const byExam = {};
   tests.forEach(t => { (byExam[t.examName || "模試"] ??= { date: t.date, rows: [] }).rows.push(t); });
   const exams = Object.entries(byExam).sort((a, b) => b[1].date.localeCompare(a[1].date));
+  const canEdit = role === "student";
   $("test-list").innerHTML = exams.length ? exams.map(([name, ex]) => {
     const totalScore = ex.rows.reduce((s, r) => s + Number(r.score), 0);
     const totalMax = ex.rows.reduce((s, r) => s + Number(r.max), 0);
     const slug = examSlug(ex.date, name);
     const meta = examMeta[slug] ?? {};
+    const judgments = meta.judgments ?? [];
     return `
     <article class="item">
       <div class="meta"><span class="date">${fmtDate(ex.date)}</span><span class="label">${esc(name)}</span></div>
       <p class="score">${totalScore}<small> / ${totalMax}（${Math.round(totalScore / totalMax * 100)}%）合計</small></p>
       <p class="hint left rank-row">順位：<span data-rank-view>${esc(meta.rank || "未登録")}</span>
-        <button type="button" class="small outline" data-rank-edit="${slug}">編集</button></p>
+        ${canEdit ? `<button type="button" class="small outline" data-rank-edit="${slug}">編集</button>` : ""}</p>
       <div class="test-rows">
         ${ex.rows.map(r => `<div class="test-row">
           ${subjectChip(r.subject)}
-          <span class="score">${r.score}<small> / ${r.max}（${Math.round(r.score / r.max * 100)}%）</small></span>
-          ${role !== "tutor" ? `<button class="small outline danger" data-test-del="${esc(r.id)}">削除</button>` : ""}
+          <span class="score">${r.score}<small> / ${r.max}（${Math.round(r.score / r.max * 100)}%）</small>${r.deviation != null ? `<small> 偏差値${r.deviation}</small>` : ""}</span>
+          ${role === "student" ? `<button class="small outline danger" data-test-del="${esc(r.id)}">削除</button>` : ""}
         </div>`).join("")}
+      </div>
+      <div class="judgment-block">
+        <p class="label">志望校判定</p>
+        ${judgments.length ? judgments.map((j, i) => `<div class="judgment-row">
+          <span class="badge">${esc(j.school)}</span><span class="judgment-rank">${esc(j.rank)}判定</span>
+          ${canEdit ? `<button type="button" class="small outline danger" data-judgment-del="${slug}" data-idx="${i}">削除</button>` : ""}
+        </div>`).join("") : `<p class="hint left">まだ登録がありません。</p>`}
+        ${canEdit ? `<div class="judgment-add">
+          <select data-judgment-school="${slug}">
+            ${targetSchools.length ? targetSchools.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join("") : `<option value="">（設定タブで志望校を登録）</option>`}
+          </select>
+          <select data-judgment-rank="${slug}">${JUDGMENT_RANKS.map(r => `<option value="${r}">${r}判定</option>`).join("")}</select>
+          <button type="button" class="small outline" data-judgment-add="${slug}">追加</button>
+        </div>` : ""}
       </div>
     </article>`;
   }).join("") : `<div class="empty">まだ模試結果がありません。</div>`;
@@ -614,11 +673,24 @@ function renderTests() {
 $("test-list").addEventListener("click", async (e) => {
   const d = e.target.closest("[data-test-del]");
   const r = e.target.closest("[data-rank-edit]");
+  const ja = e.target.closest("[data-judgment-add]");
+  const jd = e.target.closest("[data-judgment-del]");
   if (d && confirm("削除しますか？")) await deleteDoc(doc(db, "students", currentSid, "tests", d.dataset.testDel));
   else if (r) {
     const cur = r.parentElement.querySelector("[data-rank-view]").textContent;
     const val = prompt("順位を入力してください（例：12/120）", cur === "未登録" ? "" : cur);
-    if (val !== null) await setDoc(doc(db, "students", currentSid, "examMeta", r.dataset.rankEdit), { rank: val.trim() });
+    if (val !== null) await setDoc(doc(db, "students", currentSid, "examMeta", r.dataset.rankEdit), { rank: val.trim() }, { merge: true });
+  } else if (ja) {
+    const slug = ja.dataset.judgmentAdd;
+    const school = document.querySelector(`[data-judgment-school="${slug}"]`).value;
+    const rank = document.querySelector(`[data-judgment-rank="${slug}"]`).value;
+    if (!school) return alert("設定タブで志望校を登録してください。");
+    const cur = (examMeta[slug]?.judgments) ?? [];
+    await setDoc(doc(db, "students", currentSid, "examMeta", slug), { judgments: [...cur, { school, rank }] }, { merge: true });
+  } else if (jd) {
+    const slug = jd.dataset.judgmentDel, idx = Number(jd.dataset.idx);
+    const cur = (examMeta[slug]?.judgments) ?? [];
+    await setDoc(doc(db, "students", currentSid, "examMeta", slug), { judgments: cur.filter((_, i) => i !== idx) }, { merge: true });
   }
 });
 function drawChart(rows) {
@@ -645,11 +717,13 @@ function drawChart(rows) {
 }
 $("test-form").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const deviation = $("t-deviation").value.trim();
   await addDoc(collection(db, "students", currentSid, "tests"), {
     examName: $("t-exam").value.trim(), date: $("t-date").value, subject: $("t-subject").value,
-    score: Number($("t-score").value), max: Number($("t-max").value), createdAt: serverTimestamp()
+    score: Number($("t-score").value), max: Number($("t-max").value),
+    deviation: deviation ? Number(deviation) : null, createdAt: serverTimestamp()
   });
-  $("t-score").value = ""; $("t-subject").selectedIndex = 0;
+  $("t-score").value = ""; $("t-deviation").value = ""; $("t-subject").selectedIndex = 0;
 });
 
 /* ---------- 連絡（役割別の既読つき） ---------- */
@@ -667,7 +741,7 @@ function renderMessages(rows) {
         <span>${r.createdAt?.toDate ? r.createdAt.toDate().toLocaleString("ja-JP") : ""}</span>
       </div>
       <p>${esc(r.text)}</p>
-      <p class="hint left msg-read">${readLine}</p>
+      ${r.authorRole === role ? `<p class="hint left msg-read">${readLine}</p>` : ""}
     </article>`;
   }).join("") : `<div class="empty">まだメッセージはありません。</div>`;
   $("msg-list").lastElementChild?.scrollIntoView({ block: "nearest" });
@@ -689,10 +763,13 @@ $("msg-form").addEventListener("submit", async (e) => {
 });
 
 /* ---------- 設定：プロフィール ---------- */
+// 名前・誕生日：生徒とチューターが編集可、保護者は閲覧のみ
+// 志望校・得意/苦手科目：生徒のみ編集可、チューター・保護者は閲覧のみ
 let targetSchools = [];
 function renderTargetChips() {
+  const editable = role === "student";
   $("p-target-chips").innerHTML = targetSchools.map((t, i) =>
-    `<span class="tuition-chip">${esc(t)}<button type="button" data-remove-target="${i}">×</button></span>`
+    `<span class="tuition-chip">${esc(t)}${editable ? `<button type="button" data-remove-target="${i}">×</button>` : ""}</span>`
   ).join("");
 }
 $("p-target-add").addEventListener("click", () => {
@@ -711,27 +788,51 @@ $("p-target-chips").addEventListener("click", (e) => {
 async function loadProfile() {
   const snap = await getDoc(doc(db, "students", currentSid));
   const d = snap.data() ?? {};
+  const nameEditable = role !== "parent";
+  const targetSubjectsEditable = role === "student";
+
   $("p-name").value = d.name ?? "";
-  $("p-name").disabled = role === "parent";
+  $("p-name").disabled = !nameEditable;
   $("p-birthday").value = d.birthday ?? "";
+  $("p-birthday").disabled = !targetSubjectsEditable;
+
   targetSchools = Array.isArray(d.targetSchools) ? d.targetSchools.slice(0, 10) : (d.targetSchool ? [d.targetSchool] : []);
   renderTargetChips();
+  $("p-target-input").hidden = !targetSubjectsEditable;
+  $("p-target-add").hidden = !targetSubjectsEditable;
+
   setMultiSelect("p-good", d.goodSubjects ?? []);
   setMultiSelect("p-weak", d.weakSubjects ?? []);
+  setPickerDisabled("p-good", !targetSubjectsEditable);
+  setPickerDisabled("p-weak", !targetSubjectsEditable);
+
+  $("p-save-btn").hidden = !(nameEditable || targetSubjectsEditable);
+  $("p-save-btn").classList.remove("dirty");
 }
 function setMultiSelect(id, values) {
-  [...$(id).options].forEach(o => { o.selected = values.includes(o.value); });
+  $(id).querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = values.includes(cb.value); });
 }
-function getMultiSelect(id) { return [...$(id).selectedOptions].map(o => o.value); }
+function getMultiSelect(id) { return [...$(id).querySelectorAll('input[type="checkbox"]:checked')].map(cb => cb.value); }
+function setPickerDisabled(id, disabled) {
+  $(id).querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.disabled = disabled; });
+}
+$("profile-form").addEventListener("input", () => $("p-save-btn").classList.add("dirty"));
+$("profile-form").addEventListener("change", () => $("p-save-btn").classList.add("dirty"));
+$("p-target-chips").addEventListener("click", () => $("p-save-btn").classList.add("dirty"));
 $("profile-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const data = {
-    birthday: $("p-birthday").value,
-    targetSchools: targetSchools.slice(0, 10),
-    goodSubjects: getMultiSelect("p-good"), weakSubjects: getMultiSelect("p-weak")
-  };
-  if (role !== "parent") data.name = $("p-name").value.trim();
+  const data = {};
+  if (role !== "parent") {
+    data.name = $("p-name").value.trim();
+  }
+  if (role === "student") {
+    data.birthday = $("p-birthday").value;
+    data.targetSchools = targetSchools.slice(0, 10);
+    data.goodSubjects = getMultiSelect("p-good");
+    data.weakSubjects = getMultiSelect("p-weak");
+  }
   await updateDoc(doc(db, "students", currentSid), data);
+  $("p-save-btn").classList.remove("dirty");
   alert("保存しました。");
 });
 

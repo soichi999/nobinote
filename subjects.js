@@ -86,3 +86,16 @@ export function subjectOptionsHTML(selected = "") {
     return `<optgroup label="${g.label}">${opts}</optgroup>`;
   }).join("");
 }
+
+// 得意/苦手科目など：大項目ごとに折りたたみ、チェックボックスで複数選択できるピッカー
+export function subjectPickerHTML() {
+  return SUBJECT_GROUPS.map(g => {
+    const items = SUBJECTS.filter(s => s.group === g.id);
+    return `<details class="subj-group">
+      <summary>${g.label}</summary>
+      <div class="subj-group-body">
+        ${items.map(s => `<label class="subj-check"><input type="checkbox" value="${s.id}"><span>${s.label}</span></label>`).join("")}
+      </div>
+    </details>`;
+  }).join("");
+}

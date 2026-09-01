@@ -49,6 +49,9 @@ button{font:inherit;border:0;border-radius:9px;padding:.6rem 1.3rem;cursor:point
   transition:filter .15s,background .15s}
 button.primary{background:var(--blue);color:#fff;font-weight:700;letter-spacing:.04em;
   box-shadow:0 4px 12px rgba(26,95,208,.25)}
+.save-btn{background:var(--blue-line);color:var(--muted);font-weight:700;letter-spacing:.04em;
+  box-shadow:none;transition:background .15s,color .15s,box-shadow .15s}
+.save-btn.dirty{background:var(--blue);color:#fff;box-shadow:0 4px 12px rgba(26,95,208,.25)}
 button.primary:hover{filter:brightness(1.08)}
 button.ghost{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.4)}
 button.ghost:hover{background:rgba(255,255,255,.24)}
@@ -157,9 +160,12 @@ button.text:hover{color:var(--blue)}
 .pill{display:inline-block;width:100%;max-width:3.2rem;border-radius:99px;font-size:.55rem;
   font-weight:700;padding:.1rem .2rem;line-height:1.3;overflow:hidden;text-overflow:ellipsis;
   white-space:nowrap;text-align:center}
-.pill.due{background:#fdf0da;color:var(--warn)}
-.pill.lesson{background:var(--blue-soft);color:var(--blue)}
-.cal-legend{display:flex;gap:.6rem;align-items:center;margin-top:.8rem}
+.pill.due{background:var(--warn);color:#fff6e8}
+.pill.lesson{background:var(--blue);color:#eaf2ff}
+.pill.tuition{background:var(--ok);color:#e6f8f1}
+.cal-legend{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;
+  margin-top:1.1rem;padding-top:.9rem;border-top:1px solid var(--line)}
+.pill.more{background:var(--bg);color:var(--muted);border:1px solid var(--blue-line)}
 .cal-legend .pill{width:auto;max-width:none;padding:.15rem .7rem;font-size:.75rem}
 
 /* ---- 日付詳細モーダル ---- */
@@ -168,6 +174,21 @@ button.text:hover{color:var(--blue)}
 .modal-panel{background:var(--card);border-radius:16px;max-width:480px;width:100%;
   max-height:80vh;overflow-y:auto;padding:1.3rem;box-shadow:0 20px 60px rgba(6,24,54,.35)}
 .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+
+/* ---- 科目ピッカー（折りたたみ＋複数選択） ---- */
+.subject-picker{border:1px solid var(--blue-line);border-radius:9px;margin-top:.3rem;
+  background:#fbfdff;max-height:14rem;overflow-y:auto}
+.subj-group{border-bottom:1px solid var(--line)}
+.subj-group:last-child{border-bottom:none}
+.subj-group summary{padding:.55rem .7rem;font-size:.85rem;font-weight:700;color:var(--navy);
+  cursor:pointer;list-style:none;display:flex;align-items:center;gap:.4rem}
+.subj-group summary::before{content:"▸";font-size:.7rem;color:var(--muted);transition:transform .12s}
+.subj-group[open] summary::before{transform:rotate(90deg)}
+.subj-group summary::-webkit-details-marker{display:none}
+.subj-group-body{padding:.2rem .7rem .6rem 1.6rem;display:flex;flex-direction:column;gap:.35rem}
+.subj-check{display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--fg);
+  font-weight:400;margin-bottom:0;cursor:pointer}
+.subj-check input{width:auto;margin:0}
 
 /* ---- 参考書カード ---- */
 .grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem}
@@ -245,3 +266,19 @@ button.text:hover{color:var(--blue)}
   padding-left:.5rem;margin:0 0 .6rem}
 .modal-section .item{margin-bottom:.6rem}
 .modal-section .item:last-child{margin-bottom:0}
+
+/* ---- 志望校判定 ---- */
+.judgment-block{margin-top:.9rem;padding-top:.8rem;border-top:1px dashed var(--blue-line)}
+.judgment-row{display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem;flex-wrap:wrap}
+.judgment-rank{font-weight:800;color:var(--navy);font-size:.9rem}
+.judgment-add{display:flex;gap:.5rem;margin-top:.6rem;flex-wrap:wrap}
+.judgment-add select{width:auto;margin-top:0;flex:1;min-width:120px}
+.judgment-add button{flex:none}
+
+/* ---- カレンダー下：日付別フィード ---- */
+.feed-date-group{margin-bottom:1.4rem}
+.feed-date-group .list{display:flex;flex-direction:column;gap:.7rem}
+.feed-date-heading{font-size:.85rem;color:var(--navy);font-weight:800;margin:0 0 .6rem;
+  padding-bottom:.4rem;border-bottom:2px solid var(--blue-soft);letter-spacing:.02em}
+.feed-date-group .item{margin-bottom:.7rem}
+.feed-date-group .item:last-child{margin-bottom:0}
