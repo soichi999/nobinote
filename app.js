@@ -46,6 +46,7 @@ const off = () => { unsubs.forEach(u => u()); unsubs = []; };
 ["h-subject", "l-subject", "b-subject", "t-subject"].forEach(id => {
   $(id).innerHTML = subjectOptionsHTML();
 });
+$("h-subject").insertAdjacentHTML("afterbegin", `<option value="">なし</option>`);
 $("p-good").innerHTML = subjectOptionsHTML();
 $("p-weak").innerHTML = subjectOptionsHTML();
 $("h-type").addEventListener("change", () => {
@@ -193,7 +194,7 @@ function renderHomework() {
   $("hw-ring-sub").textContent = rows.length ? `${doneCount} / ${rows.length} 件 達成（平均 ${avgPct}%）` : "まだ宿題がありません。";
 
   const bySubject = {};
-  rows.forEach(r => { (bySubject[r.subject] ??= []).push(r); });
+  rows.forEach(r => { if (r.subject) (bySubject[r.subject] ??= []).push(r); });
   const subjectRows = Object.entries(bySubject);
   $("hw-subject-card").hidden = subjectRows.length === 0;
   $("hw-subject-bars").innerHTML = subjectRows.map(([subj, list]) => {
@@ -495,36 +496,10 @@ function renderBooks() {
       <div class="book-body">
         <h4>${esc(b.name)}</h4>
         ${subjectChip(b.subject)}
-        <div class="ring-wrap small"><svg class="book-ring" data-ring="${esc(b.id)}" viewBox="0 0 120 120"></svg>
-          <div class="ring-label small">${b.progress ?? 0}%</div></div>
-        ${role !== "parent" ? `<label class="hint left" style="margin-top:.4rem">進捗を更新
-          <input type="range" min="0" max="100" value="${b.progress ?? 0}" data-progress="${esc(b.id)}"></label>
-        <button class="small outline danger" data-book-del="${esc(b.id)}">削除</button>` : ""}
+        ${role !== "parent" ? `<button class="small outline danger" data-book-del="${esc(b.id)}">削除</button>` : ""}
       </div>
     </article>`).join("") : `<div class="empty">まだ参考書が登録されていません。</div>`;
-  books.forEach(b => drawRing2(`.book-ring[data-ring="${b.id}"]`, b.progress ?? 0));
 }
-function drawRing2(selector, pct) {
-  const svg = document.querySelector(selector); if (!svg) return;
-  const r = 50, c = 2 * Math.PI * r;
-  svg.innerHTML = `
-    <circle cx="60" cy="60" r="${r}" fill="none" stroke="var(--blue-line)" stroke-width="12"/>
-    <circle cx="60" cy="60" r="${r}" fill="none" stroke="var(--blue)" stroke-width="12"
-      stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - pct / 100)}"
-      transform="rotate(-90 60 60)"/>`;
-}
-$("b-progress").addEventListener("input", () => { $("b-progress-out").textContent = $("b-progress").value + "%"; });
-$("book-list").addEventListener("input", async (e) => {
-  const p = e.target.closest("[data-progress]");
-  if (p) {
-    drawRing2(`.book-ring[data-ring="${p.dataset.progress}"]`, Number(p.value));
-    p.closest(".book-card").querySelector(".ring-label").textContent = p.value + "%";
-  }
-});
-$("book-list").addEventListener("change", async (e) => {
-  const p = e.target.closest("[data-progress]");
-  if (p) await updateDoc(doc(db, "students", currentSid, "books", p.dataset.progress), { progress: Number(p.value) });
-});
 $("book-list").addEventListener("click", async (e) => {
   const d = e.target.closest("[data-book-del]");
   if (d && confirm("この参考書を削除しますか？（勉強時間の記録は残ります）"))
@@ -553,9 +528,9 @@ $("book-form").addEventListener("submit", async (e) => {
   const image = file ? await fileToDataUrl(file).catch(() => "") : "";
   await addDoc(collection(db, "students", currentSid, "books"), {
     name: $("b-name").value.trim(), subject: $("b-subject").value, image,
-    progress: Number($("b-progress").value), createdAt: serverTimestamp()
+    createdAt: serverTimestamp()
   });
-  e.target.reset(); $("b-progress-out").textContent = "0%";
+  e.target.reset();
 });
 
 /* ---------- 勉強時間 ---------- */
@@ -714,12 +689,33 @@ $("msg-form").addEventListener("submit", async (e) => {
 });
 
 /* ---------- 設定：プロフィール ---------- */
+let targetSchools = [];
+function renderTargetChips() {
+  $("p-target-chips").innerHTML = targetSchools.map((t, i) =>
+    `<span class="tuition-chip">${esc(t)}<button type="button" data-remove-target="${i}">×</button></span>`
+  ).join("");
+}
+$("p-target-add").addEventListener("click", () => {
+  const v = $("p-target-input").value.trim();
+  if (!v) return;
+  if (targetSchools.length >= 10) return alert("志望校は最大10件までです。");
+  targetSchools.push(v);
+  renderTargetChips();
+  $("p-target-input").value = "";
+});
+$("p-target-input").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("p-target-add").click(); } });
+$("p-target-chips").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-remove-target]");
+  if (b) { targetSchools.splice(Number(b.dataset.removeTarget), 1); renderTargetChips(); }
+});
 async function loadProfile() {
   const snap = await getDoc(doc(db, "students", currentSid));
   const d = snap.data() ?? {};
   $("p-name").value = d.name ?? "";
+  $("p-name").disabled = role === "parent";
   $("p-birthday").value = d.birthday ?? "";
-  $("p-target").value = d.targetSchool ?? "";
+  targetSchools = Array.isArray(d.targetSchools) ? d.targetSchools.slice(0, 10) : (d.targetSchool ? [d.targetSchool] : []);
+  renderTargetChips();
   setMultiSelect("p-good", d.goodSubjects ?? []);
   setMultiSelect("p-weak", d.weakSubjects ?? []);
 }
@@ -729,11 +725,13 @@ function setMultiSelect(id, values) {
 function getMultiSelect(id) { return [...$(id).selectedOptions].map(o => o.value); }
 $("profile-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  await updateDoc(doc(db, "students", currentSid), {
-    name: $("p-name").value.trim(), birthday: $("p-birthday").value,
-    targetSchool: $("p-target").value.trim(),
+  const data = {
+    birthday: $("p-birthday").value,
+    targetSchools: targetSchools.slice(0, 10),
     goodSubjects: getMultiSelect("p-good"), weakSubjects: getMultiSelect("p-weak")
-  });
+  };
+  if (role !== "parent") data.name = $("p-name").value.trim();
+  await updateDoc(doc(db, "students", currentSid), data);
   alert("保存しました。");
 });
 

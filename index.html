@@ -89,8 +89,8 @@
         <label>教科<select id="h-subject"></select></label>
         <label>形式
           <select id="h-type">
-            <option value="tf">完了・未完了（TF制）</option>
-            <option value="page">ページ制（1ページずつチェック）</option>
+            <option value="tf">完了・未完了</option>
+            <option value="page">ページチェック</option>
           </select>
         </label>
       </div>
@@ -168,8 +168,6 @@
         <label>教科<select id="b-subject"></select></label>
       </div>
       <label>画像<input type="file" id="b-image" accept="image/*"></label>
-      <label>進捗（%）<input type="range" id="b-progress" min="0" max="100" value="0">
-        <output id="b-progress-out">0%</output></label>
       <button class="primary">登録</button>
     </form>
     <div id="book-list" class="grid-cards"></div>
@@ -228,7 +226,13 @@
         <label>名前<input type="text" id="p-name"></label>
         <label>誕生日<input type="date" id="p-birthday"></label>
       </div>
-      <label>志望校<input type="text" id="p-target" placeholder="〇〇大学 △△学部"></label>
+      <label>志望校（最大10件）
+        <div class="tuition-date-row">
+          <input type="text" id="p-target-input" placeholder="〇〇大学 △△学部">
+          <button type="button" id="p-target-add" class="small outline">追加</button>
+        </div>
+      </label>
+      <div id="p-target-chips" class="tuition-chips"></div>
       <div class="grid">
         <label>得意科目<select id="p-good" multiple size="6"></select></label>
         <label>苦手科目<select id="p-weak" multiple size="6"></select></label>
