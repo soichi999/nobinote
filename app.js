@@ -97,6 +97,7 @@ function start(r, code) {
   store.set(r === "tutor" ? TUTOR_KEY : FAMILY_KEY, code);
   $("whoami").textContent = ROLE_LABEL[role];
   document.querySelectorAll(".tutor-only").forEach(el => { el.hidden = role !== "tutor"; });
+  document.querySelectorAll(".student-hide").forEach(el => { el.hidden = role === "student"; });
   show("app-view"); $("topbar").hidden = false;
   refreshStudentUI();
   renderStudentAdmin();
@@ -138,7 +139,7 @@ document.querySelectorAll(".tabs button").forEach(btn => {
 });
 
 /* ---------- 購読 ---------- */
-let lessons = [], homework = [], tests = [], books = [], studyLogs = [], schedule = [], examMeta = {};
+let lessons = [], homework = [], tests = [], books = [], studyLogs = [], schedule = [], examMeta = {}, tuition = [];
 const examSlug = (date, name) => encodeURIComponent(`${date}__${name}`).slice(0, 400);
 const sub = (name, order, dir, apply) => {
   const q = query(collection(db, "students", currentSid, name), orderBy(order, dir));
@@ -154,6 +155,7 @@ function watchAll() {
   sub("books", "createdAt", "desc", rows => { books = rows; renderBooks(); refreshBookSelect(); });
   sub("studyLogs", "date", "desc", rows => { studyLogs = rows; renderStudy(); });
   sub("schedule", "date", "asc", rows => { schedule = rows; renderSchedule(); renderCalendars(); });
+  sub("tuition", "createdAt", "desc", rows => { tuition = rows; renderTuition(); });
   unsubs.push(onSnapshot(collection(db, "students", currentSid, "examMeta"), s => {
     examMeta = Object.fromEntries(s.docs.map(d => [d.id, d.data()]));
     renderTests();
@@ -322,6 +324,54 @@ $("schedule-form").addEventListener("submit", async (e) => {
     memo: $("sc-memo").value.trim(), createdAt: serverTimestamp()
   });
   e.target.reset();
+});
+
+/* ---------- 月謝 ---------- */
+const fmtMD = (s) => { if (!s) return ""; const [, m, d] = s.split("-"); return `${Number(m)}/${Number(d)}`; };
+let tuitionDates = [];
+function renderTuitionChips() {
+  $("tu-date-chips").innerHTML = tuitionDates.slice().sort().map(d =>
+    `<span class="tuition-chip">${fmtMD(d)}<button type="button" data-remove-date="${d}">×</button></span>`
+  ).join("");
+}
+$("tu-date-add").addEventListener("click", () => {
+  const v = $("tu-date-input").value;
+  if (v && !tuitionDates.includes(v)) { tuitionDates.push(v); renderTuitionChips(); }
+  $("tu-date-input").value = "";
+});
+$("tu-date-chips").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-remove-date]");
+  if (b) { tuitionDates = tuitionDates.filter(d => d !== b.dataset.removeDate); renderTuitionChips(); }
+});
+$("tuition-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!tuitionDates.length) return alert("対象日を1つ以上追加してください。");
+  await addDoc(collection(db, "students", currentSid, "tuition"), {
+    dates: tuitionDates.slice().sort(), amount: Number($("tu-amount").value),
+    paid: false, createdAt: serverTimestamp()
+  });
+  tuitionDates = []; renderTuitionChips();
+  e.target.reset();
+});
+function renderTuition() {
+  $("tuition-list").innerHTML = tuition.length ? tuition.map(t => `
+    <article class="item">
+      <div class="meta">
+        <span class="date">${(t.dates ?? []).map(fmtMD).join(" ")}</span>
+        <span class="badge ${t.paid ? "done" : ""}">${t.paid ? "T（振込確認済み）" : "未確認"}</span>
+      </div>
+      <p class="score">${Number(t.amount).toLocaleString()}<small>円</small></p>
+      ${role === "tutor" ? `<div class="actions">
+        <button class="small outline" data-tuition-toggle="${esc(t.id)}" data-paid="${t.paid ? 1 : 0}">
+          ${t.paid ? "未確認に戻す" : "振込確認（Tにする）"}</button>
+        <button class="small outline danger" data-tuition-del="${esc(t.id)}">削除</button>
+      </div>` : ""}
+    </article>`).join("") : `<div class="empty">まだ月謝の登録がありません。</div>`;
+}
+$("tuition-list").addEventListener("click", async (e) => {
+  const t = e.target.closest("[data-tuition-toggle]"), d = e.target.closest("[data-tuition-del]");
+  if (t) await updateDoc(doc(db, "students", currentSid, "tuition", t.dataset.tuitionToggle), { paid: t.dataset.paid !== "1" });
+  else if (d && confirm("この月謝の記録を削除しますか？")) await deleteDoc(doc(db, "students", currentSid, "tuition", d.dataset.tuitionDel));
 });
 
 /* ---------- カレンダー（宿題タブ・指導記録タブ共通） ---------- */

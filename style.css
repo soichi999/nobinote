@@ -211,3 +211,14 @@ button.text:hover{color:var(--blue)}
   background:#fff;color:var(--muted);font-weight:700;font-size:.82rem;cursor:pointer;transition:.12s}
 .page-chip:hover{border-color:var(--blue)}
 .page-chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+
+/* ---- 月謝 ---- */
+.tuition-date-row{display:flex;gap:.5rem;margin-top:.3rem}
+.tuition-date-row input{margin-top:0}
+.tuition-date-row button{flex:none}
+.tuition-chips{display:flex;flex-wrap:wrap;gap:.4rem;margin:.6rem 0 1rem}
+.tuition-chip{display:inline-flex;align-items:center;gap:.35rem;background:var(--blue-soft);
+  color:var(--blue);border:1px solid var(--blue-line);border-radius:999px;padding:.25rem .5rem .25rem .7rem;
+  font-size:.82rem;font-weight:700}
+.tuition-chip button{background:none;border:0;color:var(--blue);font-weight:900;cursor:pointer;
+  padding:0 .2rem;line-height:1;font-size:.9rem}

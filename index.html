@@ -58,6 +58,7 @@
     <button data-tab="study">勉強時間</button>
     <button data-tab="books">参考書</button>
     <button data-tab="tests">成績</button>
+    <button data-tab="tuition" class="student-hide" hidden>月謝</button>
     <button data-tab="messages">連絡</button>
     <button data-tab="settings">設定</button>
   </nav>
@@ -191,6 +192,23 @@
     </form>
     <div class="card"><h3>得点率の推移</h3><div id="chart"></div></div>
     <div id="test-list" class="list"></div>
+  </section>
+
+  <!-- 月謝（生徒には非表示） -->
+  <section id="tab-tuition" class="tab student-hide" hidden>
+    <form id="tuition-form" class="card tutor-only" hidden>
+      <h3>月謝を登録</h3>
+      <label>対象日
+        <div class="tuition-date-row">
+          <input type="date" id="tu-date-input">
+          <button type="button" id="tu-date-add" class="small outline">追加</button>
+        </div>
+      </label>
+      <div id="tu-date-chips" class="tuition-chips"></div>
+      <label>金額（円）<input type="number" id="tu-amount" min="0" step="100" placeholder="7500" required></label>
+      <button class="primary">登録</button>
+    </form>
+    <div id="tuition-list" class="list"></div>
   </section>
 
   <!-- 連絡 -->
