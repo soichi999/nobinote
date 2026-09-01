@@ -204,3 +204,10 @@ button.text:hover{color:var(--blue)}
 
 /* ---- 連絡：既読表示 ---- */
 .msg-read{margin-top:.4rem;font-size:.75rem}
+
+/* ---- 宿題：ページ制チェック ---- */
+.page-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(2.4rem,1fr));gap:.4rem;margin:.6rem 0}
+.page-chip{padding:.4rem 0;text-align:center;border:1px solid var(--blue-line);border-radius:8px;
+  background:#fff;color:var(--muted);font-weight:700;font-size:.82rem;cursor:pointer;transition:.12s}
+.page-chip:hover{border-color:var(--blue)}
+.page-chip.on{background:var(--blue);border-color:var(--blue);color:#fff}

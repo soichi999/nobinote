@@ -6,7 +6,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 import {
   getFirestore, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
-  query, orderBy, onSnapshot, serverTimestamp
+  query, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { SUBJECTS, subjectLabel, subjectColor, subjectOptionsHTML } from "./subjects.js";
 
@@ -48,6 +48,9 @@ const off = () => { unsubs.forEach(u => u()); unsubs = []; };
 });
 $("p-good").innerHTML = subjectOptionsHTML();
 $("p-weak").innerHTML = subjectOptionsHTML();
+$("h-type").addEventListener("change", () => {
+  $("h-page-range").hidden = $("h-type").value !== "page";
+});
 
 /* ---------- 起動 ---------- */
 (async function boot() {
@@ -158,21 +161,33 @@ function watchAll() {
   loadProfile();
 }
 
-/* ---------- 宿題 ---------- */
+/* ---------- 宿題（ページ制 / TF制） ---------- */
+function hwPages(r) {
+  const from = Number(r.pageFrom) || 1, to = Number(r.pageTo) || from;
+  return Array.from({ length: Math.max(1, to - from + 1) }, (_, i) => from + i);
+}
+function hwProgress(r) {
+  if (r.type === "page") {
+    const pages = hwPages(r);
+    const cleared = (r.clearedPages ?? []).length;
+    return pages.length ? Math.round(cleared / pages.length * 100) : 0;
+  }
+  return r.done ? 100 : 0;
+}
 function hwBadge(r) {
-  if (r.done) return `<span class="badge done">提出済み</span>`;
+  const pct = hwProgress(r);
+  if (pct >= 100) return `<span class="badge done">達成 100%</span>`;
   const left = (new Date(r.dueDate) - new Date(today())) / 86400000;
-  if (left < 0) return `<span class="badge late">期限切れ</span>`;
-  if (left <= 2) return `<span class="badge soon">まもなく期限</span>`;
-  return `<span class="badge">未提出</span>`;
+  const soonTag = left < 0 ? `<span class="badge late">期限切れ</span>` : left <= 2 ? `<span class="badge soon">まもなく期限</span>` : "";
+  return `<span class="badge">${r.type === "page" ? `達成 ${pct}%` : "未提出"}</span>${soonTag}`;
 }
 function renderHomework() {
   const rows = homework;
-  const done = rows.filter(r => r.done).length;
-  const pct = rows.length ? Math.round(done / rows.length * 100) : 0;
-  drawRing("hw-ring", pct);
-  $("hw-ring-label").textContent = pct + "%";
-  $("hw-ring-sub").textContent = rows.length ? `${done} / ${rows.length} 件 提出済み` : "まだ宿題がありません。";
+  const avgPct = rows.length ? Math.round(rows.reduce((s, r) => s + hwProgress(r), 0) / rows.length) : 0;
+  const doneCount = rows.filter(r => hwProgress(r) >= 100).length;
+  drawRing("hw-ring", avgPct);
+  $("hw-ring-label").textContent = avgPct + "%";
+  $("hw-ring-sub").textContent = rows.length ? `${doneCount} / ${rows.length} 件 達成（平均 ${avgPct}%）` : "まだ宿題がありません。";
 
   const bySubject = {};
   rows.forEach(r => { (bySubject[r.subject] ??= []).push(r); });
@@ -180,8 +195,8 @@ function renderHomework() {
   $("hw-subject-card").hidden = subjectRows.length === 0;
   $("hw-subject-bars").innerHTML = subjectRows.map(([subj, list]) => {
     const c = subjectColor(subj);
-    const d = list.filter(r => r.done).length;
-    const p = Math.round(d / list.length * 100);
+    const p = Math.round(list.reduce((s, r) => s + hwProgress(r), 0) / list.length);
+    const d = list.filter(r => hwProgress(r) >= 100).length;
     return `<div class="subject-bar-row">
       ${subjectChip(subj)}
       <div class="subject-bar-track"><div class="subject-bar-fill" style="width:${p}%;background:${c.line}"></div></div>
@@ -195,10 +210,19 @@ function renderHomework() {
       <h4>${esc(r.title)} ${subjectChip(r.subject)}</h4>
       ${r.detail ? `<p>${esc(r.detail)}</p>` : ""}
       ${r.question ? `<p class="label">生徒からの質問</p><p>${esc(r.question)}</p>` : ""}
+      ${r.type === "page" ? `
+        <div class="page-grid">${hwPages(r).map(p => {
+          const on = (r.clearedPages ?? []).includes(p);
+          return `<button type="button" class="page-chip${on ? " on" : ""}" data-page-toggle="${esc(r.id)}" data-page="${p}">${p}</button>`;
+        }).join("")}</div>
+      ` : `
+        <div class="actions">
+          <button class="small outline" data-toggle="${esc(r.id)}" data-done="${r.done ? 1 : 0}">
+            ${r.done ? "未完了に戻す" : "完了にする"}</button>
+        </div>
+      `}
       ${r.photo ? `<img class="hw-photo" src="${r.photo}" alt="提出写真">` : ""}
       <div class="actions">
-        <button class="small outline" data-toggle="${esc(r.id)}" data-done="${r.done ? 1 : 0}">
-          ${r.done ? "未提出に戻す" : "提出した"}</button>
         <button class="small outline" data-photo="${esc(r.id)}">写真を添付</button>
         <button class="small outline" data-ask="${esc(r.id)}">質問する</button>
         ${role === "tutor" ? `<button class="small outline danger" data-del="${esc(r.id)}">削除</button>` : ""}
@@ -208,12 +232,17 @@ function renderHomework() {
 }
 $("hw-list").addEventListener("click", async (e) => {
   const t = e.target.closest("[data-toggle]"), a = e.target.closest("[data-ask]"), d = e.target.closest("[data-del]");
-  const p = e.target.closest("[data-photo]");
+  const p = e.target.closest("[data-photo]"), pg = e.target.closest("[data-page-toggle]");
   const ref = (id) => doc(db, "students", currentSid, "homework", id);
   if (t) await updateDoc(ref(t.dataset.toggle), { done: t.dataset.done !== "1", doneAt: serverTimestamp() });
   else if (a) { const q = prompt("先生への質問を入力してください"); if (q) await updateDoc(ref(a.dataset.ask), { question: q }); }
   else if (d && confirm("この宿題を削除しますか？")) await deleteDoc(ref(d.dataset.del));
   else if (p) document.querySelector(`[data-photo-input="${p.dataset.photo}"]`).click();
+  else if (pg) {
+    const page = Number(pg.dataset.page);
+    const op = pg.classList.contains("on") ? arrayRemove(page) : arrayUnion(page);
+    await updateDoc(ref(pg.dataset.pageToggle), { clearedPages: op });
+  }
 });
 $("hw-list").addEventListener("change", async (e) => {
   const input = e.target.closest("[data-photo-input]");
@@ -223,12 +252,22 @@ $("hw-list").addEventListener("change", async (e) => {
 });
 $("hw-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  await addDoc(collection(db, "students", currentSid, "homework"), {
-    title: $("h-title").value.trim(), subject: $("h-subject").value,
+  const type = $("h-type").value;
+  const base = {
+    title: $("h-title").value.trim(), subject: $("h-subject").value, type,
     detail: $("h-detail").value.trim(), dueDate: $("h-due").value,
-    done: false, question: "", createdAt: serverTimestamp()
-  });
+    question: "", createdAt: serverTimestamp()
+  };
+  if (type === "page") {
+    base.pageFrom = Number($("h-page-from").value) || 1;
+    base.pageTo = Number($("h-page-to").value) || base.pageFrom;
+    base.clearedPages = [];
+  } else {
+    base.done = false;
+  }
+  await addDoc(collection(db, "students", currentSid, "homework"), base);
   e.target.reset();
+  $("h-page-range").hidden = true;
 });
 
 /* ---------- 円形の達成率リング ---------- */

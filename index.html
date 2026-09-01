@@ -84,7 +84,19 @@
     <form id="hw-form" class="card tutor-only" hidden>
       <h3>宿題を出す</h3>
       <label>タイトル<input type="text" id="h-title" placeholder="ワーク p.12-15" required></label>
-      <label>教科<select id="h-subject"></select></label>
+      <div class="grid">
+        <label>教科<select id="h-subject"></select></label>
+        <label>形式
+          <select id="h-type">
+            <option value="tf">完了・未完了（TF制）</option>
+            <option value="page">ページ制（1ページずつチェック）</option>
+          </select>
+        </label>
+      </div>
+      <div class="grid" id="h-page-range" hidden>
+        <label>開始ページ<input type="number" id="h-page-from" min="1" value="1"></label>
+        <label>終了ページ<input type="number" id="h-page-to" min="1" value="10"></label>
+      </div>
       <label>詳細<textarea id="h-detail" rows="3"></textarea></label>
       <label>提出期限<input type="date" id="h-due" required></label>
       <button class="primary">追加</button>
