@@ -68,6 +68,10 @@
       <div class="ring-wrap"><svg id="hw-ring" viewBox="0 0 120 120"></svg><div class="ring-label" id="hw-ring-label">0%</div></div>
       <div><h3 style="border:none;padding:0">宿題の達成度</h3><p class="hint left" id="hw-ring-sub">まだ宿題がありません。</p></div>
     </div>
+    <div class="card" id="hw-subject-card" hidden>
+      <h3>教科別の達成度</h3>
+      <div id="hw-subject-bars" class="subject-bars"></div>
+    </div>
     <div class="card">
       <div class="cal-head">
         <button type="button" class="small outline" data-cal="hw" data-nav="-1">‹</button>
@@ -135,6 +139,10 @@
       <label>時間（分）<input type="number" id="st-minutes" min="1" placeholder="30" required></label>
       <button class="primary">記録する</button>
     </form>
+    <div class="card" id="study-monthly-card" hidden>
+      <h3>月間の学習時間</h3>
+      <div id="study-monthly" class="month-bars"></div>
+    </div>
     <div id="study-summary" class="list"></div>
   </section>
 
@@ -200,14 +208,16 @@
 
     <div class="card tutor-only" hidden>
       <h3>生徒とパスコード</h3>
-      <p class="hint left">ここで設定したパスコードを、学生・保護者が入口で入力します。</p>
+      <p class="hint left">生徒用・保護者用、それぞれ別のパスコードを設定できます。入力したパスコードによって
+        「生徒」「保護者」が自動で判定されます。</p>
       <div id="student-admin" class="list"></div>
     </div>
     <form id="add-student-form" class="card tutor-only" hidden>
       <h3>生徒を追加</h3>
+      <label>名前<input type="text" id="s-name" placeholder="山田太郎" required></label>
       <div class="grid">
-        <label>名前<input type="text" id="s-name" placeholder="山田太郎" required></label>
-        <label>パスコード<input type="text" id="s-pass" inputmode="numeric" placeholder="1234" required></label>
+        <label>生徒用パスコード<input type="text" id="s-pass-student" inputmode="numeric" placeholder="1234" required></label>
+        <label>保護者用パスコード<input type="text" id="s-pass-parent" inputmode="numeric" placeholder="5678" required></label>
       </div>
       <button class="primary">追加</button>
     </form>

@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "homework",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "dueDate", "order": "ASCENDING" },
+        { "fieldPath": "done", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

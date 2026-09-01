@@ -79,14 +79,21 @@ function enter(r) {
 }
 function verify(r, code) {
   if (r === "tutor") return code === tutorPass;
-  return students.some(s => s.passcode === code);
+  return students.some(s => s.studentPasscode === code || s.parentPasscode === code);
 }
+const ROLE_LABEL = { tutor: "チューター", student: "生徒", parent: "保護者" };
 function start(r, code) {
-  role = r;
+  if (r === "tutor") {
+    role = "tutor";
+    currentSid = students[0]?.id ?? null;
+  } else {
+    const s = students.find(x => x.studentPasscode === code);
+    if (s) { role = "student"; currentSid = s.id; }
+    else { role = "parent"; currentSid = students.find(x => x.parentPasscode === code)?.id ?? null; }
+  }
   store.set(r === "tutor" ? TUTOR_KEY : FAMILY_KEY, code);
-  $("whoami").textContent = r === "tutor" ? "チューター" : "学生・保護者";
-  document.querySelectorAll(".tutor-only").forEach(el => { el.hidden = r !== "tutor"; });
-  currentSid = r === "family" ? (students.find(x => x.passcode === code)?.id ?? null) : (students[0]?.id ?? null);
+  $("whoami").textContent = ROLE_LABEL[role];
+  document.querySelectorAll(".tutor-only").forEach(el => { el.hidden = role !== "tutor"; });
   show("app-view"); $("topbar").hidden = false;
   refreshStudentUI();
   renderStudentAdmin();
@@ -128,7 +135,8 @@ document.querySelectorAll(".tabs button").forEach(btn => {
 });
 
 /* ---------- 購読 ---------- */
-let lessons = [], homework = [], tests = [], books = [], studyLogs = [], schedule = [];
+let lessons = [], homework = [], tests = [], books = [], studyLogs = [], schedule = [], examMeta = {};
+const examSlug = (date, name) => encodeURIComponent(`${date}__${name}`).slice(0, 400);
 const sub = (name, order, dir, apply) => {
   const q = query(collection(db, "students", currentSid, name), orderBy(order, dir));
   unsubs.push(onSnapshot(q, s => apply(s.docs.map(d => ({ id: d.id, ...d.data() })))));
@@ -143,6 +151,10 @@ function watchAll() {
   sub("books", "createdAt", "desc", rows => { books = rows; renderBooks(); refreshBookSelect(); });
   sub("studyLogs", "date", "desc", rows => { studyLogs = rows; renderStudy(); });
   sub("schedule", "date", "asc", rows => { schedule = rows; renderSchedule(); renderCalendars(); });
+  unsubs.push(onSnapshot(collection(db, "students", currentSid, "examMeta"), s => {
+    examMeta = Object.fromEntries(s.docs.map(d => [d.id, d.data()]));
+    renderTests();
+  }));
   loadProfile();
 }
 
@@ -162,26 +174,52 @@ function renderHomework() {
   $("hw-ring-label").textContent = pct + "%";
   $("hw-ring-sub").textContent = rows.length ? `${done} / ${rows.length} 件 提出済み` : "まだ宿題がありません。";
 
+  const bySubject = {};
+  rows.forEach(r => { (bySubject[r.subject] ??= []).push(r); });
+  const subjectRows = Object.entries(bySubject);
+  $("hw-subject-card").hidden = subjectRows.length === 0;
+  $("hw-subject-bars").innerHTML = subjectRows.map(([subj, list]) => {
+    const c = subjectColor(subj);
+    const d = list.filter(r => r.done).length;
+    const p = Math.round(d / list.length * 100);
+    return `<div class="subject-bar-row">
+      ${subjectChip(subj)}
+      <div class="subject-bar-track"><div class="subject-bar-fill" style="width:${p}%;background:${c.line}"></div></div>
+      <span class="subject-bar-pct">${d}/${list.length}</span>
+    </div>`;
+  }).join("");
+
   $("hw-list").innerHTML = rows.length ? rows.map(r => `
     <article class="item">
       <div class="meta"><span class="date">期限 ${fmtDate(r.dueDate)}</span>${hwBadge(r)}</div>
       <h4>${esc(r.title)} ${subjectChip(r.subject)}</h4>
       ${r.detail ? `<p>${esc(r.detail)}</p>` : ""}
       ${r.question ? `<p class="label">生徒からの質問</p><p>${esc(r.question)}</p>` : ""}
+      ${r.photo ? `<img class="hw-photo" src="${r.photo}" alt="提出写真">` : ""}
       <div class="actions">
         <button class="small outline" data-toggle="${esc(r.id)}" data-done="${r.done ? 1 : 0}">
           ${r.done ? "未提出に戻す" : "提出した"}</button>
+        <button class="small outline" data-photo="${esc(r.id)}">写真を添付</button>
         <button class="small outline" data-ask="${esc(r.id)}">質問する</button>
         ${role === "tutor" ? `<button class="small outline danger" data-del="${esc(r.id)}">削除</button>` : ""}
       </div>
+      <input type="file" accept="image/*" capture="environment" class="hidden-file" data-photo-input="${esc(r.id)}">
     </article>`).join("") : `<div class="empty">出されている宿題はありません。</div>`;
 }
 $("hw-list").addEventListener("click", async (e) => {
   const t = e.target.closest("[data-toggle]"), a = e.target.closest("[data-ask]"), d = e.target.closest("[data-del]");
+  const p = e.target.closest("[data-photo]");
   const ref = (id) => doc(db, "students", currentSid, "homework", id);
   if (t) await updateDoc(ref(t.dataset.toggle), { done: t.dataset.done !== "1", doneAt: serverTimestamp() });
   else if (a) { const q = prompt("先生への質問を入力してください"); if (q) await updateDoc(ref(a.dataset.ask), { question: q }); }
   else if (d && confirm("この宿題を削除しますか？")) await deleteDoc(ref(d.dataset.del));
+  else if (p) document.querySelector(`[data-photo-input="${p.dataset.photo}"]`).click();
+});
+$("hw-list").addEventListener("change", async (e) => {
+  const input = e.target.closest("[data-photo-input]");
+  if (!input || !input.files[0]) return;
+  const photo = await fileToDataUrl(input.files[0]).catch(() => "");
+  if (photo) await updateDoc(doc(db, "students", currentSid, "homework", input.dataset.photoInput), { photo });
 });
 $("hw-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -307,7 +345,7 @@ function renderBooks() {
           <div class="ring-label small">${b.progress ?? 0}%</div></div>
         <label class="hint left" style="margin-top:.4rem">進捗を更新
           <input type="range" min="0" max="100" value="${b.progress ?? 0}" data-progress="${esc(b.id)}"></label>
-        ${role === "family" || role === "tutor" ? `<button class="small outline danger" data-book-del="${esc(b.id)}">削除</button>` : ""}
+        ${role !== null ? `<button class="small outline danger" data-book-del="${esc(b.id)}">削除</button>` : ""}
       </div>
     </article>`).join("") : `<div class="empty">まだ参考書が登録されていません。</div>`;
   books.forEach(b => drawRing2(`.book-ring[data-ring="${b.id}"]`, b.progress ?? 0));
@@ -368,6 +406,22 @@ $("book-form").addEventListener("submit", async (e) => {
 
 /* ---------- 勉強時間 ---------- */
 function renderStudy() {
+  const byMonth = {};
+  studyLogs.forEach(l => { const ym = (l.date || "").slice(0, 7); if (ym) byMonth[ym] = (byMonth[ym] || 0) + Number(l.minutes || 0); });
+  const months = Object.keys(byMonth).sort().slice(-6);
+  $("study-monthly-card").hidden = months.length === 0;
+  const maxMinutes = Math.max(1, ...months.map(m => byMonth[m]));
+  $("study-monthly").innerHTML = months.map(m => {
+    const [y, mo] = m.split("-");
+    const mins = byMonth[m];
+    const w = Math.round(mins / maxMinutes * 100);
+    return `<div class="month-bar-row">
+      <span class="month-bar-label">${y}/${Number(mo)}月</span>
+      <div class="month-bar-track"><div class="month-bar-fill" style="width:${w}%"></div></div>
+      <span class="month-bar-val">${Math.floor(mins / 60)}時間${mins % 60}分</span>
+    </div>`;
+  }).join("");
+
   const byBook = {};
   studyLogs.forEach(l => { (byBook[l.bookId] ??= []).push(l); });
   const rows = Object.entries(byBook).map(([bookId, logs]) => {
@@ -406,22 +460,37 @@ function renderTests() {
   const byExam = {};
   tests.forEach(t => { (byExam[t.examName || "模試"] ??= { date: t.date, rows: [] }).rows.push(t); });
   const exams = Object.entries(byExam).sort((a, b) => b[1].date.localeCompare(a[1].date));
-  $("test-list").innerHTML = exams.length ? exams.map(([name, ex]) => `
+  $("test-list").innerHTML = exams.length ? exams.map(([name, ex]) => {
+    const totalScore = ex.rows.reduce((s, r) => s + Number(r.score), 0);
+    const totalMax = ex.rows.reduce((s, r) => s + Number(r.max), 0);
+    const slug = examSlug(ex.date, name);
+    const meta = examMeta[slug] ?? {};
+    return `
     <article class="item">
       <div class="meta"><span class="date">${fmtDate(ex.date)}</span><span class="label">${esc(name)}</span></div>
+      <p class="score">${totalScore}<small> / ${totalMax}（${Math.round(totalScore / totalMax * 100)}%）合計</small></p>
+      <p class="hint left rank-row">順位：<span data-rank-view>${esc(meta.rank || "未登録")}</span>
+        <button type="button" class="small outline" data-rank-edit="${slug}">編集</button></p>
       <div class="test-rows">
         ${ex.rows.map(r => `<div class="test-row">
           ${subjectChip(r.subject)}
           <span class="score">${r.score}<small> / ${r.max}（${Math.round(r.score / r.max * 100)}%）</small></span>
-          ${role === "family" ? `<button class="small outline danger" data-test-del="${esc(r.id)}">削除</button>` : ""}
+          ${role !== "tutor" ? `<button class="small outline danger" data-test-del="${esc(r.id)}">削除</button>` : ""}
         </div>`).join("")}
       </div>
-    </article>`).join("") : `<div class="empty">まだ模試結果がありません。</div>`;
+    </article>`;
+  }).join("") : `<div class="empty">まだ模試結果がありません。</div>`;
   drawChart(tests);
 }
 $("test-list").addEventListener("click", async (e) => {
   const d = e.target.closest("[data-test-del]");
+  const r = e.target.closest("[data-rank-edit]");
   if (d && confirm("削除しますか？")) await deleteDoc(doc(db, "students", currentSid, "tests", d.dataset.testDel));
+  else if (r) {
+    const cur = r.parentElement.querySelector("[data-rank-view]").textContent;
+    const val = prompt("順位を入力してください（例：12/120）", cur === "未登録" ? "" : cur);
+    if (val !== null) await setDoc(doc(db, "students", currentSid, "examMeta", r.dataset.rankEdit), { rank: val.trim() });
+  }
 });
 function drawChart(rows) {
   if (rows.length < 2) { $("chart").innerHTML = `<p class="hint">2件以上登録すると推移グラフが表示されます。</p>`; return; }
@@ -454,22 +523,38 @@ $("test-form").addEventListener("submit", async (e) => {
   $("t-score").value = ""; $("t-subject").selectedIndex = 0;
 });
 
-/* ---------- 連絡 ---------- */
+/* ---------- 連絡（役割別の既読つき） ---------- */
 function renderMessages(rows) {
-  $("msg-list").innerHTML = rows.length ? rows.map(r => `
+  $("msg-list").innerHTML = rows.length ? rows.map(r => {
+    const readBy = r.readBy ?? {};
+    const readers = ["tutor", "student", "parent"]
+      .filter(k => k !== r.authorRole && readBy[k])
+      .map(k => ROLE_LABEL[k]);
+    const readLine = readers.length ? `既読：${readers.join("・")}` : "未読";
+    return `
     <article class="item ${r.authorRole === role ? "me" : ""}">
       <div class="meta">
-        <span class="date">${r.authorRole === "tutor" ? "チューター" : "学生・保護者"}</span>
+        <span class="date">${esc(ROLE_LABEL[r.authorRole] ?? r.authorRole)}</span>
         <span>${r.createdAt?.toDate ? r.createdAt.toDate().toLocaleString("ja-JP") : ""}</span>
       </div>
       <p>${esc(r.text)}</p>
-    </article>`).join("") : `<div class="empty">まだメッセージはありません。</div>`;
+      <p class="hint left msg-read">${readLine}</p>
+    </article>`;
+  }).join("") : `<div class="empty">まだメッセージはありません。</div>`;
   $("msg-list").lastElementChild?.scrollIntoView({ block: "nearest" });
+  markMessagesRead(rows);
+}
+function markMessagesRead(rows) {
+  if (!role) return;
+  rows.filter(r => r.authorRole !== role && !(r.readBy ?? {})[role]).forEach(r => {
+    updateDoc(doc(db, "students", currentSid, "messages", r.id), { [`readBy.${role}`]: true }).catch(() => {});
+  });
 }
 $("msg-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   await addDoc(collection(db, "students", currentSid, "messages"), {
-    text: $("m-text").value.trim(), authorRole: role, createdAt: serverTimestamp()
+    text: $("m-text").value.trim(), authorRole: role, createdAt: serverTimestamp(),
+    readBy: { [role]: true }
   });
   e.target.reset();
 });
@@ -499,13 +584,17 @@ $("profile-form").addEventListener("submit", async (e) => {
 });
 
 /* ---------- 設定：チューター管理 ---------- */
+function codeTaken(code, exceptId) {
+  return students.some(s => s.id !== exceptId && (s.studentPasscode === code || s.parentPasscode === code));
+}
 function renderStudentAdmin() {
   if (role !== "tutor") return;
   $("student-admin").innerHTML = students.length ? students.map(s => `
     <article class="item">
       <div class="meta"><span class="date">${esc(s.name)}</span></div>
       <div class="grid">
-        <label>パスコード<input type="text" inputmode="numeric" value="${esc(s.passcode)}" data-pass="${esc(s.id)}"></label>
+        <label>生徒用パスコード<input type="text" inputmode="numeric" value="${esc(s.studentPasscode ?? "")}" data-pass-student="${esc(s.id)}"></label>
+        <label>保護者用パスコード<input type="text" inputmode="numeric" value="${esc(s.parentPasscode ?? "")}" data-pass-parent="${esc(s.id)}"></label>
       </div>
       <div class="actions">
         <button class="small primary" data-save="${esc(s.id)}">保存</button>
@@ -517,10 +606,12 @@ $("student-admin").addEventListener("click", async (e) => {
   const save = e.target.closest("[data-save]"), rm = e.target.closest("[data-remove]");
   if (save) {
     const id = save.dataset.save;
-    const code = document.querySelector(`[data-pass="${id}"]`).value.trim();
-    if (!code) return alert("パスコードを入力してください。");
-    if (students.some(s => s.id !== id && s.passcode === code)) return alert("他の生徒と同じパスコードは使えません。");
-    await updateDoc(doc(db, "students", id), { passcode: code });
+    const studentPasscode = document.querySelector(`[data-pass-student="${id}"]`).value.trim();
+    const parentPasscode = document.querySelector(`[data-pass-parent="${id}"]`).value.trim();
+    if (!studentPasscode || !parentPasscode) return alert("両方のパスコードを入力してください。");
+    if (studentPasscode === parentPasscode) return alert("生徒用と保護者用は別のパスコードにしてください。");
+    if (codeTaken(studentPasscode, id) || codeTaken(parentPasscode, id)) return alert("他の生徒と同じパスコードは使えません。");
+    await updateDoc(doc(db, "students", id), { studentPasscode, parentPasscode });
     alert("保存しました。");
   } else if (rm) {
     const s = students.find(x => x.id === rm.dataset.remove);
@@ -532,9 +623,11 @@ $("student-admin").addEventListener("click", async (e) => {
 });
 $("add-student-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const code = $("s-pass").value.trim();
-  if (students.some(s => s.passcode === code)) return alert("他の生徒と同じパスコードは使えません。");
-  await addDoc(collection(db, "students"), { name: $("s-name").value.trim(), passcode: code });
+  const studentPasscode = $("s-pass-student").value.trim();
+  const parentPasscode = $("s-pass-parent").value.trim();
+  if (studentPasscode === parentPasscode) return alert("生徒用と保護者用は別のパスコードにしてください。");
+  if (codeTaken(studentPasscode) || codeTaken(parentPasscode)) return alert("他の生徒と同じパスコードは使えません。");
+  await addDoc(collection(db, "students"), { name: $("s-name").value.trim(), studentPasscode, parentPasscode });
   e.target.reset();
 });
 $("tutor-pass-form").addEventListener("submit", async (e) => {
