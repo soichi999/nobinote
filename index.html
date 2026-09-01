@@ -53,20 +53,68 @@
   </div>
 
   <nav class="tabs">
-    <button data-tab="lessons" class="active">授業記録</button>
-    <button data-tab="homework">宿題</button>
+    <button data-tab="homework" class="active">宿題</button>
+    <button data-tab="lessons">指導記録</button>
+    <button data-tab="study">勉強時間</button>
+    <button data-tab="books">参考書</button>
     <button data-tab="tests">成績</button>
     <button data-tab="messages">連絡</button>
-    <button data-tab="settings" class="tutor-only" hidden>設定</button>
+    <button data-tab="settings">設定</button>
   </nav>
 
-  <!-- 授業記録 -->
-  <section id="tab-lessons" class="tab">
+  <!-- 宿題 -->
+  <section id="tab-homework" class="tab">
+    <div class="card ring-card">
+      <div class="ring-wrap"><svg id="hw-ring" viewBox="0 0 120 120"></svg><div class="ring-label" id="hw-ring-label">0%</div></div>
+      <div><h3 style="border:none;padding:0">宿題の達成度</h3><p class="hint left" id="hw-ring-sub">まだ宿題がありません。</p></div>
+    </div>
+    <div class="card">
+      <div class="cal-head">
+        <button type="button" class="small outline" data-cal="hw" data-nav="-1">‹</button>
+        <h3 id="hw-cal-title" style="border:none;padding:0"></h3>
+        <button type="button" class="small outline" data-cal="hw" data-nav="1">›</button>
+      </div>
+      <div id="hw-calendar" class="calendar"></div>
+      <p class="hint left cal-legend"><span class="dot due"></span>提出期限　<span class="dot lesson"></span>指導予定</p>
+    </div>
+    <form id="hw-form" class="card tutor-only" hidden>
+      <h3>宿題を出す</h3>
+      <label>タイトル<input type="text" id="h-title" placeholder="ワーク p.12-15" required></label>
+      <label>教科<select id="h-subject"></select></label>
+      <label>詳細<textarea id="h-detail" rows="3"></textarea></label>
+      <label>提出期限<input type="date" id="h-due" required></label>
+      <button class="primary">追加</button>
+    </form>
+    <div id="hw-list" class="list"></div>
+  </section>
+
+  <!-- 指導記録 -->
+  <section id="tab-lessons" class="tab" hidden>
+    <div class="card">
+      <div class="cal-head">
+        <button type="button" class="small outline" data-cal="lesson" data-nav="-1">‹</button>
+        <h3 id="lesson-cal-title" style="border:none;padding:0"></h3>
+        <button type="button" class="small outline" data-cal="lesson" data-nav="1">›</button>
+      </div>
+      <div id="lesson-calendar" class="calendar"></div>
+      <p class="hint left cal-legend"><span class="dot lesson"></span>指導日・指導予定　<span class="dot due"></span>宿題期限</p>
+    </div>
+    <form id="schedule-form" class="card tutor-only" hidden>
+      <h3>指導予定を登録</h3>
+      <div class="grid">
+        <label>指導日<input type="date" id="sc-date" required></label>
+        <label>時間<input type="time" id="sc-time"></label>
+      </div>
+      <label>Zoom URL<input type="url" id="sc-zoom" placeholder="https://zoom.us/j/..."></label>
+      <label>メモ<input type="text" id="sc-memo" placeholder="前回の続きから"></label>
+      <button class="primary">登録</button>
+    </form>
+    <div id="schedule-list" class="list"></div>
     <form id="lesson-form" class="card tutor-only" hidden>
-      <h3>授業記録を追加</h3>
+      <h3>指導記録を追加</h3>
       <div class="grid">
         <label>日付<input type="date" id="l-date" required></label>
-        <label>科目<input type="text" id="l-subject" placeholder="数学" required></label>
+        <label>教科<select id="l-subject"></select></label>
       </div>
       <label>学習範囲<input type="text" id="l-range" placeholder="二次関数 p.34-40"></label>
       <label>授業内容<textarea id="l-content" rows="4"></textarea></label>
@@ -76,28 +124,46 @@
     <div id="lesson-list" class="list"></div>
   </section>
 
-  <!-- 宿題 -->
-  <section id="tab-homework" class="tab" hidden>
-    <form id="hw-form" class="card tutor-only" hidden>
-      <h3>宿題を出す</h3>
-      <label>タイトル<input type="text" id="h-title" placeholder="ワーク p.12-15" required></label>
-      <label>詳細<textarea id="h-detail" rows="3"></textarea></label>
-      <label>提出期限<input type="date" id="h-due" required></label>
-      <button class="primary">追加</button>
+  <!-- 勉強時間 -->
+  <section id="tab-study" class="tab" hidden>
+    <form id="study-form" class="card">
+      <h3>勉強時間を記録</h3>
+      <div class="grid">
+        <label>参考書<select id="st-book"></select></label>
+        <label>日付<input type="date" id="st-date" required></label>
+      </div>
+      <label>時間（分）<input type="number" id="st-minutes" min="1" placeholder="30" required></label>
+      <button class="primary">記録する</button>
     </form>
-    <div id="hw-list" class="list"></div>
+    <div id="study-summary" class="list"></div>
+  </section>
+
+  <!-- 参考書 -->
+  <section id="tab-books" class="tab" hidden>
+    <form id="book-form" class="card">
+      <h3>参考書を登録</h3>
+      <div class="grid">
+        <label>名前<input type="text" id="b-name" placeholder="青チャート 数学Ⅰ・A" required></label>
+        <label>教科<select id="b-subject"></select></label>
+      </div>
+      <label>画像<input type="file" id="b-image" accept="image/*"></label>
+      <label>進捗（%）<input type="range" id="b-progress" min="0" max="100" value="0">
+        <output id="b-progress-out">0%</output></label>
+      <button class="primary">登録</button>
+    </form>
+    <div id="book-list" class="grid-cards"></div>
   </section>
 
   <!-- 成績 -->
   <section id="tab-tests" class="tab" hidden>
-    <form id="test-form" class="card tutor-only" hidden>
-      <h3>テスト結果を追加</h3>
+    <form id="test-form" class="card">
+      <h3>模試の結果を追加</h3>
+      <label>模試名<input type="text" id="t-exam" placeholder="第2回 全国模試" required></label>
       <div class="grid">
         <label>日付<input type="date" id="t-date" required></label>
-        <label>科目<input type="text" id="t-subject" placeholder="数学" required></label>
+        <label>教科<select id="t-subject"></select></label>
       </div>
       <div class="grid">
-        <label>テスト名<input type="text" id="t-name" placeholder="2学期中間"></label>
         <label>点数<input type="number" id="t-score" min="0" required></label>
         <label>満点<input type="number" id="t-max" value="100" min="1" required></label>
       </div>
@@ -116,14 +182,28 @@
     </form>
   </section>
 
-  <!-- 設定（チューターのみ） -->
+  <!-- 設定 -->
   <section id="tab-settings" class="tab" hidden>
-    <div class="card">
+    <form id="profile-form" class="card">
+      <h3>プロフィール</h3>
+      <div class="grid">
+        <label>名前<input type="text" id="p-name"></label>
+        <label>誕生日<input type="date" id="p-birthday"></label>
+      </div>
+      <label>志望校<input type="text" id="p-target" placeholder="〇〇大学 △△学部"></label>
+      <div class="grid">
+        <label>得意科目<select id="p-good" multiple size="6"></select></label>
+        <label>苦手科目<select id="p-weak" multiple size="6"></select></label>
+      </div>
+      <button class="primary">保存</button>
+    </form>
+
+    <div class="card tutor-only" hidden>
       <h3>生徒とパスコード</h3>
       <p class="hint left">ここで設定したパスコードを、学生・保護者が入口で入力します。</p>
       <div id="student-admin" class="list"></div>
     </div>
-    <form id="add-student-form" class="card">
+    <form id="add-student-form" class="card tutor-only" hidden>
       <h3>生徒を追加</h3>
       <div class="grid">
         <label>名前<input type="text" id="s-name" placeholder="山田太郎" required></label>
@@ -131,7 +211,7 @@
       </div>
       <button class="primary">追加</button>
     </form>
-    <form id="tutor-pass-form" class="card">
+    <form id="tutor-pass-form" class="card tutor-only" hidden>
       <h3>チューターのパスコードを変更</h3>
       <div class="grid">
         <label>新しいパスコード<input type="text" id="tp-new" inputmode="numeric" required></label>

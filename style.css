@@ -59,7 +59,9 @@ button.small{padding:.32rem .8rem;font-size:.8rem}
 .tabs{display:flex;gap:.4rem;margin-bottom:1.4rem;overflow-x:auto;
   background:#fff;padding:.4rem;border-radius:12px;border:1px solid var(--line);
   box-shadow:var(--shadow)}
-.tabs button{flex:1;background:transparent;color:var(--muted);white-space:nowrap;font-weight:600}
+.tabs button{flex:none;background:transparent;color:var(--muted);white-space:nowrap;font-weight:600;
+  padding:.55rem 1rem;scroll-snap-align:start}
+.tabs{scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
 .tabs button:hover{background:var(--blue-soft);color:var(--blue)}
 .tabs button.active{background:var(--blue);color:#fff;box-shadow:0 3px 10px rgba(26,95,208,.28)}
 
@@ -121,8 +123,59 @@ button.text:hover{color:var(--blue)}
 }
 
 @media (max-width:520px){
-  .tabs button{padding:.5rem .2rem;font-size:.82rem;min-width:0}
+  .tabs button{padding:.55rem .85rem;font-size:.85rem}
   header{padding-left:1rem;padding-right:1rem}
   header h1{font-size:.98rem}
   main{padding:1rem .8rem 3rem}
 }
+
+/* ---- 円形リング ---- */
+.ring-card{display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap}
+.ring-wrap{position:relative;width:100px;height:100px;flex:none}
+.ring-wrap.small{width:64px;height:64px;margin:.5rem 0}
+.ring-wrap svg{width:100%;height:100%}
+.ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:1.15rem;color:var(--navy)}
+.ring-label.small{font-size:.8rem}
+
+/* ---- 科目チップ ---- */
+.badge.subj{display:inline-flex;align-items:center;gap:.35rem}
+.dotmark{width:.5rem;height:.5rem;border-radius:50%;display:inline-block}
+
+/* ---- カレンダー ---- */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.cal-dow{font-size:.72rem;color:var(--muted);font-weight:700;padding:.2rem 0}
+.cal-cell{aspect-ratio:1;border-radius:8px;background:var(--bg);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:.15rem;font-size:.78rem}
+.cal-cell.empty{background:transparent}
+.cal-cell.today{background:var(--blue-soft);border:1px solid var(--blue-line);font-weight:800;color:var(--blue)}
+.cal-dots{display:flex;gap:2px;min-height:6px}
+.cal-legend{display:flex;gap:1rem;align-items:center;margin-top:.8rem}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:.3rem}
+.dot.due{background:var(--warn)}
+.dot.lesson{background:var(--blue)}
+
+/* ---- 参考書カード ---- */
+.grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem}
+.book-card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  box-shadow:var(--shadow);display:flex;flex-direction:column}
+.book-thumb{aspect-ratio:4/3;background:var(--blue-soft);display:flex;align-items:center;justify-content:center}
+.book-thumb img{width:100%;height:100%;object-fit:cover}
+.book-noimg{font-size:1.4rem;font-weight:800;color:var(--blue)}
+.book-body{padding:.8rem}
+.book-body h4{margin:0 0 .4rem;font-size:.92rem;color:var(--navy)}
+
+/* ---- 勉強時間 ---- */
+.study-row{display:flex;align-items:center;gap:.8rem;font-size:.85rem;padding:.3rem 0;
+  border-bottom:1px solid var(--line)}
+.study-row:last-child{border-bottom:none}
+
+/* ---- 成績（模試） ---- */
+.test-rows{display:flex;flex-direction:column;gap:.5rem;margin-top:.5rem}
+.test-row{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
+.test-row .score{font-size:1.05rem;font-weight:800;color:var(--navy);margin:0}
+
+/* ---- Zoomリンク ---- */
+.zoom-link{color:var(--blue);font-weight:700;text-decoration:none}
+.zoom-link:hover{text-decoration:underline}
