@@ -366,7 +366,7 @@ function renderTuition() {
       <p class="score">${Number(t.amount).toLocaleString()}<small>円</small></p>
       ${role === "tutor" ? `<div class="actions">
         <button class="small outline" data-tuition-toggle="${esc(t.id)}" data-paid="${t.paid ? 1 : 0}">
-          ${t.paid ? "未確認に戻す" : "振込確認（Tにする）"}</button>
+          ${t.paid ? "未確認に戻す" : "振込確認"}</button>
         <button class="small outline danger" data-tuition-del="${esc(t.id)}">削除</button>
       </div>` : ""}
     </article>`).join("") : `<div class="empty">まだ月謝の登録がありません。</div>`;
@@ -400,25 +400,87 @@ function buildCalendar(baseDate, marksByDate) {
     const iso = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const marks = marksByDate[iso] ?? [];
     const isToday = iso === today();
-    return `<div class="cal-cell${isToday ? " today" : ""}">
+    return `<div class="cal-cell${isToday ? " today" : ""}" data-date="${iso}">
       <span class="cal-day">${d}</span>
-      <span class="cal-dots">${marks.map(k => `<span class="dot ${k}"></span>`).join("")}</span>
+      <span class="cal-pills">${marks.map(k => `<span class="pill ${k.kind}">${esc(k.text)}</span>`).join("")}</span>
     </div>`;
   }).join("");
   return html;
 }
 function renderCalendars() {
+  const raw = {};
+  const add = (date, kind, text) => { if (!date) return; (raw[date] ??= []).push({ kind, text }); };
+  homework.forEach(h => add(h.dueDate, "due", "期限"));
+  lessons.forEach(l => add(l.date, "lesson", "指導日"));
+  schedule.forEach(s => add(s.date, "lesson", s.time || "指導日"));
   const marks = {};
-  const add = (date, kind) => { if (!date) return; (marks[date] ??= []).push(kind); };
-  homework.forEach(h => add(h.dueDate, "due"));
-  lessons.forEach(l => add(l.date, "lesson"));
-  schedule.forEach(s => add(s.date, "lesson"));
+  Object.entries(raw).forEach(([date, list]) => {
+    const dueCount = list.filter(k => k.kind === "due").length;
+    const merged = list.filter(k => k.kind === "lesson");
+    if (dueCount) merged.unshift({ kind: "due", text: dueCount > 1 ? `期限×${dueCount}` : "期限" });
+    marks[date] = merged;
+  });
   $("hw-calendar").innerHTML = buildCalendar(calState.hw, marks);
   $("lesson-calendar").innerHTML = buildCalendar(calState.lesson, marks);
   const label = (d) => `${d.getFullYear()}年 ${d.getMonth() + 1}月`;
   $("hw-cal-title").textContent = label(calState.hw);
   $("lesson-cal-title").textContent = label(calState.lesson);
 }
+
+/* ---------- 日付の詳細モーダル ---------- */
+const weekdayJP = ["日", "月", "火", "水", "木", "金", "土"];
+function fmtDateLong(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${m}月${d}日（${weekdayJP[new Date(y, m - 1, d).getDay()]}）`;
+}
+function openDayModal(iso) {
+  $("day-modal-title").textContent = fmtDateLong(iso);
+  const daySchedule = schedule.filter(s => s.date === iso);
+  const dayLessons = lessons.filter(l => l.date === iso);
+  const dayHomework = homework.filter(h => h.dueDate === iso);
+  const dayTuition = tuition.filter(t => (t.dates ?? []).includes(iso));
+  const sections = [];
+
+  if (daySchedule.length || dayLessons.length) {
+    sections.push(`<div class="modal-section"><h4 class="modal-sub">指導日</h4>
+      ${daySchedule.map(s => `<div class="item">
+        <div class="meta"><span class="date">${esc(s.time || "時間未設定")}</span></div>
+        ${s.memo ? `<p>${esc(s.memo)}</p>` : ""}
+        ${s.zoomUrl ? `<p><a href="${esc(s.zoomUrl)}" target="_blank" rel="noopener" class="zoom-link">Zoomで参加 →</a></p>` : ""}
+      </div>`).join("")}
+      ${dayLessons.map(l => `<div class="item">
+        <div class="meta">${subjectChip(l.subject)}</div>
+        ${l.range ? `<h4>${esc(l.range)}</h4>` : ""}
+        ${l.notes ? `<p>${esc(l.notes)}</p>` : ""}
+      </div>`).join("")}
+    </div>`);
+  }
+  if (role !== "parent" && dayHomework.length) {
+    sections.push(`<div class="modal-section"><h4 class="modal-sub">宿題期限</h4>
+      ${dayHomework.map(h => `<div class="item">
+        <div class="meta">${subjectChip(h.subject)}</div><h4>${esc(h.title)}</h4>
+      </div>`).join("")}
+    </div>`);
+  }
+  if (role !== "student" && dayTuition.length) {
+    sections.push(`<div class="modal-section"><h4 class="modal-sub">月謝</h4>
+      ${dayTuition.map(t => `<div class="item">
+        <p class="score">${Number(t.amount).toLocaleString()}<small>円</small></p>
+        <span class="badge ${t.paid ? "done" : ""}">${t.paid ? "T（振込確認済み）" : "未確認"}</span>
+      </div>`).join("")}
+    </div>`);
+  }
+  $("day-modal-body").innerHTML = sections.length ? sections.join("") : `<div class="empty">この日の予定はありません。</div>`;
+  $("day-modal").hidden = false;
+}
+function handleCalClick(e) {
+  const cell = e.target.closest("[data-date]");
+  if (cell) openDayModal(cell.dataset.date);
+}
+$("hw-calendar").addEventListener("click", handleCalClick);
+$("lesson-calendar").addEventListener("click", handleCalClick);
+$("day-modal-close").addEventListener("click", () => { $("day-modal").hidden = true; });
+$("day-modal").addEventListener("click", (e) => { if (e.target.id === "day-modal") $("day-modal").hidden = true; });
 
 /* ---------- 参考書 ---------- */
 function refreshBookSelect() {
