@@ -164,7 +164,7 @@ document.querySelectorAll(".tabs button").forEach(btn => {
 });
 
 /* ---------- 購読 ---------- */
-let lessons = [], homework = [], tests = [], books = [], studyLogs = [], schedule = [], examMeta = {}, tuition = [];
+let lessons = [], homework = [], tests = [], books = [], studyLogs = [], schedule = [], examMeta = {}, tuition = [], plans = [];
 const examSlug = (date, name) => encodeURIComponent(`${date}__${name}`).slice(0, 400);
 const sub = (name, order, dir, apply) => {
   const q = query(collection(db, "students", currentSid, name), orderBy(order, dir));
@@ -173,7 +173,7 @@ const sub = (name, order, dir, apply) => {
 function watchAll() {
   off();
   // 生徒切り替え時に前の生徒のデータが一瞬でも表示され続けないよう、即座に状態をリセットしてから再描画する
-  lessons = []; homework = []; tests = []; books = []; studyLogs = []; schedule = []; examMeta = {}; tuition = [];
+  lessons = []; homework = []; tests = []; books = []; studyLogs = []; schedule = []; examMeta = {}; tuition = []; plans = [];
   tuitionDates = []; renderTuitionChips();
   renderHomework(); renderCalendarFeed(); renderCalendars(); renderTests(); renderBooks(); refreshBookSelect();
   renderStudy(); renderTuition(); $("msg-list").innerHTML = "";
@@ -185,6 +185,7 @@ function watchAll() {
   sub("books", "createdAt", "desc", rows => { books = rows; renderBooks(); refreshBookSelect(); });
   sub("studyLogs", "date", "desc", rows => { studyLogs = rows; renderStudy(); });
   sub("schedule", "date", "asc", rows => { schedule = rows; renderCalendarFeed(); renderCalendars(); });
+  sub("plans", "date", "asc", rows => { plans = rows; renderCalendarFeed(); renderCalendars(); });
   sub("tuition", "createdAt", "desc", rows => { tuition = rows; renderTuition(); });
   unsubs.push(onSnapshot(collection(db, "students", currentSid, "examMeta"), s => {
     examMeta = Object.fromEntries(s.docs.map(d => [d.id, d.data()]));
@@ -263,29 +264,54 @@ function homeworkItemHTML(r) {
       <div class="actions">
         <button class="small outline" data-photo="${esc(r.id)}">写真を添付</button>
         <button class="small outline" data-ask="${esc(r.id)}">質問する</button>
-        ${role === "tutor" ? `<button class="small outline danger" data-del="${esc(r.id)}">削除</button>` : ""}
+        ${role === "tutor" ? `<button class="small outline" data-hw-edit="${esc(r.id)}">編集</button>
+        <button class="small outline danger" data-del="${esc(r.id)}">削除</button>` : ""}
       </div>
       <input type="file" accept="image/*" capture="environment" class="hidden-file" data-photo-input="${esc(r.id)}">
     </article>`;
+}
+let editingHwId = null;
+function startEditHomework(r) {
+  editingHwId = r.id;
+  $("h-title").value = r.title ?? "";
+  $("h-subject").value = r.subject ?? "";
+  $("h-type").value = r.type ?? "tf";
+  $("h-type").dispatchEvent(new Event("change"));
+  if (r.type === "count") {
+    $("h-unit-select").value = ["問", "ページ", "回"].includes(r.unit) ? r.unit : "custom";
+    $("h-unit-select").dispatchEvent(new Event("change"));
+    if ($("h-unit-select").value === "custom") $("h-unit-custom").value = r.unit ?? "";
+    $("h-count-from").value = r.countFrom ?? 1;
+    $("h-count-to").value = r.countTo ?? 10;
+  }
+  $("h-detail").value = r.detail ?? "";
+  $("h-due").value = r.dueDate ?? "";
+  $("h-save-btn").textContent = "更新";
+  $("hw-form").closest("details").open = true;
+  $("hw-form").scrollIntoView({ block: "center" });
 }
 $("hw-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const type = $("h-type").value;
   const base = {
     title: $("h-title").value.trim(), subject: $("h-subject").value, type,
-    detail: $("h-detail").value.trim(), dueDate: $("h-due").value,
-    question: "", createdAt: serverTimestamp()
+    detail: $("h-detail").value.trim(), dueDate: $("h-due").value
   };
   if (type === "count") {
     const unit = $("h-unit-select").value === "custom" ? $("h-unit-custom").value.trim() : $("h-unit-select").value;
     base.unit = unit || "回";
     base.countFrom = Number($("h-count-from").value) || 1;
     base.countTo = Number($("h-count-to").value) || base.countFrom;
-    base.clearedCounts = [];
-  } else {
-    base.done = false;
   }
-  await addDoc(collection(db, "students", currentSid, "homework"), base);
+  if (editingHwId) {
+    await updateDoc(doc(db, "students", currentSid, "homework", editingHwId), base);
+    editingHwId = null;
+    $("h-save-btn").textContent = "追加";
+  } else {
+    base.question = ""; base.createdAt = serverTimestamp();
+    if (type === "count") base.clearedCounts = []; else base.done = false;
+    await addDoc(collection(db, "students", currentSid, "homework"), base);
+  }
   e.target.reset();
   $("h-count-range").hidden = true;
   $("h-count-numbers").hidden = true;
@@ -310,15 +336,33 @@ function lessonItemHTML(r) {
       ${r.range ? `<h4>${esc(r.range)}</h4>` : ""}
       ${r.content ? `<p class="label">授業内容</p><p>${esc(r.content)}</p>` : ""}
       ${r.notes ? `<p class="label">所感</p><p>${esc(r.notes)}</p>` : ""}
+      ${role === "tutor" ? `<div class="actions"><button class="small outline" data-lesson-edit="${esc(r.id)}">編集</button></div>` : ""}
     </article>`;
+}
+let editingLessonId = null;
+function startEditLesson(r) {
+  editingLessonId = r.id;
+  $("l-date").value = r.date ?? ""; $("l-subject").value = r.subject ?? "";
+  $("l-range").value = r.range ?? ""; $("l-content").value = r.content ?? ""; $("l-notes").value = r.notes ?? "";
+  $("l-save-btn").textContent = "更新";
+  $("lesson-form").closest("details").open = true;
+  $("lesson-form").scrollIntoView({ block: "center" });
 }
 $("lesson-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  await addDoc(collection(db, "students", currentSid, "lessons"), {
+  const base = {
     date: $("l-date").value, subject: $("l-subject").value,
     range: $("l-range").value.trim(), content: $("l-content").value.trim(),
-    notes: $("l-notes").value.trim(), createdAt: serverTimestamp()
-  });
+    notes: $("l-notes").value.trim()
+  };
+  if (editingLessonId) {
+    await updateDoc(doc(db, "students", currentSid, "lessons", editingLessonId), base);
+    editingLessonId = null;
+    $("l-save-btn").textContent = "保存";
+  } else {
+    base.createdAt = serverTimestamp();
+    await addDoc(collection(db, "students", currentSid, "lessons"), base);
+  }
   e.target.reset(); $("l-date").value = today();
 });
 
@@ -327,40 +371,89 @@ function scheduleItemHTML(s) {
   return `
     <article class="item">
       <div class="meta"><span class="date">指導予定${s.time ? " " + s.time : ""}</span>
-        ${role === "tutor" ? `<button class="small outline danger" data-sc-del="${esc(s.id)}">削除</button>` : ""}</div>
+        ${role === "tutor" ? `<button class="small outline" data-sc-edit="${esc(s.id)}">編集</button>
+        <button class="small outline danger" data-sc-del="${esc(s.id)}">削除</button>` : ""}</div>
       ${s.memo ? `<p>${esc(s.memo)}</p>` : ""}
       ${s.zoomUrl ? `<p><a href="${esc(s.zoomUrl)}" target="_blank" rel="noopener" class="zoom-link">Zoomで参加 →</a></p>` : ""}
     </article>`;
 }
 const ZOOM_KEY = "tnote.lastZoomUrl";
 if ($("sc-zoom").value === "") { const savedZoom = store.get(ZOOM_KEY); if (savedZoom) $("sc-zoom").value = savedZoom; }
+let editingScheduleId = null;
+function startEditSchedule(s) {
+  editingScheduleId = s.id;
+  $("sc-date").value = s.date ?? ""; $("sc-time").value = s.time ?? "";
+  $("sc-zoom").value = s.zoomUrl ?? ""; $("sc-memo").value = s.memo ?? "";
+  $("sc-save-btn").textContent = "更新";
+  $("schedule-form").closest("details").open = true;
+  $("schedule-form").scrollIntoView({ block: "center" });
+}
 $("schedule-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const zoomUrl = $("sc-zoom").value.trim();
-  await addDoc(collection(db, "students", currentSid, "schedule"), {
-    date: $("sc-date").value, time: $("sc-time").value, zoomUrl,
-    memo: $("sc-memo").value.trim(), reminded: false, createdAt: serverTimestamp()
-  });
+  const base = { date: $("sc-date").value, time: $("sc-time").value, zoomUrl, memo: $("sc-memo").value.trim() };
+  if (editingScheduleId) {
+    await updateDoc(doc(db, "students", currentSid, "schedule", editingScheduleId), { ...base, reminded: false });
+    editingScheduleId = null;
+    $("sc-save-btn").textContent = "登録";
+  } else {
+    await addDoc(collection(db, "students", currentSid, "schedule"), { ...base, reminded: false, createdAt: serverTimestamp() });
+  }
   if (zoomUrl) store.set(ZOOM_KEY, zoomUrl);
   e.target.reset();
   $("sc-zoom").value = zoomUrl; // 次回も同じZoom URLを使えるよう、リセット後も残す
 });
 
-/* ---------- カレンダー下：日付別フィード（宿題・指導予定・指導記録を統合、新しい日付が上） ---------- */
+/* ---------- 予定（生徒・保護者・チューター誰でも追加可） ---------- */
+function planItemHTML(p) {
+  return `
+    <article class="item">
+      <div class="meta"><span class="date">予定${p.time ? " " + p.time : ""}</span>
+        ${p.authorRole === role ? `<button class="small outline" data-plan-edit="${esc(p.id)}">編集</button>
+        <button class="small outline danger" data-plan-del="${esc(p.id)}">削除</button>` : ""}</div>
+      <h4>${esc(p.title)}</h4>
+      ${p.memo ? `<p>${esc(p.memo)}</p>` : ""}
+    </article>`;
+}
+let editingPlanId = null;
+function startEditPlan(p) {
+  editingPlanId = p.id;
+  $("pl-title").value = p.title ?? ""; $("pl-date").value = p.date ?? "";
+  $("pl-time").value = p.time ?? ""; $("pl-memo").value = p.memo ?? "";
+  $("pl-save-btn").textContent = "更新";
+  $("plan-form").closest("details").open = true;
+  $("plan-form").scrollIntoView({ block: "center" });
+}
+$("plan-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const base = { title: $("pl-title").value.trim(), date: $("pl-date").value, time: $("pl-time").value, memo: $("pl-memo").value.trim() };
+  if (editingPlanId) {
+    await updateDoc(doc(db, "students", currentSid, "plans", editingPlanId), base);
+    editingPlanId = null;
+    $("pl-save-btn").textContent = "追加";
+  } else {
+    await addDoc(collection(db, "students", currentSid, "plans"), { ...base, authorRole: role, createdAt: serverTimestamp() });
+  }
+  e.target.reset();
+});
+
+/* ---------- カレンダー下：日付別フィード（宿題・指導予定・指導記録・予定を統合、新しい日付が上） ---------- */
 function renderCalendarFeed() {
   const dateMap = {};
-  const ensure = (date) => (dateMap[date] ??= { hw: [], lesson: [], sched: [] });
+  const ensure = (date) => (dateMap[date] ??= { hw: [], lesson: [], sched: [], plan: [] });
   homework.forEach(h => { if (h.dueDate) ensure(h.dueDate).hw.push(h); });
   lessons.forEach(l => { if (l.date) ensure(l.date).lesson.push(l); });
   schedule.forEach(s => { if (s.date) ensure(s.date).sched.push(s); });
+  plans.forEach(p => { if (p.date) ensure(p.date).plan.push(p); });
   const dates = Object.keys(dateMap).sort((a, b) => b.localeCompare(a));
   $("calendar-feed").innerHTML = dates.length ? dates.map(date => {
-    const { hw, lesson, sched } = dateMap[date];
+    const { hw, lesson, sched, plan } = dateMap[date];
     return `<div class="feed-date-group">
       <h4 class="feed-date-heading">${fmtDateLong(date)}</h4>
       ${sched.map(scheduleItemHTML).join("")}
       ${lesson.map(lessonItemHTML).join("")}
       ${hw.map(homeworkItemHTML).join("")}
+      ${plan.map(planItemHTML).join("")}
     </div>`;
   }).join("") : `<div class="empty">まだ予定・記録がありません。</div>`;
 }
@@ -380,6 +473,18 @@ async function handleHomeworkFeedClick(e) {
   } else if (scd && confirm("この指導予定を削除しますか？")) {
     await deleteDoc(doc(db, "students", currentSid, "schedule", scd.dataset.scDel));
   }
+  const pld = e.target.closest("[data-plan-del]");
+  if (pld && confirm("この予定を削除しますか？")) {
+    await deleteDoc(doc(db, "students", currentSid, "plans", pld.dataset.planDel));
+  }
+  const ple = e.target.closest("[data-plan-edit]");
+  if (ple) { const p = plans.find(x => x.id === ple.dataset.planEdit); if (p) startEditPlan(p); }
+  const hwe = e.target.closest("[data-hw-edit]");
+  if (hwe) { const h = homework.find(x => x.id === hwe.dataset.hwEdit); if (h) startEditHomework(h); }
+  const le = e.target.closest("[data-lesson-edit]");
+  if (le) { const l = lessons.find(x => x.id === le.dataset.lessonEdit); if (l) startEditLesson(l); }
+  const sce = e.target.closest("[data-sc-edit]");
+  if (sce) { const s = schedule.find(x => x.id === sce.dataset.scEdit); if (s) startEditSchedule(s); }
 }
 async function handleHomeworkFeedChange(e) {
   const input = e.target.closest("[data-photo-input]");
@@ -478,13 +583,16 @@ function renderCalendars() {
   homework.forEach(h => add(h.dueDate, "due", "期限"));
   lessons.forEach(l => add(l.date, "lesson", "指導日"));
   schedule.forEach(s => add(s.date, "lesson", s.time || "指導日"));
+  plans.forEach(p => add(p.date, "plan", "予定"));
   if (role === "tutor") tuition.forEach(t => (t.dates ?? []).forEach(d => add(d, "tuition", "月謝")));
   const marks = {};
   Object.entries(raw).forEach(([date, list]) => {
     const dueCount = list.filter(k => k.kind === "due").length;
     const tuitionCount = list.filter(k => k.kind === "tuition").length;
+    const planCount = list.filter(k => k.kind === "plan").length;
     const merged = list.filter(k => k.kind === "lesson");
     if (dueCount) merged.unshift({ kind: "due", text: dueCount > 1 ? `期限×${dueCount}` : "期限" });
+    if (planCount) merged.push({ kind: "plan", text: planCount > 1 ? `予定×${planCount}` : "予定" });
     if (tuitionCount) merged.push({ kind: "tuition", text: "月謝" });
     marks[date] = merged;
   });
@@ -538,6 +646,10 @@ function openDayModal(iso) {
         <span class="badge ${t.paid ? "done" : ""}">${t.paid ? "T（振込確認済み）" : "未確認"}</span>
       </div>`).join("")}
     </div>`);
+  }
+  const dayPlans = plans.filter(p => p.date === iso);
+  if (dayPlans.length) {
+    sections.push(`<div class="modal-section"><h4 class="modal-sub">予定</h4>${dayPlans.map(planItemHTML).join("")}</div>`);
   }
   $("day-modal-body").innerHTML = sections.length ? sections.join("") : `<div class="empty">この日の予定はありません。</div>`;
   $("day-modal").hidden = false;
@@ -752,7 +864,11 @@ $("test-form").addEventListener("submit", async (e) => {
 });
 
 /* ---------- 連絡（役割別の既読つき） ---------- */
+let messages = [];
+let replyTo = null;
 function renderMessages(rows) {
+  messages = rows;
+  const byId = Object.fromEntries(rows.map(r => [r.id, r]));
   const byDate = {};
   rows.forEach(r => {
     const d = r.createdAt?.toDate ? r.createdAt.toDate() : new Date();
@@ -770,15 +886,22 @@ function renderMessages(rows) {
           .map(k => ROLE_LABEL[k]);
         const readLine = readers.length ? `既読：${readers.join("・")}` : "未読";
         const time = r.createdAt?.toDate ? r.createdAt.toDate().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }) : "";
+        const quoted = r.replyTo && byId[r.replyTo];
         return `
         <article class="item ${r.authorRole === role ? "me" : ""}">
           <div class="meta">
             <span class="date">${esc(ROLE_LABEL[r.authorRole] ?? r.authorRole)}</span>
             <span>${time}</span>
           </div>
+          ${quoted ? `<div class="reply-quote"><span class="label">${esc(ROLE_LABEL[quoted.authorRole])}への返信</span><p>${esc(quoted.text ?? "")}</p></div>` : ""}
           <p>${esc(r.text)}</p>
+          ${r.photo ? `<img class="hw-photo" src="${r.photo}" alt="添付写真">` : ""}
+          <div class="actions">
+            <button class="small outline" data-msg-reply="${esc(r.id)}">返信する</button>
+            ${r.authorRole === role ? `<button class="small outline" data-msg-edit="${esc(r.id)}">編集</button>
+            <button class="small outline danger" data-msg-del="${esc(r.id)}">送信取り消し</button>` : ""}
+          </div>
           ${r.authorRole === role ? `<p class="hint left msg-read">${readLine}</p>` : ""}
-          ${r.authorRole === role ? `<div class="actions"><button class="small outline danger" data-msg-del="${esc(r.id)}">送信取り消し</button></div>` : ""}
         </article>`;
       }).join("")}
     </div>`).join("") : `<div class="empty">まだメッセージはありません。</div>`;
@@ -787,9 +910,27 @@ function renderMessages(rows) {
 }
 $("msg-list").addEventListener("click", async (e) => {
   const d = e.target.closest("[data-msg-del]");
+  const r = e.target.closest("[data-msg-reply]");
+  const ed = e.target.closest("[data-msg-edit]");
   if (d && confirm("このメッセージを削除しますか？")) {
     await deleteDoc(doc(db, "students", currentSid, "messages", d.dataset.msgDel));
+  } else if (ed) {
+    const target = messages.find(m => m.id === ed.dataset.msgEdit);
+    if (!target) return;
+    const val = prompt("メッセージを編集", target.text ?? "");
+    if (val !== null && val.trim()) await updateDoc(doc(db, "students", currentSid, "messages", target.id), { text: val.trim(), editedAt: serverTimestamp() });
+  } else if (r) {
+    const target = messages.find(m => m.id === r.dataset.msgReply);
+    if (!target) return;
+    replyTo = target.id;
+    $("m-reply-text").textContent = `${ROLE_LABEL[target.authorRole]}「${target.text}」への返信`;
+    $("m-reply-preview").hidden = false;
+    $("m-text").focus();
   }
+});
+$("m-reply-cancel").addEventListener("click", () => {
+  replyTo = null;
+  $("m-reply-preview").hidden = true;
 });
 function markMessagesRead(rows) {
   if (!role) return;
@@ -799,11 +940,18 @@ function markMessagesRead(rows) {
 }
 $("msg-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  await addDoc(collection(db, "students", currentSid, "messages"), {
+  const file = $("m-photo").files[0];
+  const photo = file ? await fileToDataUrl(file).catch(() => "") : "";
+  const data = {
     text: $("m-text").value.trim(), authorRole: role, createdAt: serverTimestamp(),
     readBy: { [role]: true }
-  });
+  };
+  if (photo) data.photo = photo;
+  if (replyTo) data.replyTo = replyTo;
+  await addDoc(collection(db, "students", currentSid, "messages"), data);
   e.target.reset();
+  replyTo = null;
+  $("m-reply-preview").hidden = true;
 });
 
 /* ---------- 設定：プロフィール ---------- */
@@ -1006,6 +1154,7 @@ wireDirtySave("study-form", "st-save-btn");
 wireDirtySave("book-form", "b-save-btn");
 wireDirtySave("test-form", "t-save-btn");
 wireDirtySave("tuition-form", "tu-save-btn");
+wireDirtySave("plan-form", "pl-save-btn");
 wireDirtySave("msg-form", "m-save-btn");
 wireDirtySave("add-student-form", "s-save-btn");
 wireDirtySave("tutor-pass-form", "tp-save-btn");

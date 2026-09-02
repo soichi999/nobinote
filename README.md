@@ -47,7 +47,12 @@
   - **完了・未完了**：達成度は0%または100%
   - 教科は「なし」も選択可。写真の添付にも対応
 - 指導記録（実施済み）と指導予定（Zoom URL・時刻つき）をチューターが登録
-- 指導開始1時間前・宿題期限前日にプッシュ通知（要 Cloud Functions）
+- **予定**：生徒・保護者・チューターの誰でも追加できる汎用の予定（タイトル・日付・時刻・メモ）。
+  カレンダー・日付詳細・下部フィードすべてに反映される
+- 宿題・指導記録・指導予定・予定はすべて登録後に**編集可能**（宿題/指導記録/指導予定はチューターが編集、
+  予定は投稿した本人が編集）。連絡メッセージも自分の投稿を編集・送信取り消しできる
+- 指導開始1時間前・宿題期限前日にプッシュ通知（要 Cloud Functions）。新しい宿題・指導記録・指導予定・
+  予定・連絡が追加されるたびにも通知が届く
 
 ### 成績
 - 模試ごとに教科別の点数（素点／満点／偏差値）を何科目でも追加登録可能
@@ -57,11 +62,13 @@
 ### 月謝
 - チューターが対象日（複数選択可）と金額を登録。「9/1 9/8 9/15　7,500円」のように表示
 - 振込確認をトグルで管理。生徒には非表示、保護者は閲覧のみ
+- 支払日の前日に、未確認（振込未確認）であれば**保護者だけ**にリマインド通知（要 Cloud Functions）
 
 ### 連絡
 - チューター・生徒・保護者共通のメッセージ欄。カレンダーのフィードと同じく**日付ごとにまとめて表示**
+- メッセージへの**返信**（引用表示）、**写真の添付**に対応
 - **既読状況は送信者のみに表示**（「既読：保護者」など）
-- 自分が送信したメッセージは「送信取り消し」で削除可能
+- 自分が送信したメッセージは編集・「送信取り消し」（削除）が可能
 
 ### 設定（プロフィール）
 - 名前：生徒・チューターが編集可、保護者は閲覧のみ
@@ -110,10 +117,11 @@ firebase deploy --only hosting,firestore
 cd functions && npm install && cd ..
 firebase deploy --only functions,firestore:indexes
 ```
-`functions/index.js` が、宿題・指導記録・連絡の追加を検知して、その生徒に紐づく端末
+`functions/index.js` が、宿題・指導記録・指導予定・予定・連絡の追加を検知して、その生徒に紐づく端末
 （書いた本人以外）へ通知を送ります。あわせて以下の定期リマインドを送ります。
 - `homeworkReminder`：毎朝8時（日本時間）に、翌日が期限の未提出宿題をチェック
 - `lessonReminder`：5分おきに、1時間以内に始まる指導予定をチェック
+- `tuitionReminder`：毎朝9時（日本時間）に、翌日が支払日で未確認の月謝があれば保護者にだけ通知
 
 いずれも複数の生徒をまたいで検索する（collectionGroup クエリ）ため、`firestore:indexes` の
 デプロイ（複合インデックスの作成）が必要です。
@@ -136,6 +144,7 @@ students/{sid}                      { name, studentPasscode, parentPasscode,
                                        birthday, targetSchools[], goodSubjects[], weakSubjects[] }
 students/{sid}/lessons/{id}         { date, subject, range, content, notes }
 students/{sid}/schedule/{id}        { date, time, zoomUrl, memo, reminded }
+students/{sid}/plans/{id}           { title, date, time, memo, authorRole }
 students/{sid}/homework/{id}        { title, subject, type, detail, dueDate, photo,
                                        done,                              // type: tf
                                        unit, countFrom, countTo, clearedCounts[] } // type: count
@@ -144,7 +153,7 @@ students/{sid}/studyLogs/{id}       { bookId, date, minutes }
 students/{sid}/tests/{id}           { examName, date, subject, score, max, deviation }
 students/{sid}/examMeta/{examSlug}  { rank, judgments: [{ school, rank }] }
 students/{sid}/tuition/{id}         { dates[], amount, paid }
-students/{sid}/messages/{id}        { text, authorRole, readBy: { tutor, student, parent }, createdAt }
+students/{sid}/messages/{id}        { text, photo, replyTo, authorRole, readBy: { tutor, student, parent }, createdAt }
 students/{sid}/tokens/{fcmToken}    { role, updatedAt }   ← 通知の送り先
 ```
 
