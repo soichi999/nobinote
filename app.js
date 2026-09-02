@@ -37,6 +37,7 @@ const subjectChip = (id) => {
 
 const TUTOR_KEY = "tnote.tutorPass";
 const FAMILY_KEY = "tnote.familyPass";
+const LAST_STUDENT_KEY = "tnote.lastStudentSid";
 const store = {
   get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
@@ -103,7 +104,8 @@ const ROLE_LABEL = { tutor: "チューター", student: "生徒", parent: "保�
 function start(r, code) {
   if (r === "tutor") {
     role = "tutor";
-    currentSid = students[0]?.id ?? null;
+    const lastSid = store.get(LAST_STUDENT_KEY);
+    currentSid = (lastSid && students.some(s => s.id === lastSid)) ? lastSid : (students[0]?.id ?? null);
   } else {
     const s = students.find(x => x.studentPasscode === code);
     if (s) { role = "student"; currentSid = s.id; }
@@ -144,10 +146,19 @@ function refreshStudentUI() {
   sel.innerHTML = list.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
   sel.value = currentSid ?? "";
   $("student-picker").hidden = !(role === "tutor" && list.length > 1);
-  if (!currentSid && list.length) { currentSid = list[0].id; sel.value = currentSid; watchAll(); }
+  if (!currentSid && list.length) {
+    const lastSid = role === "tutor" ? store.get(LAST_STUDENT_KEY) : null;
+    currentSid = (lastSid && list.some(s => s.id === lastSid)) ? lastSid : list[0].id;
+    sel.value = currentSid; watchAll();
+  }
   if (!list.length) $("calendar-feed").innerHTML = `<div class="empty">まず「設定」タブで生徒を追加してください。</div>`;
+  if (role === "tutor" && currentSid) store.set(LAST_STUDENT_KEY, currentSid);
 }
-$("student-select").addEventListener("change", e => { currentSid = e.target.value; watchAll(); });
+$("student-select").addEventListener("change", e => {
+  currentSid = e.target.value;
+  if (role === "tutor") store.set(LAST_STUDENT_KEY, currentSid);
+  watchAll();
+});
 
 /* ---------- タブ ---------- */
 function scrollTodayIntoView(calendarId) {
