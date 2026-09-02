@@ -32,6 +32,7 @@ const FAMILY_KEY = "tnote.familyPass";
 const store = {
   get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+  del: (k) => { try { localStorage.removeItem(k); } catch {} },
 };
 
 let role = null;
@@ -123,7 +124,8 @@ $("pass-ok").addEventListener("click", () => {
 $("pass-input").addEventListener("keydown", e => { if (e.key === "Enter") $("pass-ok").click(); });
 $("pass-back").addEventListener("click", () => { pendingRole = null; show("gate-view"); });
 $("logout").addEventListener("click", () => {
-  off(); role = null; currentSid = null;
+  off(); store.del(TUTOR_KEY); store.del(FAMILY_KEY);
+  role = null; currentSid = null;
   $("topbar").hidden = true; show("gate-view");
 });
 
