@@ -290,6 +290,7 @@ function homeworkItemHTML(r) {
             ${r.done ? "未完了に戻す" : "完了にする"}</button>
         </div>
       `}
+      ${r.pdf ? `<p><a href="${r.pdf}" target="_blank" rel="noopener" class="zoom-link">📄 添付PDFを開く</a></p>` : ""}
       ${r.photo ? `<img class="hw-photo" src="${r.photo}" alt="提出写真">` : ""}
       <div class="actions">
         <button class="small outline" data-photo="${esc(r.id)}">写真を添付</button>
@@ -316,12 +317,31 @@ function startEditHomework(r) {
   }
   $("h-detail").value = r.detail ?? "";
   $("h-due").value = r.dueDate ?? "";
+  if (r.pdf) {
+    $("h-pdf-current").hidden = false;
+    $("h-pdf-current").querySelector("a").href = r.pdf;
+  } else {
+    $("h-pdf-current").hidden = true;
+  }
   $("h-save-btn").textContent = "更新";
   $("hw-form").closest("details").open = true;
   $("hw-form").scrollIntoView({ block: "center" });
 }
+function fileToDataUrlRaw(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 $("hw-form").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const pdfFile = $("h-pdf").files[0];
+  if (pdfFile && pdfFile.size > 400 * 1024) {
+    alert("PDFは400KBまでです。ファイルサイズを小さくしてから添付してください。");
+    return;
+  }
   const type = $("h-type").value;
   const base = {
     title: $("h-title").value.trim(), subject: $("h-subject").value, type,
@@ -333,6 +353,7 @@ $("hw-form").addEventListener("submit", async (e) => {
     base.countFrom = Number($("h-count-from").value) || 1;
     base.countTo = Number($("h-count-to").value) || base.countFrom;
   }
+  if (pdfFile) base.pdf = await fileToDataUrlRaw(pdfFile).catch(() => null);
   if (editingHwId) {
     await updateDoc(doc(db, "students", currentSid, "homework", editingHwId), base);
     editingHwId = null;
@@ -343,6 +364,7 @@ $("hw-form").addEventListener("submit", async (e) => {
     await addDoc(collection(db, "students", currentSid, "homework"), base);
   }
   e.target.reset();
+  $("h-pdf-current").hidden = true;
   $("h-count-range").hidden = true;
   $("h-count-numbers").hidden = true;
   $("h-unit-custom-wrap").hidden = true;

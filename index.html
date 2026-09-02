@@ -111,6 +111,8 @@
       </div>
       <label>詳細<textarea id="h-detail" rows="3"></textarea></label>
       <label>提出期限<input type="date" id="h-due" required></label>
+      <label>PDF添付（任意・400KBまで）<input type="file" id="h-pdf" accept="application/pdf"></label>
+      <p class="hint left" id="h-pdf-current" hidden>現在のPDF：<a href="#" target="_blank" rel="noopener">開く</a>（新しいファイルを選ぶと差し替わります）</p>
       <button id="h-save-btn" type="submit" class="save-btn">追加</button>
       </form>
     </details>

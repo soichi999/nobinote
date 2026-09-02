@@ -47,6 +47,7 @@
     生徒が1つずつチェック。達成度＝チェック済み数 ÷ 全体数（例：「6/10問」）
   - **完了・未完了**：達成度は0%または100%
   - 教科は「なし」も選択可。写真の添付にも対応
+  - チューターは宿題に**PDF（400KBまで）を添付**可能（教材やプリントの配布用）
 - 指導記録（実施済み）と指導予定（Zoom URL・時刻つき）をチューターが登録
 - **予定**：生徒・保護者・チューターの誰でも追加できる汎用の予定（タイトル・日付・時刻・メモ）。
   カレンダー・日付詳細・下部フィードすべてに反映される
@@ -146,7 +147,7 @@ students/{sid}                      { name, studentPasscode, parentPasscode,
 students/{sid}/lessons/{id}         { date, subject, range, content, notes }
 students/{sid}/schedule/{id}        { date, time, zoomUrl, memo, reminded }
 students/{sid}/plans/{id}           { title, date, time, memo, authorRole }
-students/{sid}/homework/{id}        { title, subject, type, detail, dueDate, photo,
+students/{sid}/homework/{id}        { title, subject, type, detail, dueDate, photo, pdf,
                                        done,                              // type: tf
                                        unit, countFrom, countTo, clearedCounts[] } // type: count
 students/{sid}/books/{id}           { name, subject, image }
