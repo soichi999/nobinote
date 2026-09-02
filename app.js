@@ -301,7 +301,7 @@ function homeworkItemHTML(r) {
         </div>
       `}
       ${hwPdfList(r).length ? `<div class="pdf-list">${hwPdfList(r).map((p, i) =>
-        `<p><a href="${p.url}" target="_blank" rel="noopener" class="zoom-link">📄 ${esc(p.name || `添付PDF${i + 1}`)}</a></p>`
+        `<p><a href="${p.url}" class="zoom-link pdf-open-link">📄 ${esc(p.name || `添付PDF${i + 1}`)}</a></p>`
       ).join("")}</div>` : ""}
       ${hwPhotoList(r).length ? `<div class="hw-photo-grid">${hwPhotoList(r).map(src => `<img class="hw-photo" src="${src}" alt="提出写真">`).join("")}</div>` : ""}
       <div class="actions">
@@ -528,7 +528,23 @@ function renderCalendarFeed() {
     </div>`;
   }).join("") : `<div class="empty">まだ予定・記録がありません。</div>`;
 }
+// data: URLへの直接ナビゲーションはブラウザ（特にChrome）にブロックされることがあるため、
+// 一度Blobに変換してからblob: URLで開く
+async function openDataUrlAsBlob(dataUrl) {
+  try {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
+    if (!win) alert("ポップアップがブロックされました。ブラウザの設定でこのサイトのポップアップを許可してください。");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch {
+    alert("PDFを開けませんでした。");
+  }
+}
 async function handleHomeworkFeedClick(e) {
+  const pdfLink = e.target.closest(".pdf-open-link");
+  if (pdfLink) { e.preventDefault(); openDataUrlAsBlob(pdfLink.getAttribute("href")); return; }
   const t = e.target.closest("[data-toggle]"), a = e.target.closest("[data-ask]"), d = e.target.closest("[data-del]");
   const p = e.target.closest("[data-photo]"), pg = e.target.closest("[data-count-toggle]");
   const scd = e.target.closest("[data-sc-del]");
