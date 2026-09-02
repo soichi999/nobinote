@@ -162,6 +162,11 @@ const sub = (name, order, dir, apply) => {
 };
 function watchAll() {
   off();
+  // 生徒切り替え時に前の生徒のデータが一瞬でも表示され続けないよう、即座に状態をリセットしてから再描画する
+  lessons = []; homework = []; tests = []; books = []; studyLogs = []; schedule = []; examMeta = {}; tuition = [];
+  tuitionDates = []; renderTuitionChips();
+  renderHomework(); renderCalendarFeed(); renderCalendars(); renderTests(); renderBooks(); refreshBookSelect();
+  renderStudy(); renderTuition(); $("msg-list").innerHTML = "";
   if (!currentSid) return;
   sub("lessons", "date", "desc", rows => { lessons = rows; renderCalendarFeed(); renderCalendars(); });
   sub("homework", "dueDate", "asc", rows => { homework = rows; renderHomework(); renderCalendarFeed(); renderCalendars(); });
