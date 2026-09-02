@@ -270,6 +270,16 @@ $("hw-ring-card").addEventListener("keydown", (e) => {
 });
 $("hw-overview-close").addEventListener("click", () => { $("hw-overview-modal").hidden = true; });
 $("hw-overview-modal").addEventListener("click", (e) => { if (e.target.id === "hw-overview-modal") $("hw-overview-modal").hidden = true; });
+function hwPdfList(r) {
+  const list = Array.isArray(r.pdfs) ? r.pdfs.slice() : [];
+  if (r.pdf) list.unshift({ name: "添付PDF", url: r.pdf });
+  return list;
+}
+function hwPhotoList(r) {
+  const list = Array.isArray(r.photos) ? r.photos.slice() : [];
+  if (r.photo) list.unshift(r.photo);
+  return list;
+}
 function homeworkItemHTML(r) {
   return `
     <article class="item">
@@ -290,15 +300,17 @@ function homeworkItemHTML(r) {
             ${r.done ? "未完了に戻す" : "完了にする"}</button>
         </div>
       `}
-      ${r.pdf ? `<p><a href="${r.pdf}" target="_blank" rel="noopener" class="zoom-link">📄 添付PDFを開く</a></p>` : ""}
-      ${r.photo ? `<img class="hw-photo" src="${r.photo}" alt="提出写真">` : ""}
+      ${hwPdfList(r).length ? `<div class="pdf-list">${hwPdfList(r).map((p, i) =>
+        `<p><a href="${p.url}" target="_blank" rel="noopener" class="zoom-link">📄 ${esc(p.name || `添付PDF${i + 1}`)}</a></p>`
+      ).join("")}</div>` : ""}
+      ${hwPhotoList(r).length ? `<div class="hw-photo-grid">${hwPhotoList(r).map(src => `<img class="hw-photo" src="${src}" alt="提出写真">`).join("")}</div>` : ""}
       <div class="actions">
         <button class="small outline" data-photo="${esc(r.id)}">写真を添付</button>
         <button class="small outline" data-ask="${esc(r.id)}">質問する</button>
         ${role === "tutor" ? `<button class="small outline" data-hw-edit="${esc(r.id)}">編集</button>
         <button class="small outline danger" data-del="${esc(r.id)}">削除</button>` : ""}
       </div>
-      <input type="file" accept="image/*" capture="environment" class="hidden-file" data-photo-input="${esc(r.id)}">
+      <input type="file" accept="image/*" multiple class="hidden-file" data-photo-input="${esc(r.id)}">
     </article>`;
 }
 let editingHwId = null;
@@ -317,9 +329,11 @@ function startEditHomework(r) {
   }
   $("h-detail").value = r.detail ?? "";
   $("h-due").value = r.dueDate ?? "";
-  if (r.pdf) {
+  const existingPdfs = hwPdfList(r);
+  if (existingPdfs.length) {
     $("h-pdf-current").hidden = false;
-    $("h-pdf-current").querySelector("a").href = r.pdf;
+    $("h-pdf-current-list").innerHTML = existingPdfs.map((p, i) =>
+      `<a href="${p.url}" target="_blank" rel="noopener">${esc(p.name || `PDF${i + 1}`)}</a>`).join("　");
   } else {
     $("h-pdf-current").hidden = true;
   }
@@ -337,9 +351,10 @@ function fileToDataUrlRaw(file) {
 }
 $("hw-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const pdfFile = $("h-pdf").files[0];
-  if (pdfFile && pdfFile.size > 400 * 1024) {
-    alert("PDFは400KBまでです。ファイルサイズを小さくしてから添付してください。");
+  const pdfFiles = [...$("h-pdf").files];
+  const totalSize = pdfFiles.reduce((s, f) => s + f.size, 0);
+  if (totalSize > 700 * 1024) {
+    alert("PDFは合計700KBまでです。ファイルサイズを小さくするか、枚数を減らしてください。");
     return;
   }
   const type = $("h-type").value;
@@ -353,13 +368,17 @@ $("hw-form").addEventListener("submit", async (e) => {
     base.countFrom = Number($("h-count-from").value) || 1;
     base.countTo = Number($("h-count-to").value) || base.countFrom;
   }
-  if (pdfFile) base.pdf = await fileToDataUrlRaw(pdfFile).catch(() => null);
+  const newPdfs = pdfFiles.length
+    ? (await Promise.all(pdfFiles.map(async f => ({ name: f.name, url: await fileToDataUrlRaw(f).catch(() => null) }))))
+      .filter(p => p.url)
+    : [];
   if (editingHwId) {
+    if (newPdfs.length) base.pdfs = arrayUnion(...newPdfs);
     await updateDoc(doc(db, "students", currentSid, "homework", editingHwId), base);
     editingHwId = null;
     $("h-save-btn").textContent = "追加";
   } else {
-    base.question = ""; base.createdAt = serverTimestamp();
+    base.question = ""; base.createdAt = serverTimestamp(); base.pdfs = newPdfs;
     if (type === "count") base.clearedCounts = []; else base.done = false;
     await addDoc(collection(db, "students", currentSid, "homework"), base);
   }
@@ -540,9 +559,9 @@ async function handleHomeworkFeedClick(e) {
 }
 async function handleHomeworkFeedChange(e) {
   const input = e.target.closest("[data-photo-input]");
-  if (!input || !input.files[0]) return;
-  const photo = await fileToDataUrl(input.files[0]).catch(() => "");
-  if (photo) await updateDoc(doc(db, "students", currentSid, "homework", input.dataset.photoInput), { photo });
+  if (!input || !input.files.length) return;
+  const urls = (await Promise.all([...input.files].map(f => fileToDataUrl(f).catch(() => "")))).filter(Boolean);
+  if (urls.length) await updateDoc(doc(db, "students", currentSid, "homework", input.dataset.photoInput), { photos: arrayUnion(...urls) });
 }
 $("calendar-feed").addEventListener("click", handleHomeworkFeedClick);
 $("calendar-feed").addEventListener("change", handleHomeworkFeedChange);
@@ -686,7 +705,7 @@ function openDayModal(iso) {
   if (role !== "parent" && dayHomework.length) {
     sections.push(`<div class="modal-section"><h4 class="modal-sub">宿題期限</h4>
       ${dayHomework.map(h => `<details class="modal-hw-item">
-        <summary>${subjectChip(h.subject)}<span>${esc(h.title)}</span>${hwBadge(h)}</summary>
+        <summary>${subjectChip(h.subject)}<span class="modal-hw-title">${esc(h.title)}</span>${hwBadge(h)}</summary>
         ${homeworkItemHTML(h)}
       </details>`).join("")}
     </div>`);
@@ -947,7 +966,7 @@ function renderMessages(rows) {
           </div>
           ${quoted ? `<div class="reply-quote"><span class="label">${esc(ROLE_LABEL[quoted.authorRole])}への返信</span><p>${esc(quoted.text ?? "")}</p></div>` : ""}
           <p>${esc(r.text)}</p>
-          ${r.photo ? `<img class="hw-photo" src="${r.photo}" alt="添付写真">` : ""}
+          ${(r.photos ?? (r.photo ? [r.photo] : [])).length ? `<div class="hw-photo-grid">${(r.photos ?? [r.photo]).map(src => `<img class="hw-photo" src="${src}" alt="添付写真">`).join("")}</div>` : ""}
           <div class="actions">
             <button class="small outline" data-msg-reply="${esc(r.id)}">返信する</button>
             ${r.authorRole === role ? `<button class="small outline" data-msg-edit="${esc(r.id)}">編集</button>
@@ -992,13 +1011,13 @@ function markMessagesRead(rows) {
 }
 $("msg-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const file = $("m-photo").files[0];
-  const photo = file ? await fileToDataUrl(file).catch(() => "") : "";
+  const files = [...$("m-photo").files];
+  const photos = (await Promise.all(files.map(f => fileToDataUrl(f).catch(() => "")))).filter(Boolean);
   const data = {
     text: $("m-text").value.trim(), authorRole: role, createdAt: serverTimestamp(),
     readBy: { [role]: true }
   };
-  if (photo) data.photo = photo;
+  if (photos.length) data.photos = photos;
   if (replyTo) data.replyTo = replyTo;
   await addDoc(collection(db, "students", currentSid, "messages"), data);
   e.target.reset();

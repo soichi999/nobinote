@@ -253,6 +253,10 @@ p.hint.cal-legend{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;
 
 /* ---- 宿題の提出写真 ---- */
 .hw-photo{max-width:220px;border-radius:10px;margin-top:.5rem;display:block;border:1px solid var(--line)}
+.hw-photo-grid{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
+.hw-photo-grid .hw-photo{margin-top:0}
+.pdf-list{display:flex;flex-direction:column;gap:.2rem;margin-top:.4rem}
+.pdf-list p{margin:0}
 .hidden-file{display:none}
 
 /* ---- 成績：順位 ---- */
@@ -301,7 +305,7 @@ p.hint.cal-legend{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;
 .modal-hw-item summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:.5rem;
   flex-wrap:wrap;padding:.8rem .9rem;font-size:.85rem;font-weight:700;color:var(--navy)}
 .modal-hw-item summary::-webkit-details-marker{display:none}
-.modal-hw-item summary span{flex:1}
+.modal-hw-item summary .modal-hw-title{flex:1;min-width:0}
 .modal-hw-item .item{border:none;box-shadow:none;border-radius:0;border-top:1px solid var(--line);
   margin:0;background:var(--bg)}
 

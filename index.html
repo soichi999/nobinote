@@ -111,8 +111,8 @@
       </div>
       <label>詳細<textarea id="h-detail" rows="3"></textarea></label>
       <label>提出期限<input type="date" id="h-due" required></label>
-      <label>PDF添付（任意・400KBまで）<input type="file" id="h-pdf" accept="application/pdf"></label>
-      <p class="hint left" id="h-pdf-current" hidden>現在のPDF：<a href="#" target="_blank" rel="noopener">開く</a>（新しいファイルを選ぶと差し替わります）</p>
+      <label>PDF添付（任意・合計700KBまで、複数選択可）<input type="file" id="h-pdf" accept="application/pdf" multiple></label>
+      <p class="hint left" id="h-pdf-current" hidden>添付済み：<span id="h-pdf-current-list"></span>（選ぶと追加されます。差し替えではありません）</p>
       <button id="h-save-btn" type="submit" class="save-btn">追加</button>
       </form>
     </details>
@@ -234,7 +234,7 @@
         <button type="button" id="m-reply-cancel" class="small outline">×</button>
       </div>
       <label>メッセージ<textarea id="m-text" rows="3" required></textarea></label>
-      <label>写真（任意）<input type="file" id="m-photo" accept="image/*"></label>
+      <label>写真（任意・複数選択可）<input type="file" id="m-photo" accept="image/*" multiple></label>
       <button id="m-save-btn" type="submit" class="save-btn">送信</button>
     </form>
   </section>

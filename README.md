@@ -46,8 +46,8 @@
   - **単位ごとにチェック**：単位（問／ページ／回、または自由入力）と開始〜終了番号をチューターが設定し、
     生徒が1つずつチェック。達成度＝チェック済み数 ÷ 全体数（例：「6/10問」）
   - **完了・未完了**：達成度は0%または100%
-  - 教科は「なし」も選択可。写真の添付にも対応
-  - チューターは宿題に**PDF（400KBまで）を添付**可能（教材やプリントの配布用）
+  - 教科は「なし」も選択可。写真は**複数枚**添付可能（提出のたびに追加できる）
+  - チューターは宿題に**PDFを複数（合計700KBまで）添付**可能（教材やプリントの配布用、編集時は追加登録）
 - 指導記録（実施済み）と指導予定（Zoom URL・時刻つき）をチューターが登録
 - **予定**：生徒・保護者・チューターの誰でも追加できる汎用の予定（タイトル・日付・時刻・メモ）。
   カレンダー・日付詳細・下部フィードすべてに反映される
@@ -68,7 +68,7 @@
 
 ### 連絡
 - チューター・生徒・保護者共通のメッセージ欄。カレンダーのフィードと同じく**日付ごとにまとめて表示**
-- メッセージへの**返信**（引用表示）、**写真の添付**に対応
+- メッセージへの**返信**（引用表示）、**写真の複数添付**に対応
 - **既読状況は送信者のみに表示**（「既読：保護者」など）
 - 自分が送信したメッセージは編集・「送信取り消し」（削除）が可能
 
@@ -147,7 +147,8 @@ students/{sid}                      { name, studentPasscode, parentPasscode,
 students/{sid}/lessons/{id}         { date, subject, range, content, notes }
 students/{sid}/schedule/{id}        { date, time, zoomUrl, memo, reminded }
 students/{sid}/plans/{id}           { title, date, time, memo, authorRole }
-students/{sid}/homework/{id}        { title, subject, type, detail, dueDate, photo, pdf,
+students/{sid}/homework/{id}        { title, subject, type, detail, dueDate,
+                                       photos[], pdfs[{ name, url }],     // 複数対応（photo/pdfは旧単数形式との互換用）
                                        done,                              // type: tf
                                        unit, countFrom, countTo, clearedCounts[] } // type: count
 students/{sid}/books/{id}           { name, subject, image }
@@ -155,7 +156,7 @@ students/{sid}/studyLogs/{id}       { bookId, date, minutes }
 students/{sid}/tests/{id}           { examName, date, subject, score, max, deviation }
 students/{sid}/examMeta/{examSlug}  { rank, judgments: [{ school, rank }] }
 students/{sid}/tuition/{id}         { dates[], amount, paid }
-students/{sid}/messages/{id}        { text, photo, replyTo, authorRole, readBy: { tutor, student, parent }, createdAt }
+students/{sid}/messages/{id}        { text, photos[], replyTo, authorRole, readBy: { tutor, student, parent }, createdAt }
 students/{sid}/tokens/{fcmToken}    { role, updatedAt }   ← 通知の送り先
 ```
 
