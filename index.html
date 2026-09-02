@@ -64,7 +64,7 @@
 
   <!-- カレンダー（宿題・指導記録・指導予定を統合） -->
   <section id="tab-calendar" class="tab">
-    <div class="card ring-card">
+    <div class="card ring-card" id="hw-ring-card" role="button" tabindex="0">
       <div class="ring-wrap"><svg id="hw-ring" viewBox="0 0 120 120"></svg><div class="ring-label" id="hw-ring-label">0%</div></div>
       <div><h3 style="border:none;padding:0">宿題の達成度</h3><p class="hint left" id="hw-ring-sub">まだ宿題がありません。</p></div>
     </div>
@@ -292,6 +292,17 @@
       <button type="button" id="day-modal-close" class="small outline">閉じる</button>
     </div>
     <div id="day-modal-body" class="list"></div>
+  </div>
+</div>
+
+<!-- 宿題一覧（達成度リングをタップ） -->
+<div id="hw-overview-modal" class="modal-overlay" hidden>
+  <div class="modal-panel">
+    <div class="modal-head">
+      <h3 style="border:none;padding:0">たまっている宿題</h3>
+      <button type="button" id="hw-overview-close" class="small outline">閉じる</button>
+    </div>
+    <div id="hw-overview-body" class="list"></div>
   </div>
 </div>
 

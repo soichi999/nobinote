@@ -149,7 +149,13 @@ button.text:hover{color:var(--blue)}
 }
 
 /* ---- 円形リング ---- */
-.ring-card{display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap}
+.ring-card{display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap;cursor:pointer;transition:border-color .15s}
+.ring-card:hover{border-color:var(--blue-line)}
+.ring-card:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.mini-ring{width:52px;height:52px;flex:none}
+.hw-overview-row{display:flex;align-items:center;gap:.9rem}
+.hw-overview-info{flex:1;min-width:0}
+.hw-overview-info h4{margin:.25rem 0 0}
 .ring-wrap{position:relative;width:100px;height:100px;flex:none}
 .ring-wrap.small{width:64px;height:64px;margin:.5rem 0}
 .ring-wrap svg{width:100%;height:100%}

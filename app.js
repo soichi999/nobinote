@@ -240,6 +240,36 @@ function renderHomework() {
     </div>`;
   }).join("");
 }
+function miniRingSVG(pct) {
+  const r = 26, c = 2 * Math.PI * r;
+  return `<svg viewBox="0 0 64 64" class="mini-ring">
+    <circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--blue-line)" stroke-width="7"/>
+    <circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--blue)" stroke-width="7"
+      stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - pct / 100)}"
+      transform="rotate(-90 32 32)"/>
+    <text x="32" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="var(--navy)">${pct}%</text>
+  </svg>`;
+}
+function renderHwOverview() {
+  const pending = homework.filter(r => hwProgress(r) < 100).sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
+  $("hw-overview-body").innerHTML = pending.length ? pending.map(r => `
+    <article class="item hw-overview-row">
+      ${miniRingSVG(hwProgress(r))}
+      <div class="hw-overview-info">
+        <div class="meta"><span class="date">期限 ${fmtDate(r.dueDate)}</span>${subjectChip(r.subject)}</div>
+        <h4>${esc(r.title)}</h4>
+      </div>
+    </article>`).join("") : `<div class="empty">たまっている宿題はありません。</div>`;
+}
+$("hw-ring-card").addEventListener("click", () => {
+  renderHwOverview();
+  $("hw-overview-modal").hidden = false;
+});
+$("hw-ring-card").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("hw-ring-card").click(); }
+});
+$("hw-overview-close").addEventListener("click", () => { $("hw-overview-modal").hidden = true; });
+$("hw-overview-modal").addEventListener("click", (e) => { if (e.target.id === "hw-overview-modal") $("hw-overview-modal").hidden = true; });
 function homeworkItemHTML(r) {
   return `
     <article class="item">
