@@ -332,13 +332,18 @@ function scheduleItemHTML(s) {
       ${s.zoomUrl ? `<p><a href="${esc(s.zoomUrl)}" target="_blank" rel="noopener" class="zoom-link">Zoomで参加 →</a></p>` : ""}
     </article>`;
 }
+const ZOOM_KEY = "tnote.lastZoomUrl";
+if ($("sc-zoom").value === "") { const savedZoom = store.get(ZOOM_KEY); if (savedZoom) $("sc-zoom").value = savedZoom; }
 $("schedule-form").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const zoomUrl = $("sc-zoom").value.trim();
   await addDoc(collection(db, "students", currentSid, "schedule"), {
-    date: $("sc-date").value, time: $("sc-time").value, zoomUrl: $("sc-zoom").value.trim(),
+    date: $("sc-date").value, time: $("sc-time").value, zoomUrl,
     memo: $("sc-memo").value.trim(), reminded: false, createdAt: serverTimestamp()
   });
+  if (zoomUrl) store.set(ZOOM_KEY, zoomUrl);
   e.target.reset();
+  $("sc-zoom").value = zoomUrl; // 次回も同じZoom URLを使えるよう、リセット後も残す
 });
 
 /* ---------- カレンダー下：日付別フィード（宿題・指導予定・指導記録を統合、新しい日付が上） ---------- */
@@ -359,7 +364,7 @@ function renderCalendarFeed() {
     </div>`;
   }).join("") : `<div class="empty">まだ予定・記録がありません。</div>`;
 }
-$("calendar-feed").addEventListener("click", async (e) => {
+async function handleHomeworkFeedClick(e) {
   const t = e.target.closest("[data-toggle]"), a = e.target.closest("[data-ask]"), d = e.target.closest("[data-del]");
   const p = e.target.closest("[data-photo]"), pg = e.target.closest("[data-count-toggle]");
   const scd = e.target.closest("[data-sc-del]");
@@ -375,13 +380,17 @@ $("calendar-feed").addEventListener("click", async (e) => {
   } else if (scd && confirm("この指導予定を削除しますか？")) {
     await deleteDoc(doc(db, "students", currentSid, "schedule", scd.dataset.scDel));
   }
-});
-$("calendar-feed").addEventListener("change", async (e) => {
+}
+async function handleHomeworkFeedChange(e) {
   const input = e.target.closest("[data-photo-input]");
   if (!input || !input.files[0]) return;
   const photo = await fileToDataUrl(input.files[0]).catch(() => "");
   if (photo) await updateDoc(doc(db, "students", currentSid, "homework", input.dataset.photoInput), { photo });
-});
+}
+$("calendar-feed").addEventListener("click", handleHomeworkFeedClick);
+$("calendar-feed").addEventListener("change", handleHomeworkFeedChange);
+$("day-modal-body").addEventListener("click", handleHomeworkFeedClick);
+$("day-modal-body").addEventListener("change", handleHomeworkFeedChange);
 
 /* ---------- 月謝 ---------- */
 const fmtMD = (s) => { if (!s) return ""; const [, m, d] = s.split("-"); return `${Number(m)}/${Number(d)}`; };
@@ -516,9 +525,10 @@ function openDayModal(iso) {
   }
   if (role !== "parent" && dayHomework.length) {
     sections.push(`<div class="modal-section"><h4 class="modal-sub">宿題期限</h4>
-      ${dayHomework.map(h => `<div class="item">
-        <div class="meta">${subjectChip(h.subject)}</div><h4>${esc(h.title)}</h4>
-      </div>`).join("")}
+      ${dayHomework.map(h => `<details class="modal-hw-item">
+        <summary>${subjectChip(h.subject)}<span>${esc(h.title)}</span>${hwBadge(h)}</summary>
+        ${homeworkItemHTML(h)}
+      </details>`).join("")}
     </div>`);
   }
   if (role !== "student" && dayTuition.length) {
@@ -743,23 +753,35 @@ $("test-form").addEventListener("submit", async (e) => {
 
 /* ---------- 連絡（役割別の既読つき） ---------- */
 function renderMessages(rows) {
-  $("msg-list").innerHTML = rows.length ? rows.map(r => {
-    const readBy = r.readBy ?? {};
-    const readers = ["tutor", "student", "parent"]
-      .filter(k => k !== r.authorRole && readBy[k])
-      .map(k => ROLE_LABEL[k]);
-    const readLine = readers.length ? `既読：${readers.join("・")}` : "未読";
-    return `
-    <article class="item ${r.authorRole === role ? "me" : ""}">
-      <div class="meta">
-        <span class="date">${esc(ROLE_LABEL[r.authorRole] ?? r.authorRole)}</span>
-        <span>${r.createdAt?.toDate ? r.createdAt.toDate().toLocaleString("ja-JP") : ""}</span>
-      </div>
-      <p>${esc(r.text)}</p>
-      ${r.authorRole === role ? `<p class="hint left msg-read">${readLine}</p>` : ""}
-      ${r.authorRole === role ? `<div class="actions"><button class="small outline danger" data-msg-del="${esc(r.id)}">削除</button></div>` : ""}
-    </article>`;
-  }).join("") : `<div class="empty">まだメッセージはありません。</div>`;
+  const byDate = {};
+  rows.forEach(r => {
+    const d = r.createdAt?.toDate ? r.createdAt.toDate() : new Date();
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    (byDate[iso] ??= []).push(r);
+  });
+  const dates = Object.keys(byDate).sort();
+  $("msg-list").innerHTML = dates.length ? dates.map(iso => `
+    <div class="feed-date-group">
+      <h4 class="feed-date-heading">${fmtDateLong(iso)}</h4>
+      ${byDate[iso].map(r => {
+        const readBy = r.readBy ?? {};
+        const readers = ["tutor", "student", "parent"]
+          .filter(k => k !== r.authorRole && readBy[k])
+          .map(k => ROLE_LABEL[k]);
+        const readLine = readers.length ? `既読：${readers.join("・")}` : "未読";
+        const time = r.createdAt?.toDate ? r.createdAt.toDate().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }) : "";
+        return `
+        <article class="item ${r.authorRole === role ? "me" : ""}">
+          <div class="meta">
+            <span class="date">${esc(ROLE_LABEL[r.authorRole] ?? r.authorRole)}</span>
+            <span>${time}</span>
+          </div>
+          <p>${esc(r.text)}</p>
+          ${r.authorRole === role ? `<p class="hint left msg-read">${readLine}</p>` : ""}
+          ${r.authorRole === role ? `<div class="actions"><button class="small outline danger" data-msg-del="${esc(r.id)}">送信取り消し</button></div>` : ""}
+        </article>`;
+      }).join("")}
+    </div>`).join("") : `<div class="empty">まだメッセージはありません。</div>`;
   $("msg-list").lastElementChild?.scrollIntoView({ block: "nearest" });
   markMessagesRead(rows);
 }
@@ -930,6 +952,13 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
     navigator.serviceWorker.register("./firebase-messaging-sw.js").catch(() => {});
+  });
+  // 新しいバージョンが有効化されたら、開きっぱなしのタブも古いコードのままにならないよう自動で再読み込みする
+  let swRefreshed = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (swRefreshed) return;
+    swRefreshed = true;
+    location.reload();
   });
 }
 function updateNotifBar() {

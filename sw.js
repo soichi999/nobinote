@@ -1,5 +1,7 @@
 // アプリ本体のキャッシュ（オフラインでも起動できるように）
-const CACHE = "tnote-v1";
+// CACHE のバージョンは、アプリを更新するたびに必ず変更すること
+// （変えないと、既存ユーザーの端末に古いキャッシュが残り続けて更新が反映されない）
+const CACHE = "tnote-v2";
 const ASSETS = ["./", "./index.html", "./style.css", "./app.js",
   "./firebase-config.js", "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon-180.png"];
 
@@ -15,7 +17,7 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin) return; // Firestore通信は素通し
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: "no-store" })
       .then(res => {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(e.request, copy));
