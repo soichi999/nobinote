@@ -81,8 +81,9 @@
       <div id="calendar" class="calendar"></div>
       <p class="hint left cal-legend"><span class="pill lesson">指導日</span><span class="pill due">宿題期限</span><span class="pill tuition tutor-only" hidden>月謝</span></p>
     </div>
-    <form id="hw-form" class="card tutor-only" hidden>
-      <h3>宿題を出す</h3>
+    <details class="card form-card tutor-only" hidden>
+      <summary>宿題を出す</summary>
+      <form id="hw-form">
       <label>タイトル<input type="text" id="h-title" placeholder="ワーク p.12-15" required></label>
       <div class="grid">
         <label>教科<select id="h-subject"></select></label>
@@ -111,9 +112,11 @@
       <label>詳細<textarea id="h-detail" rows="3"></textarea></label>
       <label>提出期限<input type="date" id="h-due" required></label>
       <button id="h-save-btn" type="submit" class="save-btn">追加</button>
-    </form>
-    <form id="schedule-form" class="card tutor-only" hidden>
-      <h3>指導予定を登録</h3>
+      </form>
+    </details>
+    <details class="card form-card tutor-only" hidden>
+      <summary>指導予定を登録</summary>
+      <form id="schedule-form">
       <div class="grid">
         <label>指導日<input type="date" id="sc-date" required></label>
         <label>時間<input type="time" id="sc-time"></label>
@@ -121,9 +124,11 @@
       <label>Zoom URL<input type="url" id="sc-zoom" placeholder="https://zoom.us/j/..."></label>
       <label>メモ<input type="text" id="sc-memo" placeholder="前回の続きから"></label>
       <button id="sc-save-btn" type="submit" class="save-btn">登録</button>
-    </form>
-    <form id="lesson-form" class="card tutor-only" hidden>
-      <h3>指導記録を追加</h3>
+      </form>
+    </details>
+    <details class="card form-card tutor-only" hidden>
+      <summary>指導記録を追加</summary>
+      <form id="lesson-form">
       <div class="grid">
         <label>日付<input type="date" id="l-date" required></label>
         <label>教科<select id="l-subject"></select></label>
@@ -132,6 +137,8 @@
       <label>授業内容<textarea id="l-content" rows="4"></textarea></label>
       <label>所感（生徒・保護者にも表示）<textarea id="l-notes" rows="3"></textarea></label>
       <button id="l-save-btn" type="submit" class="save-btn">保存</button>
+      </form>
+    </details>
     </form>
     <div id="calendar-feed" class="list"></div>
   </section>
