@@ -747,11 +747,18 @@ function renderMessages(rows) {
       </div>
       <p>${esc(r.text)}</p>
       ${r.authorRole === role ? `<p class="hint left msg-read">${readLine}</p>` : ""}
+      ${r.authorRole === role ? `<div class="actions"><button class="small outline danger" data-msg-del="${esc(r.id)}">削除</button></div>` : ""}
     </article>`;
   }).join("") : `<div class="empty">まだメッセージはありません。</div>`;
   $("msg-list").lastElementChild?.scrollIntoView({ block: "nearest" });
   markMessagesRead(rows);
 }
+$("msg-list").addEventListener("click", async (e) => {
+  const d = e.target.closest("[data-msg-del]");
+  if (d && confirm("このメッセージを削除しますか？")) {
+    await deleteDoc(doc(db, "students", currentSid, "messages", d.dataset.msgDel));
+  }
+});
 function markMessagesRead(rows) {
   if (!role) return;
   rows.filter(r => r.authorRole !== role && !(r.readBy ?? {})[role]).forEach(r => {
