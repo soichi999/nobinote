@@ -110,7 +110,7 @@
       </div>
       <label>詳細<textarea id="h-detail" rows="3"></textarea></label>
       <label>提出期限<input type="date" id="h-due" required></label>
-      <button class="primary">追加</button>
+      <button id="h-save-btn" type="submit" class="save-btn">追加</button>
     </form>
     <form id="schedule-form" class="card tutor-only" hidden>
       <h3>指導予定を登録</h3>
@@ -120,7 +120,7 @@
       </div>
       <label>Zoom URL<input type="url" id="sc-zoom" placeholder="https://zoom.us/j/..."></label>
       <label>メモ<input type="text" id="sc-memo" placeholder="前回の続きから"></label>
-      <button class="primary">登録</button>
+      <button id="sc-save-btn" type="submit" class="save-btn">登録</button>
     </form>
     <form id="lesson-form" class="card tutor-only" hidden>
       <h3>指導記録を追加</h3>
@@ -131,7 +131,7 @@
       <label>学習範囲<input type="text" id="l-range" placeholder="二次関数 p.34-40"></label>
       <label>授業内容<textarea id="l-content" rows="4"></textarea></label>
       <label>所感（生徒・保護者にも表示）<textarea id="l-notes" rows="3"></textarea></label>
-      <button class="primary">保存</button>
+      <button id="l-save-btn" type="submit" class="save-btn">保存</button>
     </form>
     <div id="calendar-feed" class="list"></div>
   </section>
@@ -145,7 +145,7 @@
         <label>日付<input type="date" id="st-date" required></label>
       </div>
       <label>時間（分）<input type="number" id="st-minutes" min="1" placeholder="30" required></label>
-      <button class="primary">記録する</button>
+      <button id="st-save-btn" type="submit" class="save-btn">記録する</button>
     </form>
     <div class="card" id="study-monthly-card" hidden>
       <h3>月間の学習時間</h3>
@@ -163,7 +163,7 @@
         <label>教科<select id="b-subject"></select></label>
       </div>
       <label>画像<input type="file" id="b-image" accept="image/*"></label>
-      <button class="primary">登録</button>
+      <button id="b-save-btn" type="submit" class="save-btn">登録</button>
     </form>
     <div id="book-list" class="grid-cards"></div>
   </section>
@@ -182,7 +182,7 @@
         <label>満点<input type="number" id="t-max" value="100" min="1" required></label>
         <label>偏差値（任意）<input type="number" id="t-deviation" min="0" step="0.1" placeholder="58.4"></label>
       </div>
-      <button class="primary">保存</button>
+      <button id="t-save-btn" type="submit" class="save-btn">保存</button>
     </form>
     <div class="card"><h3>得点率の推移</h3><div id="chart"></div></div>
     <div id="test-list" class="list"></div>
@@ -200,7 +200,7 @@
       </label>
       <div id="tu-date-chips" class="tuition-chips"></div>
       <label>金額（円）<input type="number" id="tu-amount" min="0" step="100" placeholder="7500" required></label>
-      <button class="primary">登録</button>
+      <button id="tu-save-btn" type="submit" class="save-btn">登録</button>
     </form>
     <div id="tuition-list" class="list"></div>
   </section>
@@ -210,7 +210,7 @@
     <div id="msg-list" class="list msgs"></div>
     <form id="msg-form" class="card">
       <label>メッセージ<textarea id="m-text" rows="3" required></textarea></label>
-      <button class="primary">送信</button>
+      <button id="m-save-btn" type="submit" class="save-btn">送信</button>
     </form>
   </section>
 
@@ -249,14 +249,14 @@
         <label>生徒用パスコード<input type="text" id="s-pass-student" inputmode="numeric" placeholder="1234" required></label>
         <label>保護者用パスコード<input type="text" id="s-pass-parent" inputmode="numeric" placeholder="5678" required></label>
       </div>
-      <button class="primary">追加</button>
+      <button id="s-save-btn" type="submit" class="save-btn">追加</button>
     </form>
     <form id="tutor-pass-form" class="card tutor-only" hidden>
       <h3>チューターのパスコードを変更</h3>
       <div class="grid">
         <label>新しいパスコード<input type="text" id="tp-new" inputmode="numeric" required></label>
       </div>
-      <button class="primary">変更する</button>
+      <button id="tp-save-btn" type="submit" class="save-btn">変更する</button>
     </form>
   </section>
 </main>

@@ -20,6 +20,14 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c =>
 const fmtDate = (s) => { if (!s) return ""; const [y, m, d] = s.split("-"); return `${y}/${m}/${d}`; };
 const today = () => new Date().toISOString().slice(0, 10);
 const show = (v) => ["gate-view", "pass-view", "app-view"].forEach(id => { $(id).hidden = id !== v; });
+// フォームに変更が入るまで保存/追加ボタンをグレーのままにし、変更が入ったら青くする
+function wireDirtySave(formId, btnId) {
+  const form = $(formId), btn = $(btnId);
+  const markDirty = () => btn.classList.add("dirty");
+  form.addEventListener("input", markDirty);
+  form.addEventListener("change", markDirty);
+  form.addEventListener("submit", () => setTimeout(() => btn.classList.remove("dirty"), 0));
+}
 const subjectChip = (id) => {
   if (!id) return "";
   const c = subjectColor(id);
@@ -960,3 +968,15 @@ async function registerPushToken() {
     });
   });
 }
+
+/* ---------- 保存/追加ボタン：変更が入るまでグレー、変更後は青 ---------- */
+wireDirtySave("hw-form", "h-save-btn");
+wireDirtySave("schedule-form", "sc-save-btn");
+wireDirtySave("lesson-form", "l-save-btn");
+wireDirtySave("study-form", "st-save-btn");
+wireDirtySave("book-form", "b-save-btn");
+wireDirtySave("test-form", "t-save-btn");
+wireDirtySave("tuition-form", "tu-save-btn");
+wireDirtySave("msg-form", "m-save-btn");
+wireDirtySave("add-student-form", "s-save-btn");
+wireDirtySave("tutor-pass-form", "tp-save-btn");
