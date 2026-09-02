@@ -45,7 +45,8 @@ h3{font-size:1rem;padding-left:.6rem;border-left:4px solid var(--blue);line-heig
   border-bottom:2px solid var(--blue);transform:rotate(-45deg);transition:transform .15s;flex:none}
 .form-card[open] summary::before{transform:rotate(45deg)}
 .form-card summary:hover{background:var(--blue-soft)}
-.form-card form{padding:0 1.3rem 1.3rem}
+.form-card[open] summary{border-bottom:1px solid var(--line)}
+.form-card form{padding:1.1rem 1.3rem 1.3rem}
 
 /* フォーム */
 label{display:block;margin-bottom:.9rem;font-size:.82rem;color:var(--muted);font-weight:600}
