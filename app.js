@@ -1195,15 +1195,21 @@ const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
 if (isIOS && !standalone) $("install-hint").hidden = false;
 
 if ("serviceWorker" in navigator) {
+  // clients.claim()は初回読み込み時にも発火しうるため、「既にこのタブがSWに制御されていた状態から
+  // 切り替わった」場合（＝本当のバージョン更新）だけリロードする。
+  // さらにsessionStorageで1タブにつき1回しかリロードしないように制限し、
+  // 万一controllerchangeが繰り返し発火してもリロードが連鎖しないようにする。
+  const hadController = !!navigator.serviceWorker.controller;
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
     navigator.serviceWorker.register("./firebase-messaging-sw.js").catch(() => {});
   });
-  // 新しいバージョンが有効化されたら、開きっぱなしのタブも古いコードのままにならないよう自動で再読み込みする
-  let swRefreshed = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (swRefreshed) return;
-    swRefreshed = true;
+    if (!hadController) return; // 初回制御開始（初訪問・初回インストール）ではリロードしない
+    let alreadyReloaded = false;
+    try { alreadyReloaded = sessionStorage.getItem("tnote.swReloaded") === "1"; } catch {}
+    if (alreadyReloaded) return;
+    try { sessionStorage.setItem("tnote.swReloaded", "1"); } catch {}
     location.reload();
   });
 }
