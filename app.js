@@ -1140,11 +1140,15 @@ function renderStudentAdmin() {
         <label>保護者用パスコード<input type="text" inputmode="numeric" value="${esc(s.parentPasscode ?? "")}" data-pass-parent="${esc(s.id)}"></label>
       </div>
       <div class="actions">
-        <button class="small primary" data-save="${esc(s.id)}">保存</button>
+        <button class="small save-btn" data-save="${esc(s.id)}">保存</button>
         <button class="small outline danger" data-remove="${esc(s.id)}">この生徒を削除</button>
       </div>
     </article>`).join("") : `<div class="empty">生徒がまだ登録されていません。</div>`;
 }
+$("student-admin").addEventListener("input", (e) => {
+  const btn = e.target.closest("article")?.querySelector("[data-save]");
+  if (btn) btn.classList.add("dirty");
+});
 $("student-admin").addEventListener("click", async (e) => {
   const save = e.target.closest("[data-save]"), rm = e.target.closest("[data-remove]");
   if (save) {
