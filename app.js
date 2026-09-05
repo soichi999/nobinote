@@ -364,8 +364,8 @@ $("hw-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const pdfFiles = [...$("h-pdf").files];
   const totalSize = pdfFiles.reduce((s, f) => s + f.size, 0);
-  if (totalSize > 700 * 1024) {
-    alert("PDFは合計700KBまでです。ファイルサイズを小さくするか、枚数を減らしてください。");
+  if (totalSize > 750 * 1024) {
+    alert("PDFは合計750KBまでです。ファイルサイズを小さくするか、枚数を減らしてください。");
     return;
   }
   const type = $("h-type").value;
@@ -383,15 +383,24 @@ $("hw-form").addEventListener("submit", async (e) => {
     ? (await Promise.all(pdfFiles.map(async f => ({ name: f.name, url: await fileToDataUrlRaw(f).catch(() => null) }))))
       .filter(p => p.url)
     : [];
-  if (editingHwId) {
-    if (newPdfs.length) base.pdfs = arrayUnion(...newPdfs);
-    await updateDoc(doc(db, "students", currentSid, "homework", editingHwId), base);
-    editingHwId = null;
-    $("h-save-btn").textContent = "追加";
-  } else {
-    base.question = ""; base.createdAt = serverTimestamp(); base.pdfs = newPdfs;
-    if (type === "count") base.clearedCounts = []; else base.done = false;
-    await addDoc(collection(db, "students", currentSid, "homework"), base);
+  try {
+    if (editingHwId) {
+      if (newPdfs.length) base.pdfs = arrayUnion(...newPdfs);
+      await updateDoc(doc(db, "students", currentSid, "homework", editingHwId), base);
+      editingHwId = null;
+      $("h-save-btn").textContent = "追加";
+    } else {
+      base.question = ""; base.createdAt = serverTimestamp(); base.pdfs = newPdfs;
+      if (type === "count") base.clearedCounts = []; else base.done = false;
+      await addDoc(collection(db, "students", currentSid, "homework"), base);
+    }
+  } catch (err) {
+    if (String(err?.message ?? err).includes("longer than")) {
+      alert("データが大きすぎて保存できませんでした。PDFのファイルサイズを小さくするか、枚数を減らしてください。");
+    } else {
+      alert("保存に失敗しました（" + (err?.message ?? err) + "）");
+    }
+    return;
   }
   e.target.reset();
   $("h-pdf-current").hidden = true;
