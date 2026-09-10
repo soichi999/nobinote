@@ -170,6 +170,7 @@ document.querySelectorAll(".tabs button").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("active", b === btn));
     document.querySelectorAll(".tab").forEach(s => { s.hidden = s.id !== "tab-" + btn.dataset.tab; });
+    btn.scrollIntoView({ block: "nearest", inline: "nearest" });
     if (btn.dataset.tab === "calendar") scrollTodayIntoView("calendar");
   });
 });
