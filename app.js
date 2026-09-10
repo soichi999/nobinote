@@ -5,8 +5,8 @@ import {
   getMessaging, getToken, onMessage, isSupported
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 import {
-  getFirestore, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
-  query, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove
+  getFirestore, collection, collectionGroup, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
+  query, where, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { SUBJECTS, subjectLabel, subjectColor, subjectOptionsHTML, subjectPickerHTML } from "./subjects.js";
 
@@ -124,6 +124,7 @@ function start(r, code) {
   updateNotifBar();
   registerPushToken().catch(() => {});
   scrollTodayIntoView("calendar");
+  if (role === "tutor") setupTutorDashboard(); else offTutorDash();
 }
 $("pass-ok").addEventListener("click", () => {
   const code = $("pass-input").value.trim();
@@ -134,7 +135,7 @@ $("pass-ok").addEventListener("click", () => {
 $("pass-input").addEventListener("keydown", e => { if (e.key === "Enter") $("pass-ok").click(); });
 $("pass-back").addEventListener("click", () => { pendingRole = null; show("gate-view"); });
 $("logout").addEventListener("click", () => {
-  off(); store.del(TUTOR_KEY); store.del(FAMILY_KEY);
+  off(); offTutorDash(); store.del(TUTOR_KEY); store.del(FAMILY_KEY);
   role = null; currentSid = null;
   $("topbar").hidden = true; show("gate-view");
 });
@@ -205,6 +206,71 @@ function watchAll() {
   }));
   loadProfile();
 }
+
+/* ---------- チューター向け「今日やること」ダッシュボード（全生徒を横断） ---------- */
+let tutorDashUnsubs = [];
+const offTutorDash = () => { tutorDashUnsubs.forEach(u => u()); tutorDashUnsubs = []; $("tutor-dashboard").hidden = true; };
+let dashSchedule = [], dashHomework = [], dashTuition = [];
+const studentName = (sid) => students.find(s => s.id === sid)?.name ?? "生徒";
+const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+function setupTutorDashboard() {
+  offTutorDash();
+  $("tutor-dashboard").hidden = false;
+  const soonDate = addDays(3);
+  const near3days = [today(), addDays(1), addDays(2), addDays(3)];
+  const onErr = () => {
+    $("tutor-dashboard-body").innerHTML = `<div class="empty">読み込みに失敗しました。Firestoreのルールが最新か確認してください。</div>`;
+  };
+  tutorDashUnsubs.push(onSnapshot(query(collectionGroup(db, "schedule"), where("date", "==", today())), s => {
+    dashSchedule = s.docs.map(d => ({ id: d.id, sid: d.ref.parent.parent.id, ...d.data() }));
+    renderTutorDashboard();
+  }, onErr));
+  tutorDashUnsubs.push(onSnapshot(query(collectionGroup(db, "homework"), where("dueDate", ">=", today()), where("dueDate", "<=", soonDate)), s => {
+    dashHomework = s.docs.map(d => ({ id: d.id, sid: d.ref.parent.parent.id, ...d.data() })).filter(h => hwProgress(h) < 100);
+    renderTutorDashboard();
+  }, onErr));
+  tutorDashUnsubs.push(onSnapshot(query(collectionGroup(db, "tuition"), where("paid", "==", false)), s => {
+    dashTuition = s.docs.map(d => ({ id: d.id, sid: d.ref.parent.parent.id, ...d.data() }))
+      .filter(t => (t.dates ?? []).some(dt => near3days.includes(dt)));
+    renderTutorDashboard();
+  }, onErr));
+}
+function renderTutorDashboard() {
+  if (role !== "tutor") return;
+  const rows = [];
+  dashSchedule.forEach(s => rows.push({
+    sortKey: "0" + (s.time || ""), sid: s.sid,
+    html: `<span class="pill lesson">指導日${s.time ? " " + esc(s.time) : ""}</span><span class="dash-student">${esc(studentName(s.sid))}</span>`
+  }));
+  dashHomework.forEach(h => {
+    const left = Math.ceil((new Date(h.dueDate) - new Date(today())) / 86400000);
+    const dueText = left <= 0 ? "今日締切" : `あと${left}日`;
+    rows.push({
+      sortKey: "1" + h.dueDate, sid: h.sid,
+      html: `<span class="pill due">宿題 ${esc(dueText)}</span><span class="dash-student">${esc(studentName(h.sid))}</span><span>${esc(h.title)}</span>`
+    });
+  });
+  dashTuition.forEach(t => rows.push({
+    sortKey: "2", sid: t.sid,
+    html: `<span class="pill tuition">月謝未確認</span><span class="dash-student">${esc(studentName(t.sid))}</span><span>${Number(t.amount).toLocaleString()}円</span>`
+  }));
+  rows.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  $("tutor-dashboard-body").innerHTML = rows.length
+    ? rows.map(r => `<button type="button" class="dash-row" data-dash-sid="${esc(r.sid)}">${r.html}</button>`).join("")
+    : `<div class="empty">今日やることはありません。</div>`;
+}
+$("tutor-dashboard-body").addEventListener("click", (e) => {
+  const row = e.target.closest("[data-dash-sid]");
+  if (!row) return;
+  const sid = row.dataset.dashSid;
+  if (sid && sid !== currentSid && students.some(s => s.id === sid)) {
+    currentSid = sid;
+    $("student-select").value = sid;
+    store.set(LAST_STUDENT_KEY, sid);
+    watchAll();
+  }
+  document.querySelector('[data-tab="calendar"]').click();
+});
 
 /* ---------- 宿題（単位ごとにチェック / 完了・未完了） ---------- */
 function hwCounts(r) {
@@ -632,7 +698,38 @@ $("tuition-form").addEventListener("submit", async (e) => {
   tuitionDates = []; renderTuitionChips();
   e.target.reset();
 });
+function renderTuitionSummary() {
+  const byMonth = {};
+  tuition.forEach(t => {
+    const dates = t.dates ?? [];
+    const share = Number(t.amount || 0) / (dates.length || 1);
+    dates.forEach(d => {
+      const ym = d.slice(0, 7);
+      if (!ym) return;
+      byMonth[ym] ??= { paid: 0, unpaid: 0 };
+      byMonth[ym][t.paid ? "paid" : "unpaid"] += share;
+    });
+  });
+  const months = Object.keys(byMonth).sort().slice(-6);
+  $("tuition-summary-card").hidden = months.length === 0;
+  const maxTotal = Math.max(1, ...months.map(m => byMonth[m].paid + byMonth[m].unpaid));
+  $("tuition-summary").innerHTML = months.map(m => {
+    const { paid, unpaid } = byMonth[m];
+    const [y, mo] = m.split("-");
+    const pW = Math.round(paid / maxTotal * 100);
+    const uW = Math.round(unpaid / maxTotal * 100);
+    return `<div class="month-bar-row">
+      <span class="month-bar-label">${y}/${Number(mo)}月</span>
+      <div class="month-bar-track">
+        <div class="month-bar-fill paid" style="width:${pW}%"></div>
+        <div class="month-bar-fill unpaid" style="width:${uW}%;left:${pW}%"></div>
+      </div>
+      <span class="month-bar-val">${Math.round(paid + unpaid).toLocaleString()}<small>円</small></span>
+    </div>`;
+  }).join("");
+}
 function renderTuition() {
+  renderTuitionSummary();
   $("tuition-list").innerHTML = tuition.length ? tuition.map(t => `
     <article class="item">
       <div class="meta">
@@ -1037,6 +1134,15 @@ $("msg-list").addEventListener("click", async (e) => {
 $("m-reply-cancel").addEventListener("click", () => {
   replyTo = null;
   $("m-reply-preview").hidden = true;
+});
+document.querySelectorAll(".quick-reply-btn").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const data = { text: btn.dataset.quick, authorRole: role, createdAt: serverTimestamp(), readBy: { [role]: true } };
+    if (replyTo) data.replyTo = replyTo;
+    await addDoc(collection(db, "students", currentSid, "messages"), data);
+    replyTo = null;
+    $("m-reply-preview").hidden = true;
+  });
 });
 function markMessagesRead(rows) {
   if (!role) return;

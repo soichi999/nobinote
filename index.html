@@ -52,6 +52,11 @@
     <label>生徒<select id="student-select"></select></label>
   </div>
 
+  <div id="tutor-dashboard" class="card tutor-only" hidden>
+    <h3>今日やること</h3>
+    <div id="tutor-dashboard-body" class="dash-list"></div>
+  </div>
+
   <nav class="tabs">
     <button data-tab="calendar" class="active">カレンダー</button>
     <button data-tab="study">勉強時間</button>
@@ -222,6 +227,11 @@
       <label>金額（円）<input type="number" id="tu-amount" min="0" step="100" placeholder="7500" required></label>
       <button id="tu-save-btn" type="submit" class="save-btn">登録</button>
     </form>
+    <div class="card" id="tuition-summary-card" hidden>
+      <h3>月謝の実績（直近6ヶ月）</h3>
+      <div id="tuition-summary" class="month-bars"></div>
+      <p class="hint left tuition-legend"><span class="legend-dot paid"></span>振込確認済み<span class="legend-dot unpaid"></span>未確認</p>
+    </div>
     <div id="tuition-list" class="list"></div>
   </section>
 
@@ -232,6 +242,12 @@
       <div id="m-reply-preview" class="reply-preview" hidden>
         <span id="m-reply-text"></span>
         <button type="button" id="m-reply-cancel" class="small outline">×</button>
+      </div>
+      <div class="quick-replies">
+        <button type="button" class="quick-reply-btn" data-quick="了解です">👍 了解です</button>
+        <button type="button" class="quick-reply-btn" data-quick="ありがとうございます">🙏 ありがとうございます</button>
+        <button type="button" class="quick-reply-btn" data-quick="頑張ります！">💪 頑張ります</button>
+        <button type="button" class="quick-reply-btn" data-quick="承知しました">✅ 承知しました</button>
       </div>
       <label>メッセージ<textarea id="m-text" rows="3" required></textarea></label>
       <label>写真（任意・複数選択可）<input type="file" id="m-photo" accept="image/*" multiple></label>

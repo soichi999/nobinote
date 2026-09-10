@@ -249,9 +249,31 @@ p.hint.cal-legend{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;
 .month-bars{display:flex;flex-direction:column;gap:.55rem}
 .month-bar-row{display:flex;align-items:center;gap:.7rem;font-size:.85rem}
 .month-bar-label{width:5em;color:var(--muted);flex:none}
-.month-bar-track{flex:1;height:10px;background:var(--blue-line);border-radius:99px;overflow:hidden}
+.month-bar-track{flex:1;height:10px;background:var(--blue-line);border-radius:99px;overflow:hidden;position:relative}
 .month-bar-fill{height:100%;background:var(--blue);border-radius:99px}
 .month-bar-val{width:6.5em;text-align:right;color:var(--navy);font-weight:700;flex:none}
+
+/* ---- 月謝の実績グラフ ---- */
+.month-bar-track .month-bar-fill.paid{position:absolute;top:0;left:0;background:var(--ok)}
+.month-bar-track .month-bar-fill.unpaid{position:absolute;top:0;background:var(--warn)}
+p.hint.tuition-legend{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;margin-top:.8rem}
+.legend-dot{display:inline-block;width:.6rem;height:.6rem;border-radius:99px;background:var(--ok);margin-left:.8rem}
+.legend-dot.unpaid{background:var(--warn)}
+.legend-dot:first-child{margin-left:0}
+
+/* ---- チューター向け「今日やること」ダッシュボード ---- */
+.dash-list{display:flex;flex-direction:column;gap:.5rem}
+.dash-row{display:flex;align-items:center;gap:.6rem;padding:.6rem .7rem;border-radius:10px;
+  background:var(--bg);border:1px solid var(--line);cursor:pointer;font-size:.88rem;text-align:left;width:100%}
+.dash-row:hover{border-color:var(--blue-line);background:var(--blue-soft)}
+.dash-row .pill{width:auto;max-width:none;padding:.15rem .6rem;font-size:.68rem;flex:none}
+.dash-row .dash-student{font-weight:700;color:var(--navy)}
+
+/* ---- 連絡：スタンプ／簡易リアクション ---- */
+.quick-replies{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem}
+.quick-reply-btn{width:auto;padding:.4rem .8rem;border-radius:999px;border:1px solid var(--blue-line);
+  background:#fbfdff;color:var(--blue);font-size:.82rem;font-weight:700;cursor:pointer;transition:background .12s}
+.quick-reply-btn:hover{background:var(--blue-soft)}
 
 /* ---- 宿題の提出写真 ---- */
 .hw-photo{max-width:220px;border-radius:10px;margin-top:.5rem;display:block;border:1px solid var(--line)}

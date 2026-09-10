@@ -11,5 +11,11 @@ service cloud.firestore {
       allow read, write: if ok();
       match /{sub=**}       { allow read, write: if ok(); }
     }
+
+    // チューター向け「今日やること」ダッシュボードが全生徒を横断して見るための
+    // collectionGroup クエリ用ルール（上の /students/{sid}/{sub=**} は個別パス読み込みにしか効かない）
+    match /{path=**}/homework/{id} { allow read: if ok(); }
+    match /{path=**}/schedule/{id} { allow read: if ok(); }
+    match /{path=**}/tuition/{id}  { allow read: if ok(); }
   }
 }
