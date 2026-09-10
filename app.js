@@ -690,16 +690,14 @@ function renderCalendars() {
   homework.forEach(h => add(h.dueDate, "due", "期限"));
   lessons.forEach(l => add(l.date, "lesson", "指導日"));
   schedule.forEach(s => add(s.date, "lesson", s.time || "指導日"));
-  plans.forEach(p => add(p.date, "plan", "予定"));
+  plans.forEach(p => add(p.date, "plan", p.title || "予定"));
   if (role === "tutor") tuition.forEach(t => (t.dates ?? []).forEach(d => add(d, "tuition", "月謝")));
   const marks = {};
   Object.entries(raw).forEach(([date, list]) => {
     const dueCount = list.filter(k => k.kind === "due").length;
     const tuitionCount = list.filter(k => k.kind === "tuition").length;
-    const planCount = list.filter(k => k.kind === "plan").length;
-    const merged = list.filter(k => k.kind === "lesson");
+    const merged = list.filter(k => k.kind === "lesson" || k.kind === "plan");
     if (dueCount) merged.unshift({ kind: "due", text: dueCount > 1 ? `期限×${dueCount}` : "期限" });
-    if (planCount) merged.push({ kind: "plan", text: planCount > 1 ? `予定×${planCount}` : "予定" });
     if (tuitionCount) merged.push({ kind: "tuition", text: "月謝" });
     marks[date] = merged;
   });
