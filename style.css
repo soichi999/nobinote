@@ -271,8 +271,9 @@ p.hint.tuition-legend{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;
 
 /* ---- 連絡：スタンプ／簡易リアクション ---- */
 .quick-replies{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem}
-.quick-reply-btn{width:auto;padding:.4rem .8rem;border-radius:999px;border:1px solid var(--blue-line);
-  background:#fbfdff;color:var(--blue);font-size:.82rem;font-weight:700;cursor:pointer;transition:background .12s}
+.quick-reply-btn{width:2.6rem;height:2.6rem;padding:0;border-radius:999px;border:1px solid var(--blue-line);
+  background:#fbfdff;font-size:1.25rem;line-height:1;cursor:pointer;transition:background .12s;
+  display:flex;align-items:center;justify-content:center}
 .quick-reply-btn:hover{background:var(--blue-soft)}
 
 /* ---- 宿題の提出写真 ---- */
