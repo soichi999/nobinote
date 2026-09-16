@@ -91,10 +91,14 @@ button.small{padding:.32rem .8rem;font-size:.8rem}
 .item:hover{border-color:var(--blue);transform:translate(-2px,-2px);box-shadow:var(--shadow-hover)}
 .item .meta{font-size:.8rem;color:var(--muted);display:flex;gap:.7rem;flex-wrap:wrap;
   align-items:center;justify-content:space-between}
-.item .meta .date{font-weight:700;color:#fff;letter-spacing:.03em;background:var(--blue);
-  display:inline-block;padding:.28rem .8rem;border-radius:0 999px 999px 0;margin:-.15rem 0}
+.item .date{font-weight:700;color:#fff;letter-spacing:.03em;background:var(--blue);
+  display:inline-block;font-size:1.05rem;padding:.35rem 1rem;border-radius:6px;margin:-.15rem 0}
 .item .meta.meta-lg{border-bottom:3px solid var(--blue);padding-bottom:.7rem;margin-bottom:.5rem}
-.item .meta.meta-lg .date{font-size:1.05rem;padding:.35rem 1rem}
+
+/* ---- 予定：ラベルと同じ行にタイトルを表示（折り返しはタイトル側で吊り下げインデント） ---- */
+.plan-line{display:flex;align-items:flex-start;gap:.6rem;margin:0 0 .5rem}
+.plan-line .date{flex:none;margin:0}
+.plan-line-text{flex:1;font-weight:700;color:var(--navy);padding-top:.4rem}
 .item h4{margin:.4rem 0;color:var(--navy);font-size:1rem}
 .item p{margin:.35rem 0;white-space:pre-wrap}
 .item .label{font-size:.75rem;color:var(--muted);font-weight:700;letter-spacing:.06em}

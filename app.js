@@ -196,7 +196,7 @@ function watchAll() {
   sub("messages", "createdAt", "asc", renderMessages);
   sub("books", "createdAt", "desc", rows => { books = rows; renderBooks(); refreshBookSelect(); });
   sub("studyLogs", "date", "desc", rows => { studyLogs = rows; renderStudy(); });
-  sub("schedule", "date", "asc", rows => { schedule = rows; renderCalendarFeed(); renderCalendars(); });
+  sub("schedule", "date", "asc", rows => { schedule = rows; renderHomework(); renderCalendarFeed(); renderCalendars(); });
   sub("plans", "date", "asc", rows => { plans = rows; renderCalendarFeed(); renderCalendars(); });
   sub("tuition", "createdAt", "desc", rows => { tuition = rows; renderTuition(); });
   unsubs.push(onSnapshot(collection(db, "students", currentSid, "examMeta"), s => {
@@ -229,8 +229,23 @@ function hwBadge(r) {
   }
   return `<span class="badge${pct >= 100 ? " done" : ""}">${pct >= 100 ? "達成 100%" : "未提出"}</span>${pct >= 100 ? "" : soonTag}`;
 }
+// 達成度に含める宿題：先週以前の分は除外し、次回の指導日（あれば）までの締切分だけを対象にする
+function startOfWeekISO() {
+  const d = new Date();
+  d.setDate(d.getDate() - d.getDay());
+  return d.toISOString().slice(0, 10);
+}
+function homeworkForAchievement() {
+  const weekStart = startOfWeekISO();
+  const nextCoaching = schedule.find(s => s.date >= today())?.date ?? null;
+  return homework.filter(r => {
+    if (!r.dueDate || r.dueDate < weekStart) return false;
+    if (nextCoaching && r.dueDate > nextCoaching) return false;
+    return true;
+  });
+}
 function renderHomework() {
-  const rows = homework;
+  const rows = homeworkForAchievement();
   const avgPct = rows.length ? Math.round(rows.reduce((s, r) => s + hwProgress(r), 0) / rows.length) : 0;
   const doneCount = rows.filter(r => hwProgress(r) >= 100).length;
   drawRing("hw-ring", avgPct);
@@ -263,7 +278,7 @@ function miniRingSVG(pct) {
   </svg>`;
 }
 function renderHwOverview() {
-  const pending = homework.filter(r => hwProgress(r) < 100).sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
+  const pending = homeworkForAchievement().filter(r => hwProgress(r) < 100).sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
   $("hw-overview-body").innerHTML = pending.length ? pending.map(r => `
     <article class="item hw-overview-row">
       ${miniRingSVG(hwProgress(r))}
@@ -509,11 +524,12 @@ $("schedule-form").addEventListener("submit", async (e) => {
 function planItemHTML(p) {
   return `
     <article class="item">
-      <div class="meta"><span class="date">予定${p.time ? " " + p.time : ""}</span>
-        ${p.authorRole === role ? `<button class="small outline" data-plan-edit="${esc(p.id)}">編集</button>
-        <button class="small outline danger" data-plan-del="${esc(p.id)}">削除</button>` : ""}</div>
-      <h4>${esc(p.title)}</h4>
+      <p class="plan-line"><span class="date">予定${p.time ? " " + p.time : ""}</span><span class="plan-line-text">${esc(p.title)}</span></p>
       ${p.memo ? `<p>${esc(p.memo)}</p>` : ""}
+      ${p.authorRole === role ? `<div class="actions">
+        <button class="small outline" data-plan-edit="${esc(p.id)}">編集</button>
+        <button class="small outline danger" data-plan-del="${esc(p.id)}">削除</button>
+      </div>` : ""}
     </article>`;
 }
 let editingPlanId = null;
