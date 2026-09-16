@@ -488,13 +488,22 @@ function drawRing(id, pct) {
 
 /* ---------- 指導記録 ---------- */
 function lessonItemHTML(r) {
+  const hasDetail = r.content || r.notes;
   return `
     <article class="item">
       <div class="meta"><span class="date">指導記録</span>${subjectChip(r.subject)}</div>
       ${r.range ? `<h4>${esc(r.range)}</h4>` : ""}
-      ${r.content ? `<p class="label">授業内容</p><p>${esc(r.content)}</p>` : ""}
-      ${r.notes ? `<p class="label">所感</p><p>${esc(r.notes)}</p>` : ""}
-      ${role === "tutor" ? `<div class="actions"><button class="small outline" data-lesson-edit="${esc(r.id)}">編集</button></div>` : ""}
+      ${hasDetail ? `
+        <div class="detail-wrap" data-detail-wrap>
+          <div class="detail-inner">
+            ${r.content ? `<p class="label">授業内容</p><p>${esc(r.content)}</p>` : ""}
+            ${r.notes ? `<p class="label">所感</p><p>${esc(r.notes)}</p>` : ""}
+          </div>
+        </div>` : ""}
+      <div class="actions">
+        ${hasDetail ? `<button type="button" class="small outline" data-detail-toggle>詳細を見る</button>` : ""}
+        ${role === "tutor" ? `<button class="small outline" data-lesson-edit="${esc(r.id)}">編集</button>` : ""}
+      </div>
     </article>`;
 }
 let editingLessonId = null;
@@ -632,6 +641,13 @@ async function openDataUrlAsBlob(dataUrl) {
 async function handleHomeworkFeedClick(e) {
   const pdfLink = e.target.closest(".pdf-open-link");
   if (pdfLink) { e.preventDefault(); openDataUrlAsBlob(pdfLink.getAttribute("href")); return; }
+  const detailBtn = e.target.closest("[data-detail-toggle]");
+  if (detailBtn) {
+    const wrap = detailBtn.closest("article").querySelector("[data-detail-wrap]");
+    const open = wrap.classList.toggle("open");
+    detailBtn.textContent = open ? "閉じる" : "詳細を見る";
+    return;
+  }
   const t = e.target.closest("[data-toggle]"), a = e.target.closest("[data-ask]"), d = e.target.closest("[data-del]");
   const p = e.target.closest("[data-photo]"), pg = e.target.closest("[data-count-toggle]");
   const scd = e.target.closest("[data-sc-del]");
