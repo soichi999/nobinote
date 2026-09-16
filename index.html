@@ -52,11 +52,6 @@
     <label>生徒<select id="student-select"></select></label>
   </div>
 
-  <div id="tutor-dashboard" class="card tutor-only" hidden>
-    <h3>今日やること</h3>
-    <div id="tutor-dashboard-body" class="dash-list"></div>
-  </div>
-
   <nav class="tabs">
     <button data-tab="calendar" class="active">カレンダー</button>
     <button data-tab="study">勉強時間</button>
@@ -86,78 +81,12 @@
       <div id="calendar" class="calendar"></div>
       <p class="hint left cal-legend"><span class="pill lesson">指導日</span><span class="pill due">宿題期限</span><span class="pill tuition tutor-only" hidden>月謝</span><span class="pill plan">予定</span></p>
     </div>
-    <details class="card form-card tutor-only" hidden>
-      <summary>宿題を出す</summary>
-      <form id="hw-form">
-      <label>タイトル<input type="text" id="h-title" placeholder="ワーク p.12-15" required></label>
-      <div class="grid">
-        <label>教科<select id="h-subject"></select></label>
-        <label>形式
-          <select id="h-type">
-            <option value="tf">完了・未完了</option>
-            <option value="count">単位ごとにチェック</option>
-          </select>
-        </label>
-      </div>
-      <div class="grid" id="h-count-range" hidden>
-        <label>単位
-          <select id="h-unit-select">
-            <option value="問">問</option>
-            <option value="ページ">ページ</option>
-            <option value="回">回</option>
-            <option value="custom">その他（自由入力）</option>
-          </select>
-        </label>
-        <label id="h-unit-custom-wrap" hidden>単位名<input type="text" id="h-unit-custom" placeholder="例：セクション"></label>
-      </div>
-      <div class="grid" id="h-count-numbers" hidden>
-        <label>開始<input type="number" id="h-count-from" min="1" value="1"></label>
-        <label>終了<input type="number" id="h-count-to" min="1" value="10"></label>
-      </div>
-      <label>詳細<textarea id="h-detail" rows="3"></textarea></label>
-      <label>提出期限<input type="date" id="h-due" required></label>
-      <label>PDF添付（任意・合計750KBまで、複数選択可）<input type="file" id="h-pdf" accept="application/pdf" multiple></label>
-      <p class="hint left" id="h-pdf-current" hidden>添付済み：<span id="h-pdf-current-list"></span>（選ぶと追加されます。差し替えではありません）</p>
-      <button id="h-save-btn" type="submit" class="save-btn">追加</button>
-      </form>
-    </details>
-    <details class="card form-card tutor-only" hidden>
-      <summary>指導予定を登録</summary>
-      <form id="schedule-form">
-      <div class="grid">
-        <label>指導日<input type="date" id="sc-date" required></label>
-        <label>時間<input type="time" id="sc-time"></label>
-      </div>
-      <label>Zoom URL<input type="url" id="sc-zoom" placeholder="https://zoom.us/j/..."></label>
-      <label>メモ<input type="text" id="sc-memo" placeholder="前回の続きから"></label>
-      <button id="sc-save-btn" type="submit" class="save-btn">登録</button>
-      </form>
-    </details>
-    <details class="card form-card tutor-only" hidden>
-      <summary>指導記録を追加</summary>
-      <form id="lesson-form">
-      <div class="grid">
-        <label>日付<input type="date" id="l-date" required></label>
-        <label>教科<select id="l-subject"></select></label>
-      </div>
-      <label>学習範囲<input type="text" id="l-range" placeholder="二次関数 p.34-40"></label>
-      <label>授業内容<textarea id="l-content" rows="4"></textarea></label>
-      <label>所感（生徒・保護者にも表示）<textarea id="l-notes" rows="3"></textarea></label>
-      <button id="l-save-btn" type="submit" class="save-btn">保存</button>
-      </form>
-    </details>
-    <details class="card form-card">
-      <summary>予定を追加</summary>
-      <form id="plan-form">
-      <label>タイトル<input type="text" id="pl-title" placeholder="面談／模試申込 締切 など" required></label>
-      <div class="grid">
-        <label>日付<input type="date" id="pl-date" required></label>
-        <label>時間（任意）<input type="time" id="pl-time"></label>
-      </div>
-      <label>メモ<textarea id="pl-memo" rows="2"></textarea></label>
-      <button id="pl-save-btn" type="submit" class="save-btn">追加</button>
-      </form>
-    </details>
+    <div class="calendar-action-grid">
+      <button type="button" class="cal-action-btn tutor-only" hidden data-open-modal="hw-modal">宿題を出す</button>
+      <button type="button" class="cal-action-btn" data-open-modal="plan-modal">予定を追加</button>
+      <button type="button" class="cal-action-btn tutor-only" hidden data-open-modal="schedule-modal">指導予定</button>
+      <button type="button" class="cal-action-btn tutor-only" hidden data-open-modal="lesson-modal">指導記録</button>
+    </div>
     <div id="calendar-feed" class="list"></div>
   </section>
 
@@ -321,6 +250,106 @@
       <button type="button" id="hw-overview-close" class="small outline">閉じる</button>
     </div>
     <div id="hw-overview-body" class="list"></div>
+  </div>
+</div>
+
+<!-- 宿題を出す -->
+<div id="hw-modal" class="modal-overlay" hidden>
+  <div class="modal-panel">
+    <div class="modal-head">
+      <h3 style="border:none;padding:0">宿題を出す</h3>
+      <button type="button" class="small outline" data-modal-close="hw-modal">閉じる</button>
+    </div>
+    <form id="hw-form">
+      <label>タイトル<input type="text" id="h-title" placeholder="ワーク p.12-15" required></label>
+      <div class="grid">
+        <label>教科<select id="h-subject"></select></label>
+        <label>形式
+          <select id="h-type">
+            <option value="tf">完了・未完了</option>
+            <option value="count">単位ごとにチェック</option>
+          </select>
+        </label>
+      </div>
+      <div class="grid" id="h-count-range" hidden>
+        <label>単位
+          <select id="h-unit-select">
+            <option value="問">問</option>
+            <option value="ページ">ページ</option>
+            <option value="回">回</option>
+            <option value="custom">その他（自由入力）</option>
+          </select>
+        </label>
+        <label id="h-unit-custom-wrap" hidden>単位名<input type="text" id="h-unit-custom" placeholder="例：セクション"></label>
+      </div>
+      <div class="grid" id="h-count-numbers" hidden>
+        <label>開始<input type="number" id="h-count-from" min="1" value="1"></label>
+        <label>終了<input type="number" id="h-count-to" min="1" value="10"></label>
+      </div>
+      <label>詳細<textarea id="h-detail" rows="3"></textarea></label>
+      <label>提出期限<input type="date" id="h-due" required></label>
+      <label>PDF添付（任意・合計750KBまで、複数選択可）<input type="file" id="h-pdf" accept="application/pdf" multiple></label>
+      <p class="hint left" id="h-pdf-current" hidden>添付済み：<span id="h-pdf-current-list"></span>（選ぶと追加されます。差し替えではありません）</p>
+      <button id="h-save-btn" type="submit" class="save-btn">追加</button>
+    </form>
+  </div>
+</div>
+
+<!-- 指導予定を登録 -->
+<div id="schedule-modal" class="modal-overlay" hidden>
+  <div class="modal-panel">
+    <div class="modal-head">
+      <h3 style="border:none;padding:0">指導予定を登録</h3>
+      <button type="button" class="small outline" data-modal-close="schedule-modal">閉じる</button>
+    </div>
+    <form id="schedule-form">
+      <div class="grid">
+        <label>指導日<input type="date" id="sc-date" required></label>
+        <label>時間<input type="time" id="sc-time"></label>
+      </div>
+      <label>Zoom URL<input type="url" id="sc-zoom" placeholder="https://zoom.us/j/..."></label>
+      <label>メモ<input type="text" id="sc-memo" placeholder="前回の続きから"></label>
+      <button id="sc-save-btn" type="submit" class="save-btn">登録</button>
+    </form>
+  </div>
+</div>
+
+<!-- 指導記録を追加 -->
+<div id="lesson-modal" class="modal-overlay" hidden>
+  <div class="modal-panel">
+    <div class="modal-head">
+      <h3 style="border:none;padding:0">指導記録を追加</h3>
+      <button type="button" class="small outline" data-modal-close="lesson-modal">閉じる</button>
+    </div>
+    <form id="lesson-form">
+      <div class="grid">
+        <label>日付<input type="date" id="l-date" required></label>
+        <label>教科<select id="l-subject"></select></label>
+      </div>
+      <label>学習範囲<input type="text" id="l-range" placeholder="二次関数 p.34-40"></label>
+      <label>授業内容<textarea id="l-content" rows="4"></textarea></label>
+      <label>所感（生徒・保護者にも表示）<textarea id="l-notes" rows="3"></textarea></label>
+      <button id="l-save-btn" type="submit" class="save-btn">保存</button>
+    </form>
+  </div>
+</div>
+
+<!-- 予定を追加 -->
+<div id="plan-modal" class="modal-overlay" hidden>
+  <div class="modal-panel">
+    <div class="modal-head">
+      <h3 style="border:none;padding:0">予定を追加</h3>
+      <button type="button" class="small outline" data-modal-close="plan-modal">閉じる</button>
+    </div>
+    <form id="plan-form">
+      <label>タイトル<input type="text" id="pl-title" placeholder="面談／模試申込 締切 など" required></label>
+      <div class="grid">
+        <label>日付<input type="date" id="pl-date" required></label>
+        <label>時間（任意）<input type="time" id="pl-time"></label>
+      </div>
+      <label>メモ<textarea id="pl-memo" rows="2"></textarea></label>
+      <button id="pl-save-btn" type="submit" class="save-btn">追加</button>
+    </form>
   </div>
 </div>
 
