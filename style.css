@@ -91,9 +91,9 @@ button.small{padding:.32rem .8rem;font-size:.8rem}
 /* 一覧 */
 .list{display:flex;flex-direction:column;gap:.8rem}
 .item{background:var(--card);border:1px solid var(--blue-line);border-radius:14px;padding:1.1rem 1.2rem;
-  box-shadow:var(--shadow);border-left:4px solid var(--blue-line);
+  box-shadow:var(--shadow);
   transition:border-color .15s,transform .15s,box-shadow .15s}
-.item:hover{border-left-color:var(--blue);transform:translate(-2px,-2px);box-shadow:var(--shadow-hover)}
+.item:hover{border-color:var(--blue);transform:translate(-2px,-2px);box-shadow:var(--shadow-hover)}
 .item .meta{font-size:.8rem;color:var(--muted);display:flex;gap:.7rem;flex-wrap:wrap;
   align-items:center;justify-content:space-between}
 .item .meta .date{font-weight:700;color:var(--blue);letter-spacing:.03em}
@@ -109,7 +109,7 @@ button.small{padding:.32rem .8rem;font-size:.8rem}
 .score small{font-size:.85rem;color:var(--muted);font-weight:600}
 .error{color:var(--err);font-size:.85rem;min-height:1.3em;text-align:center}
 .hint{color:var(--muted);font-size:.78rem;text-align:center;margin:.4rem 0 0}
-.msgs .item.me{border-left-color:var(--blue);background:var(--blue-soft)}
+.msgs .item.me{border-color:var(--blue);background:var(--blue-soft)}
 .empty{color:var(--muted);text-align:center;padding:2.5rem;background:#fff;
   border:1px dashed var(--blue-line);border-radius:14px}
 #chart{overflow-x:auto}
