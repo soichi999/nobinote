@@ -650,3 +650,20 @@ button.ghost-dark{background:#fff;border:1px solid var(--blue-line);color:var(--
 .vq-ex{margin:.2rem 0 0;font-family:"Times New Roman",Georgia,serif;font-size:1.02rem}
 .vq-exj{margin:.1rem 0 0;font-size:.85rem;color:var(--muted)}
 .vq-review-tag{margin:.4rem 0 0;font-size:.8rem;font-weight:800;color:var(--err)}
+
+/* ---- 単語の解説：例文の強調・豆知識・読み上げ ---- */
+.speak-btn{background:none;border:0;padding:0 .3rem;font-size:1.3rem;vertical-align:middle;cursor:pointer}
+.speak-btn.small{font-size:1rem}
+.vq-pos-tag{display:inline-block;font-size:.7rem;font-weight:800;color:#0f766e;background:#ccfbf1;border-radius:6px;padding:0 .35rem;margin:0 .45rem}
+.vq-exbox{background:rgba(255,255,255,.7);border-radius:10px;padding:.5rem .7rem;margin:.5rem 0}
+.vq-ex mark{background:#fde68a;color:inherit;font-weight:800;padding:0 .1em;border-radius:3px}
+.vq-tip{background:#fffbeb;border:1px dashed #f5c26b;border-radius:10px;padding:.5rem .7rem;margin-top:.5rem}
+.vq-tip p{margin:0;font-size:.88rem;line-height:1.8}
+.vq-tip .exp-label{color:#b45309;margin-bottom:.15rem}
+
+/* ---- 先生用：お試し ---- */
+.trial-card{border:1.5px dashed #a78bfa;background:#faf7ff}
+.trial-tag{margin:0 0 .5rem;font-size:.8rem;font-weight:800;color:#6d28d9}
+.trial-list{display:flex;flex-wrap:wrap;gap:.5rem}
+.trial-list button{border-color:#c4b5fd;color:#6d28d9}
+.trial-result{background:#faf7ff;border:1.5px dashed #a78bfa;border-radius:14px;padding:.9rem 1rem;margin-bottom:.8rem}
