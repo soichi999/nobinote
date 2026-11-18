@@ -587,3 +587,11 @@ button.ghost-dark{background:#fff;border:1px solid var(--blue-line);color:var(--
   .exam-secmenu{right:.7rem}
   .sec-pager button{max-width:100%;flex:1}
 }
+
+/* ---- カレンダー下の一覧：模試 ---- */
+.item .date.mock{background:#fde7ef;color:#c2255c}
+.feed-mock{border-left:4px solid #d6336c}
+.feed-mock-meta{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;font-size:.82rem;color:var(--muted);margin:.2rem 0 !important}
+.feed-mock-score{color:var(--navy);font-size:.9rem}
+.mock-card.flash{animation:flash 1.6s ease}
+@keyframes flash{0%,60%{box-shadow:0 0 0 4px #f8b4cb,var(--shadow)}100%{box-shadow:var(--shadow)}}

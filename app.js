@@ -196,7 +196,7 @@ function watchAll() {
   sub("homework", "dueDate", "asc", rows => { homework = rows; renderHomework(); renderCalendarFeed(); renderCalendars(); });
   sub("tests", "date", "asc", rows => { tests = rows; renderTests(); });
   sub("messages", "createdAt", "asc", renderMessages);
-  sub("mocks", "dueDate", "desc", rows => { mocks = rows; renderMocks(); renderCalendars(); });
+  sub("mocks", "dueDate", "desc", rows => { mocks = rows; renderMocks(); renderCalendars(); renderCalendarFeed(); });
   sub("schedule", "date", "asc", rows => { schedule = rows; renderHomework(); renderCalendarFeed(); renderCalendars(); });
   sub("plans", "date", "asc", rows => { plans = rows; renderCalendarFeed(); renderCalendars(); });
   sub("tuition", "createdAt", "desc", rows => { tuition = rows; renderTuition(); });
@@ -522,6 +522,29 @@ $("schedule-form").addEventListener("submit", async (e) => {
 });
 
 /* ---------- 予定（生徒・保護者・チューター誰でも追加可） ---------- */
+// カレンダー下の一覧に出す模試（期限の日に表示）
+function mockFeedItemHTML(r) {
+  const def = mockDef(r.mockId);
+  if (!def) return "";
+  const st = r.status ?? "assigned";
+  const late = st === "assigned" && r.dueDate && r.dueDate < today();
+  const s = st === "graded" ? mockStats(def, r.scores) : null;
+  const web = isWeb(r);
+  const label = role === "student"
+    ? ({ assigned: "模試を開いて解く", started: web ? "解答画面を開く" : "模試を開く", graded: "結果を見る" }[st] ?? "模試を開く")
+    : (st === "graded" ? "結果を見る" : "模試を開く");
+  return `
+    <article class="item feed-mock st-${st}">
+      <p class="plan-line"><span class="date mock">模試の期限</span><span class="plan-line-text">${esc(def.title)}</span></p>
+      <p class="feed-mock-meta">
+        <span class="status-chip ${st}${late ? " late" : ""}">${late ? "期限切れ" : MOCK_STATUS[st]}</span>
+        <span>${esc(def.scope)}・${def.minutes}分${web ? "・ウェブでマーク" : "・紙に記述"}</span>
+        ${s ? `<b class="feed-mock-score">${s.got}/${s.max}点（${pct(s.got, s.max)}%）</b>` : ""}
+      </p>
+      ${r.memo ? `<p>${esc(r.memo)}</p>` : ""}
+      <div class="actions"><button class="small filled" data-feed-mock="${esc(r.id)}">${label}</button></div>
+    </article>`;
+}
 function planItemHTML(p) {
   return `
     <article class="item">
@@ -559,16 +582,18 @@ $("plan-form").addEventListener("submit", async (e) => {
 function renderCalendarFeed() {
   const monthPrefix = `${calState.main.getFullYear()}-${String(calState.main.getMonth() + 1).padStart(2, "0")}`;
   const dateMap = {};
-  const ensure = (date) => (dateMap[date] ??= { hw: [], lesson: [], sched: [], plan: [] });
+  const ensure = (date) => (dateMap[date] ??= { hw: [], lesson: [], sched: [], plan: [], mock: [] });
   homework.forEach(h => { if (h.dueDate?.startsWith(monthPrefix)) ensure(h.dueDate).hw.push(h); });
   lessons.forEach(l => { if (l.date?.startsWith(monthPrefix)) ensure(l.date).lesson.push(l); });
   schedule.forEach(s => { if (s.date?.startsWith(monthPrefix)) ensure(s.date).sched.push(s); });
   plans.forEach(p => { if (p.date?.startsWith(monthPrefix)) ensure(p.date).plan.push(p); });
+  mocks.forEach(m => { if (m.dueDate?.startsWith(monthPrefix)) ensure(m.dueDate).mock.push(m); });
   const dates = Object.keys(dateMap).sort((a, b) => b.localeCompare(a));
   $("calendar-feed").innerHTML = dates.length ? dates.map(date => {
-    const { hw, lesson, sched, plan } = dateMap[date];
+    const { hw, lesson, sched, plan, mock } = dateMap[date];
     return `<div class="feed-date-group">
       <h4 class="feed-date-heading">${fmtDateLong(date)}</h4>
+      ${mock.map(mockFeedItemHTML).join("")}
       ${sched.map(scheduleItemHTML).join("")}
       ${lesson.map(lessonItemHTML).join("")}
       ${hw.map(homeworkItemHTML).join("")}
@@ -591,6 +616,20 @@ async function openDataUrlAsBlob(dataUrl) {
   }
 }
 async function handleHomeworkFeedClick(e) {
+  const fm = e.target.closest("[data-feed-mock]");
+  if (fm) {
+    const r = mocks.find(m => m.id === fm.dataset.feedMock);
+    $("day-modal").hidden = true;
+    if (r && role === "student" && r.status === "started" && isWeb(r)) { openExam(r.id); return; }
+    document.querySelector('.tabs [data-tab="mock"]').click();
+    requestAnimationFrame(() => {
+      const card = document.getElementById("mock-card-" + fm.dataset.feedMock);
+      card?.scrollIntoView({ block: "center", behavior: "smooth" });
+      card?.classList.add("flash");
+      setTimeout(() => card?.classList.remove("flash"), 1600);
+    });
+    return;
+  }
   const pdfLink = e.target.closest(".pdf-open-link");
   if (pdfLink) { e.preventDefault(); openDataUrlAsBlob(pdfLink.getAttribute("href")); return; }
   const detailBtn = e.target.closest("[data-detail-toggle]");
@@ -833,7 +872,8 @@ function openDayModal(iso) {
   const dayMocks = mocks.filter(m => m.dueDate === iso);
   if (dayMocks.length) {
     sections.push(`<div class="modal-section"><h4 class="modal-sub">模試の期限</h4>${dayMocks.map(m => `<div class="item">
-      <h4>${esc(mockDef(m.mockId)?.title ?? "模試")}</h4><span class="status-chip ${m.status}">${MOCK_STATUS[m.status] ?? ""}</span></div>`).join("")}</div>`);
+      <h4>${esc(mockDef(m.mockId)?.title ?? "模試")}</h4><span class="status-chip ${m.status}">${MOCK_STATUS[m.status] ?? ""}</span>
+      <div class="actions"><button class="small filled" data-feed-mock="${esc(m.id)}">模試を開く</button></div></div>`).join("")}</div>`);
   }
   const dayPlans = plans.filter(p => p.date === iso);
   if (dayPlans.length) {
@@ -1102,7 +1142,7 @@ function mockCardHTML(r) {
       <button class="small outline" data-mock-edit="${esc(r.id)}">編集</button>
       <button class="small outline danger" data-mock-del="${esc(r.id)}">削除</button>
     </div>` : "";
-  return `<article class="item mock-card st-${st}">
+  return `<article class="item mock-card st-${st}" id="mock-card-${esc(r.id)}">
     <div class="mock-head">
       <div>
         <p class="mock-sub">${esc(def.scope)}・${def.minutes}分・${def.total}点</p>
