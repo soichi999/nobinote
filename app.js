@@ -264,20 +264,6 @@ function renderHomework() {
   $("hw-ring-label").textContent = avgPct + "%";
   $("hw-ring-sub").textContent = rows.length ? `${doneCount} / ${rows.length} 件 達成（平均 ${avgPct}%）` : "まだ宿題がありません。";
 
-  const bySubject = {};
-  rows.forEach(r => { if (r.subject) (bySubject[r.subject] ??= []).push(r); });
-  const subjectRows = Object.entries(bySubject);
-  $("hw-subject-card").hidden = subjectRows.length === 0;
-  $("hw-subject-bars").innerHTML = subjectRows.map(([subj, list]) => {
-    const c = subjectColor(subj);
-    const p = Math.round(list.reduce((s, r) => s + hwProgress(r), 0) / list.length);
-    const d = list.filter(r => hwProgress(r) >= 100).length;
-    return `<div class="subject-bar-row">
-      ${subjectChip(subj)}
-      <div class="subject-bar-track"><div class="subject-bar-fill" style="width:${p}%;background:${c.line}"></div></div>
-      <span class="subject-bar-pct">${d}/${list.length}</span>
-    </div>`;
-  }).join("");
 }
 function miniRingSVG(pct) {
   const r = 26, c = 2 * Math.PI * r;
@@ -2070,7 +2056,7 @@ function renderVocabCard() {
   } else if (role === "tutor") btn = `<button type="button" class="outline vc-btn" data-vocab-trial>お試しで解く（記録されません）</button>`;
   card.innerHTML = `
     <div class="vc-top">
-      <div><p class="vc-kicker">毎日の単語帳</p><p class="vc-sub">英検2級レベル・1日${DAILY_N}問</p></div>
+      <div><p class="vc-kicker">今日の英単語</p><p class="vc-sub">英検2級レベル・1日${DAILY_N}問</p></div>
       <span class="vc-badge ${state}">${state === "done" ? "完了" : state === "review" ? "復習中" : state === "doing" ? "とちゅう" : "未実施"}</span>
     </div>
     <div class="vc-today ${state}">
@@ -2174,7 +2160,7 @@ function vocabQuestionHTML(id, answered) {
 function renderVocab() {
   const td = vocab.today;
   if (!td) return;
-  $("vocab-title").textContent = vocabTrial ? "【お試し】単語帳（記録されません）" : "今日の単語帳";
+  $("vocab-title").textContent = vocabTrial ? "【お試し】今日の英単語（記録されません）" : "今日の英単語";
   const n = td.ids.length;
   const body = $("vocab-body");
   if (td.phase === "main" && td.idx < n) {
@@ -2207,7 +2193,7 @@ function renderVocab() {
     const day = vocab.days?.[td.date];
     $("vocab-progress").textContent = "完了";
     body.innerHTML = `<div class="pr-done">
-        <p class="pr-done-title">${vocabTrial ? "お試し 完了！" : "今日の単語帳 完了！"}</p>
+        <p class="pr-done-title">${vocabTrial ? "お試し 完了！" : "今日の英単語 完了！"}</p>
         ${vocabTrial ? "" : `<p class="pr-done-score">${vocabStreak()}<small> 日連続</small></p>`}
         <p class="mock-note">1回目で ${day?.first ?? "-"}/${day?.total ?? n} 問正解。また明日！</p>
         <div class="pr-done-list">${td.ids.map(id => `<span class="pr-dot ${td.results[id] ? "ok" : "ng"}">${esc(VOCAB_BY_ID[id][0])}　${esc(VOCAB_BY_ID[id][2])}</span>`).join("")}</div>
