@@ -9,6 +9,7 @@
   --c-vocab:#0f766e; --c-vocab-mid:var(--c-vocab-mid); --c-vocab-soft:#e6fffb;
   --input-bg:var(--input-bg); --accent-w:4px;
   --r-sm:6px; --r-md:10px; --r-lg:16px; --r-pill:999px;
+  --vocab-day:#fff4bf; --vocab-day-line:#f1d36b;
   --shadow-pop:0 12px 32px rgba(11,42,91,.25);
   --shadow:0 1px 2px rgba(11,42,91,.06),0 4px 14px rgba(11,42,91,.06);
   --shadow-hover:0 2px 4px rgba(11,42,91,.08),0 10px 24px rgba(11,42,91,.10);
@@ -772,3 +773,30 @@ details.form-details[open] > summary::before{transform:rotate(45deg)}
 /* ---- 連絡：文字のスタンプ・未読の数 ---- */
 .tab-badge{position:absolute;top:.15rem;right:22%;min-width:1.15rem;height:1.15rem;padding:0 .25rem;border-radius:var(--r-pill);
   background:var(--err);color:#fff;font-size:.72rem;font-weight:800;line-height:1.15rem;text-align:center}
+
+/* ---- カレンダー：今日の英単語を完了した日は薄い黄色 ---- */
+.cal-cell.vocab-done{background:var(--vocab-day)}
+.cal-cell.vocab-done.today{background:var(--vocab-day);border-color:var(--blue)}
+.legend-vocab{display:inline-flex;align-items:center;gap:.35rem;font-size:.75rem;font-weight:700;color:var(--muted)}
+.legend-vocab::before{content:"";width:.95rem;height:.95rem;border-radius:var(--r-sm);background:var(--vocab-day);border:1px solid var(--vocab-day-line)}
+
+/* ---- 模試カード（簡潔に） ---- */
+.mock-head h4{margin:0}
+.mock-sub{margin:.15rem 0 0 !important}
+.mock-due{display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap}
+.mock-memo{font-weight:400;color:var(--muted);font-size:.85rem}
+.mock-label{margin:.7rem 0 .2rem !important}
+.mock-card .mock-pdfs{margin-top:.2rem}
+
+/* 模試カード：ふだんは4項目だけ、「詳細」で中身を開く */
+.mock-card .mock-head{align-items:center}
+.mock-info{display:grid;grid-template-columns:1fr 1fr;gap:.5rem .9rem;margin:.7rem 0 0}
+.mock-info div{min-width:0}
+.mock-info dt{font-size:.72rem;color:var(--muted);font-weight:700}
+.mock-info dd{margin:.1rem 0 0;font-size:.92rem;font-weight:700;color:var(--navy);overflow-wrap:anywhere}
+.mock-info dd.late{color:var(--err)}
+.mock-toggle{display:block;width:100%;margin-top:.7rem;padding:.55rem;border:1px solid var(--line);border-radius:var(--r-md);background:transparent;color:var(--blue);font-weight:700;font-size:.9rem;cursor:pointer}
+.mock-card.open .mock-toggle{margin-top:.9rem}
+.mock-body{display:flex;flex-direction:column;gap:.7rem;margin-top:.6rem}
+.mock-body > .mock-memo{margin:0;font-size:.85rem;color:var(--muted)}
+.mock-zone{margin:1.4rem 0 .2rem;font-size:.95rem;color:var(--muted)}

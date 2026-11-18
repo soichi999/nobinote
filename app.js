@@ -211,8 +211,9 @@ function watchAll() {
     vocab = data;
     renderVocabCard();
     renderTodayCard();
+    renderCalendars();
   }));
-  sub("mocks", "dueDate", "desc", rows => { mocks = rows; renderMocks(); renderCalendars(); renderCalendarFeed(); });
+  sub("mocks", "dueDate", "desc", rows => { mocks = rows; renderMocks(); renderCalendars(); renderCalendarFeed(); renderTests(); });
   sub("schedule", "date", "asc", rows => { schedule = rows; renderHomework(); renderCalendarFeed(); renderCalendars(); });
   sub("plans", "date", "asc", rows => { plans = rows; renderCalendarFeed(); renderCalendars(); });
   sub("tuition", "createdAt", "desc", rows => { tuition = rows; renderTuition(); });
@@ -689,7 +690,9 @@ async function handleHomeworkFeedClick(e) {
     const r = mocks.find(m => m.id === fm.dataset.feedMock);
     $("day-modal").hidden = true;
     if (r && role === "student" && r.status === "started" && isWeb(r)) { openExam(r.id); return; }
+    mockOpen.add(fm.dataset.feedMock);
     document.querySelector('.tabs [data-tab="mock"]').click();
+    renderMocks();
     requestAnimationFrame(() => {
       const card = document.getElementById("mock-card-" + fm.dataset.feedMock);
       card?.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -856,7 +859,9 @@ function buildCalendar(baseDate, marksByDate) {
     const weekday = idx % 7;
     const prevMarks = weekday > 0 && d > 1 ? (marksByDate[isoOf(d - 1)] ?? []) : null;
     const nextMarks = weekday < 6 && d < daysInMonth ? (marksByDate[isoOf(d + 1)] ?? []) : null;
-    return `<div class="cal-cell${isToday ? " today" : ""}" data-date="${iso}">
+    // 今日の英単語を（直しまで）やり切った日は、マスを薄い黄色にする
+    const vdone = vocab.days?.[iso]?.done;
+    return `<div class="cal-cell${isToday ? " today" : ""}${vdone ? " vocab-done" : ""}" data-date="${iso}"${vdone ? ' title="今日の英単語 完了"' : ""}>
       <span class="cal-day">${d}</span>
       <span class="cal-pills">${shown.map((k, i) => {
         const joinLeft = sameMark(k, prevMarks?.[i]);
@@ -1141,7 +1146,7 @@ function donutHTML(def, scores, big) {
       <text x="60" y="76" text-anchor="middle" font-size="10" fill="var(--muted)">正答率</text>
     </svg>
     <div class="donut-legend">
-      <p class="donut-score">${got}<small> / ${max}点</small></p>
+      <p class="donut-score">${got}<small>点</small></p>
       <p><span class="lg ok"></span>正解 ${ok}問</p>
       ${part ? `<p><span class="lg part"></span>部分点 ${part}問</p>` : ""}
       <p><span class="lg ng"></span>不正解 ${ng}問</p>
@@ -1160,6 +1165,15 @@ function mockTimeLeft(r, def) {
   return `<span class="timer">残り ${mm}:${String(ss).padStart(2, "0")}</span>`;
 }
 
+const mockOpen = new Set();   // 「詳細」を開いている模試
+// 模試全体の難易度：各問の難易度を配点で重みづけした平均
+function mockLevel(def) {
+  const W = { 基本: 1, 標準: 2, 応用: 3 };
+  let sum = 0, pts = 0;
+  def.items.forEach(it => { sum += (W[it.level] ?? 2) * it.pts; pts += it.pts; });
+  const a = pts ? sum / pts : 2;
+  return a < 1.6 ? "基本" : a < 2.2 ? "標準" : a < 2.5 ? "やや難" : "難";
+}
 function mockCardHTML(r) {
   const def = mockDef(r.mockId);
   if (!def) return "";
@@ -1170,34 +1184,33 @@ function mockCardHTML(r) {
   const canKey = role === "tutor" || afterSubmit;
   const web = isWeb(r);
   const pdfs = `<div class="mock-pdfs">
-      <a class="pdf-btn" href="${def.q}" download="${esc(def.title)}_問題用紙.pdf">問題用紙</a>
-      ${web ? "" : `<a class="pdf-btn" href="${def.a}" download="${esc(def.title)}_解答用紙.pdf">解答用紙</a>`}
-      ${canKey ? `<button type="button" class="pdf-btn key" data-mock-key="${esc(def.id)}">解答・解説</button>`
-        : `<span class="pdf-locked">解答・解説は提出すると見られます</span>`}
+      <a class="pdf-btn" href="${def.q}" download="${esc(def.title)}_問題用紙.pdf">問題（PDF）</a>
+      ${web ? "" : `<a class="pdf-btn" href="${def.a}" download="${esc(def.title)}_解答用紙.pdf">解答用紙（PDF）</a>`}
+      ${canKey ? `<button type="button" class="pdf-btn key" data-mock-key="${esc(def.id)}">解答・解説（PDF）</button>` : ""}
     </div>`;
   let body = "";
   if (web) {
     body = webCardBody(r, def, st, stats, pdfs);
   } else if (st === "assigned") {
-    body = `${role === "student" ? `<button class="primary block-btn" data-mock-start="${esc(r.id)}">解き始める（${def.minutes}分）</button>` : ""}
-      <p class="mock-note">① 下の問題用紙と解答用紙を印刷します（印刷できないときはノートに解答してOK）。② 準備ができたら「解き始める」を押します。途中の式や考え方も書きましょう。</p>
+    body = `${role === "student" ? `<button class="primary block-btn" data-mock-start="${esc(r.id)}">受験する</button>` : ""}
+      <p class="mock-note">問題と解答用紙を印刷してから始めてください。途中式も書くこと。</p>
       ${pdfs}`;
   } else if (st === "started") {
     const end = new Date(r.startedAt + def.minutes * 60000);
     body = `${pdfs}
       <p class="mock-timer-line" data-mock-timer="${esc(r.id)}">${mockTimeLeft(r, def)}</p>
-      <p class="mock-note">終了予定 ${end.getHours()}:${String(end.getMinutes()).padStart(2, "0")}。アプリを閉じたり他のアプリを使ったりしても、時間は止まらずに進みます。</p>
+      <p class="mock-note">${end.getHours()}:${String(end.getMinutes()).padStart(2, "0")} 終了</p>
       ${role === "student" ? photoPanelHTML(r, true) : `<p class="mock-note">生徒が受験中です。</p>`}`;
   } else if (st === "submitted" || st === "grading") {
     body = `${pdfs}<p class="mock-note">提出：${r.submittedAt ? new Date(r.submittedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}${r.startedAt && r.submittedAt ? `（かかった時間 ${fmtElapsed(r.submittedAt - r.startedAt)}）` : ""}　写真 ${r.photoCount ?? 0}枚</p>
       ${st === "grading" ? `<p class="mock-note">採点中：${stats.gradedCount}/${def.items.length}問</p>` : ""}
-      ${role === "student" ? `<p class="mock-note">提出できました。先生の採点を待っている間に、解答・解説で答え合わせをしておきましょう。</p>
+      ${role === "student" ? `<p class="mock-note">提出済み。先生の採点を待っています。</p>
         ${photoPanelHTML(r, false)}` : ""}`;
   } else if (st === "graded") {
     const fieldOrder = [...new Set(def.items.map(i => i.field))];
     body = `${pdfs}${donutHTML(def, r.scores)}
       ${rateBars(stats.fields, fieldOrder)}
-      ${stats.weak.length ? `<p class="label" style="margin-top:.9rem">復習したい内容</p>
+      ${stats.weak.length ? `<p class="label mock-label">苦手な単元</p>
         <div class="weak-chips">${stats.weak.slice(0, 6).map(w => `<span class="weak-chip">${esc(tagLabel(w.field, w.tag))}</span>`).join("")}</div>` : `<p class="mock-note">弱点として目立つ内容はありません。</p>`}
       ${role !== "tutor" && stats.weak.length ? `<p class="mock-note">解答・解説で見直す問題：${stats.weak.slice(0, 3).flatMap(w => w.items.map(it => it.no)).slice(0, 8).map(esc).join("、")}</p>` : ""}
       <div class="actions"><button class="small filled" data-mock-result="${esc(r.id)}">くわしい分析を見る</button></div>`;
@@ -1209,18 +1222,24 @@ function mockCardHTML(r) {
       <button class="small outline" data-mock-edit="${esc(r.id)}">編集</button>
       <button class="small outline danger" data-mock-del="${esc(r.id)}">削除</button>
     </div>` : "";
-  return `<article class="item mock-card st-${st}" id="mock-card-${esc(r.id)}">
+  const open = mockOpen.has(r.id) || st === "started";
+  return `<article class="item mock-card st-${st}${open ? " open" : ""}" id="mock-card-${esc(r.id)}">
     <div class="mock-head">
-      <div>
-        <p class="mock-sub">${esc(def.scope)}・${def.minutes}分・${def.total}点</p>
-        <h4>${esc(def.title)}</h4>
-      </div>
+      <h4>${esc(def.title)}</h4>
       <span class="status-chip ${st}${late ? " late" : ""}">${late ? "期限切れ" : MOCK_STATUS[st]}</span>
     </div>
-    <p class="mock-due">期限 ${fmtDate(r.dueDate)}${r.memo ? `　<span class="mock-memo">${esc(r.memo)}</span>` : ""}</p>
-    ${role !== "tutor" ? stepperHTML(st, web) : ""}
-    ${body}
-    ${tutorActions}
+    <dl class="mock-info">
+      <div><dt>制限時間</dt><dd>${def.minutes}分</dd></div>
+      <div><dt>出題範囲</dt><dd>${esc(def.scope)}</dd></div>
+      <div><dt>期限</dt><dd class="${late ? "late" : ""}">${r.dueDate ? fmtMD(r.dueDate) : "なし"}</dd></div>
+      <div><dt>難易度</dt><dd>${mockLevel(def)}</dd></div>
+    </dl>
+    ${open ? `<div class="mock-body">
+      ${r.memo ? `<p class="mock-memo">${esc(r.memo)}</p>` : ""}
+      ${body}
+      ${tutorActions}
+    </div>` : ""}
+    ${st === "started" ? "" : `<button type="button" class="mock-toggle" data-mock-toggle="${esc(r.id)}" aria-expanded="${open}">${open ? "閉じる" : "詳細"}</button>`}
   </article>`;
 }
 const STEPS = ["印刷", "解く", "写真提出", "採点", "結果"];
@@ -1279,7 +1298,7 @@ function renderMockBanner() {
     // まだ受けていない模試は、カレンダーの「宿題の達成度」の下に赤で目立たせて出す
     if (pending.length) {
       const def = mockDef(pending[0].mockId);
-      pend.innerHTML = `<span>まだ受けていない模試が${pending.length}つあります（${esc(def?.title ?? "")}・期限 ${fmtDate(pending[0].dueDate)}）</span>
+      pend.innerHTML = `<span>未受験の模試 ${pending.length}件｜${esc(def?.title ?? "")}（${fmtMD(pending[0].dueDate)}まで）</span>
         <button type="button" class="small" data-go-mock>模試へ</button>`;
       pend.hidden = false;
     }
@@ -1308,7 +1327,11 @@ function renderMocks() {
   const ORDER = { started: 0, assigned: 1, submitted: 2, grading: 2, graded: 3 };
   const list = mocks.slice().sort((a, b) =>
     (ORDER[a.status] ?? 1) - (ORDER[b.status] ?? 1) || (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
-  $("mock-list").innerHTML = list.length ? list.map(mockCardHTML).join("")
+  const isDone = (m) => ["submitted", "grading", "graded"].includes(m.status);
+  const todo = list.filter(m => !isDone(m)), done = list.filter(isDone);
+  $("mock-list").innerHTML = list.length
+    ? `${todo.length ? todo.map(mockCardHTML).join("") : `<div class="empty">今受けられる模試はありません。</div>`}
+       ${done.length ? `<h3 class="mock-zone">解き終えた模試</h3>${done.map(mockCardHTML).join("")}` : ""}`
     : `<div class="empty">${role === "tutor" ? "右上の「模試を出す」から、生徒に実力テストを出せます。" : "まだ模試は出ていません。"}</div>`;
   clearInterval(mockTimer);
   const running = mocks.some(m => m.status === "started");
@@ -1391,6 +1414,12 @@ async function downloadMockKey(mockId, btn) {
 $("mock-list").addEventListener("click", async (e) => {
   const b = (k) => e.target.closest(`[data-${k}]`);
   let x;
+  if ((x = b("mock-toggle"))) {
+    const id = x.dataset.mockToggle;
+    mockOpen.has(id) ? mockOpen.delete(id) : mockOpen.add(id);
+    renderMocks();
+    return;
+  }
   if ((x = b("mock-key"))) {
     downloadMockKey(x.dataset.mockKey, x);
   } else if ((x = b("exam-open"))) {
@@ -1406,7 +1435,7 @@ $("mock-list").addEventListener("click", async (e) => {
     if (r) startEditMock(r);
   } else if ((x = b("mock-start"))) {
     const r = mocks.find(m => m.id === x.dataset.mockStart), def = mockDef(r?.mockId);
-    if (def && confirm(`${def.title}を始めます。制限時間は${def.minutes}分です。\n始めると、アプリを閉じても時間は止まりません。${isWeb(r) ? "時間になると、その時点のマークで自動的に提出されます。" : "\n問題用紙と解答用紙は印刷しましたか？（ノートに解答してもOK）"}\n準備はいいですか？`)) {
+    if (def && confirm(`${def.title}\n制限時間 ${def.minutes}分。始めると時間は止まりません。${isWeb(r) ? "時間になると自動で提出されます。" : "\n問題と解答用紙は印刷しましたか？"}\n始めますか？`)) {
       await updateDoc(mockRef(r.id), { status: "started", startedAt: Date.now() });
       if (isWeb(r)) openExam(r.id);
     }
@@ -1556,10 +1585,10 @@ function openResult(id) {
   $("mock-result-title").textContent = def.title;
   $("mock-result-body").innerHTML = `
     ${donutHTML(def, r.scores, true)}
-    ${r.startedAt && r.submittedAt ? `<p class="mock-note">かかった時間 ${fmtElapsed(r.submittedAt - r.startedAt)}（制限 ${def.minutes}分）</p>` : ""}
+    ${r.startedAt && r.submittedAt ? `<p class="mock-note">解答時間 ${fmtElapsed(r.submittedAt - r.startedAt)}／制限 ${def.minutes}分</p>` : ""}
     <h4 class="modal-sub">分野別</h4>${rateBars(s.fields, fieldOrder)}
     <h4 class="modal-sub">難易度別</h4>${rateBars(s.levels, ["基本", "標準", "応用"])}
-    <h4 class="modal-sub">復習したい内容（得点率60%未満）</h4>
+    <h4 class="modal-sub">苦手な単元（得点率60%未満）</h4>
     ${s.weak.length ? `<div class="weak-list">${s.weak.map(w => `<div class="weak-row">
         <span class="weak-name">${esc(tagLabel(w.field, w.tag))}</span>
         <span class="weak-items">${w.items.map(it => esc(it.no)).join("、")}</span>
@@ -1785,7 +1814,7 @@ function renderPractice(r, def) {
   const metaById = Object.fromEntries(def.items.map(i => [i.id, i]));
   const ids = practiceIds ?? [];
   if (!ids.length) {
-    $("exam-body").innerHTML = `<div class="empty">解き直す問題はありません。全問正解です！</div>`;
+    $("exam-body").innerHTML = `<div class="empty">解き直す問題はありません。</div>`;
     return refreshExamHead();
   }
   if (practiceIdx >= ids.length) {
@@ -1834,7 +1863,7 @@ function renderExam() {
   const metaById = Object.fromEntries(def.items.map(i => [i.id, i]));
   const secs = examSections();
   if (!secs.length) {
-    $("exam-body").innerHTML = `<div class="empty">復習が必要な問題はありません。全問正解です！</div>`;
+    $("exam-body").innerHTML = `<div class="empty">解き直す問題はありません。</div>`;
     refreshExamHead();
     return;
   }
@@ -1844,14 +1873,14 @@ function renderExam() {
       <p class="trial-tag">お試し受験の結果（記録されません）</p>
       ${donutHTML(def, r.scores)}
       <div class="actions">
-        ${practiceSet(r, def).length ? `<button type="button" class="primary" data-trial-practice>弱点の問題に挑戦（${practiceSet(r, def).length}問）</button>` : ""}
+        ${practiceSet(r, def).length ? `<button type="button" class="primary" data-trial-practice>解き直し（${practiceSet(r, def).length}問）</button>` : ""}
         <button type="button" class="outline" data-trial-again="${esc(r.mockId)}">もう一度受ける</button>
       </div></div>` : "";
   const intro = examSec !== 0 ? "" : examMode === "review"
       ? `${trialBox}<p class="exam-intro">${examKey ? "あなたのマーク（紺色）と正解（緑の枠）です。右下のボタンで大問を切り替えられます。" : "正解はまだ表示できません。"}</p>`
       : examMode === "practice"
-        ? `<p class="exam-intro">模試でまちがえた問題と、得点率が低かった内容の問題です（${practiceIds.length}問）。解いたら「答え合わせ」を押しましょう。</p>`
-        : `<p class="exam-intro">${examData.intro ? esc(examData.intro) + "<br>" : ""}マークは自動で保存されます。右下のボタンで大問を切り替えられます。時間になると、その時点のマークで自動的に提出されます。</p>`;
+        ? `<p class="exam-intro">解き直し ${practiceIds.length}問。</p>`
+        : `<p class="exam-intro">${examData.intro ? esc(examData.intro) + "<br>" : ""}マークは自動保存。時間になると自動で提出されます。</p>`;
   const prev = examSec > 0 ? `<button type="button" class="outline" data-sec-go="${examSec - 1}">← ${esc(secs[examSec - 1].title)}</button>` : "<span></span>";
   const next = examSec < secs.length - 1 ? `<button type="button" class="primary" data-sec-go="${examSec + 1}">${esc(secs[examSec + 1].title)} →</button>`
     : (examMode === "exam" && (role === "student" || isTrial()) ? `<button type="button" class="primary" data-ex-submit>提出する</button>` : "<span></span>");
@@ -2016,38 +2045,36 @@ function webCardBody(r, def, st, stats, pdfs) {
   const answers = r.answers ?? {};
   const answered = Object.values(answers).reduce((n, m) => n + Object.values(m ?? {}).filter(v => v !== "").length, 0);
   if (st === "assigned") {
-    return `${role === "student" ? `<button class="primary block-btn" data-mock-start="${esc(r.id)}">解き始める（${def.minutes}分）</button>` : ""}
-      <p class="mock-note">画面でマークして解くテストです（${def.items.length}問・${def.minutes}分）。提出するとすぐに採点され、解答・解説も見られます。紙で問題を見たいときは、下の問題用紙を印刷できます。</p>
+    return `${role === "student" ? `<button class="primary block-btn" data-mock-start="${esc(r.id)}">受験する</button>` : ""}
       ${pdfs}`;
   }
   if (st === "started") {
     const end = new Date(r.startedAt + def.minutes * 60000);
     return `<p class="mock-timer-line" data-mock-timer="${esc(r.id)}">${mockTimeLeft(r, def)}</p>
-      ${role === "student" ? `<button class="primary block-btn" data-exam-open="${esc(r.id)}">解答画面を開く</button>`
-        : `<p class="mock-note">生徒が受験中です（マーク済み ${answered}か所）。</p>`}
-      <p class="mock-note">終了予定 ${end.getHours()}:${String(end.getMinutes()).padStart(2, "0")}。アプリを閉じても時間は進み、時間になるとその時点のマークで自動提出されます。</p>
+      <p class="mock-note">${end.getHours()}:${String(end.getMinutes()).padStart(2, "0")} に自動で提出されます</p>
+      ${role === "student" ? `<button class="primary block-btn" data-exam-open="${esc(r.id)}">続きから解く</button>`
+        : `<p class="mock-note">受験中（マーク ${answered}か所）</p>`}
       ${pdfs}`;
   }
   if (st === "submitted" || st === "grading") {
-    return `${pdfs}<p class="mock-note">提出済み。自動採点をしています…</p>
-      <div class="actions"><button class="small outline" data-exam-grade="${esc(r.id)}">採点をやり直す</button></div>`;
+    return `<p class="mock-note">採点中</p>
+      <div class="actions"><button class="small outline" data-exam-grade="${esc(r.id)}">採点し直す</button></div>${pdfs}`;
   }
   const fieldOrder = [...new Set(def.items.map(i => i.field))];
   const pset = practiceSet(r, def);
   const pdone = pset.filter(it => r.practice?.[it.id]).length;
-  return `${pdfs}${donutHTML(def, r.scores)}
-    ${r.startedAt && r.submittedAt ? `<p class="mock-note">かかった時間 ${fmtElapsed(r.submittedAt - r.startedAt)}${r.autoSubmitted ? "（時間切れで自動提出）" : ""}</p>` : ""}
+  return `${donutHTML(def, r.scores)}
+    ${r.startedAt && r.submittedAt ? `<p class="mock-note">解答時間 ${fmtElapsed(r.submittedAt - r.startedAt)}${r.autoSubmitted ? "（時間切れ）" : ""}</p>` : ""}
+    <p class="label mock-label">分野別</p>
     ${rateBars(stats.fields, fieldOrder)}
-    ${stats.weak.length ? `<p class="label" style="margin-top:.9rem">復習したい内容</p>
-      <div class="weak-chips">${stats.weak.slice(0, 6).map(w => `<span class="weak-chip">${esc(tagLabel(w.field, w.tag))}</span>`).join("")}</div>` : `<p class="mock-note">弱点として目立つ内容はありません。</p>`}
-    ${pset.length ? `<div class="practice-box">
-        <div><b>弱点の問題に挑戦</b><span>まちがえた問題と苦手な内容の問題 ${pset.length}問${pdone ? `（復習で正解 ${pdone}/${pset.length}）` : ""}</span></div>
-        ${role !== "parent" ? `<button class="primary" data-practice-open="${esc(r.id)}">${pdone ? "続ける" : "挑戦する"}</button>` : ""}
-      </div>` : `<p class="mock-note">全問正解です！</p>`}
+    ${stats.weak.length ? `<p class="label mock-label">苦手な単元</p>
+      <div class="weak-chips">${stats.weak.slice(0, 6).map(w => `<span class="weak-chip">${esc(tagLabel(w.field, w.tag))}</span>`).join("")}</div>` : ""}
+    ${pset.length && role !== "parent" ? `<button class="primary block-btn" data-practice-open="${esc(r.id)}">解き直し（${pset.length}問）${pdone ? `　${pdone}問できた` : ""}</button>` : ""}
     <div class="actions">
-      <button class="small filled" data-exam-review="${esc(r.id)}">答案と正解を見る</button>
-      <button class="small outline" data-mock-result="${esc(r.id)}">くわしい分析</button>
-    </div>`;
+      <button class="small outline" data-exam-review="${esc(r.id)}">答案を見る</button>
+      <button class="small outline" data-mock-result="${esc(r.id)}">成績表</button>
+    </div>
+    ${pdfs}`;
 }
 
 /* ---------- 毎日の単語帳：1日10問 → 1問ずつ4択 → 解説 → まちがえた単語は全部正解するまで復習 ---------- */
@@ -2171,6 +2198,7 @@ function openVocab() {
   renderVocab();
 }
 function closeVocab() {
+  setTimeout(renderCalendars, 0);
   if (vocabTrial) { vocab = vocabReal ?? { words: {}, days: {}, today: null }; vocabTrial = false; }
   $("vocab-view").hidden = true;
   document.body.classList.remove("exam-open");
@@ -2385,12 +2413,65 @@ function finishVocab() {
 
 /* ---------- 成績（外部の模試・テスト） ---------- */
 const JUDGMENT_RANKS = ["A", "B", "C", "D", "E"];
+// 採点済みの模試（このアプリの実力テスト）を、成績の行として加える（保存はしない・表示だけ）
+// 今回の実力テスト（数学第1〜3部・英語）は、成績では「1回の模試」として数える
+const MOCK_SERIES = { math1: "jitsu1", math2: "jitsu1", math3: "jitsu1", eng: "jitsu1" };
+const MOCK_SERIES_NAME = { jitsu1: "ノビノート実力テスト" };
+function mockTestRows() {
+  const isoOf = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+  return mocks.filter(m => m.status === "graded").map(m => {
+    const def = mockDef(m.mockId);
+    if (!def) return null;
+    const st = mockStats(def, m.scores);
+    const series = MOCK_SERIES[def.id] ?? def.id;
+    return { id: "mock-" + m.id, mockRow: true, series, examName: MOCK_SERIES_NAME[series] ?? def.title, partName: def.title,
+      date: isoOf(m.submittedAt ?? m.gradedAt ?? Date.now()),
+      subject: def.subject === "english" ? "english" : "math", score: st.got, max: st.max || def.total };
+  }).filter(Boolean);
+}
+// グラフ用：同じ回の模試は教科ごとに合計して1点にする
+function chartRows(rows) {
+  const out = [], agg = {};
+  rows.forEach(r => {
+    if (!r.mockRow) { out.push(r); return; }
+    const k = r.series + "|" + r.subject;
+    if (!agg[k]) { agg[k] = { ...r, score: 0, max: 0 }; out.push(agg[k]); }
+    agg[k].score += r.score; agg[k].max += r.max;
+    if (r.date > agg[k].date) agg[k].date = r.date;
+  });
+  return out.sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+}
 function renderTests() {
   const byExam = {};
-  tests.forEach(t => { (byExam[t.examName || "模試"] ??= { date: t.date, rows: [] }).rows.push(t); });
+  const allTests = [...tests, ...mockTestRows()].sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+  allTests.forEach(t => {
+    const key = t.mockRow ? "mock:" + t.series : (t.examName || "模試");
+    const ex = (byExam[key] ??= { date: t.date, name: t.examName || "模試", mock: !!t.mockRow, rows: [] });
+    ex.rows.push(t);
+    if (t.date > ex.date) ex.date = t.date;
+  });
   const exams = Object.entries(byExam).sort((a, b) => b[1].date.localeCompare(a[1].date));
   const canEdit = role === "student";
-  $("test-list").innerHTML = exams.length ? exams.map(([name, ex]) => {
+  $("test-list").innerHTML = exams.length ? exams.map(([key, ex]) => {
+    const name = ex.name;
+    if (ex.mock) {
+      const got = ex.rows.reduce((s, r) => s + r.score, 0), max = ex.rows.reduce((s, r) => s + r.max, 0);
+      const parts = Object.entries(MOCK_SERIES).filter(([, v]) => v === ex.rows[0].series).length || ex.rows.length;
+      const order = (r) => MOCKS.findIndex(m => m.title === r.partName);
+      const rows = [...ex.rows].sort((a, b) => order(a) - order(b));
+      return `<article class="item">
+        <div class="meta"><span class="date">${fmtDate(ex.date)}</span><span class="label">${esc(name)}</span></div>
+        <p class="score">${got}<small> / ${max}（${pct(got, max)}%）合計</small></p>
+        ${ex.rows.length < parts ? `<p class="hint left">採点済み ${ex.rows.length} / ${parts}</p>` : ""}
+        <div class="test-rows">
+          ${rows.map(r => `<div class="test-row">
+            ${subjectChip(r.subject)}
+            <span class="score">${r.partName.replace(/^.*実力テスト\s*/, "") ? `<small>${esc(r.partName.replace(/^.*実力テスト\s*/, ""))}</small> ` : ""}${r.score}<small> / ${r.max}（${pct(r.score, r.max)}%）</small></span>
+            <button type="button" class="small outline" data-go-mock-result="${esc(r.id.slice(5))}">成績表</button>
+          </div>`).join("")}
+        </div>
+      </article>`;
+    }
     const totalScore = ex.rows.reduce((s, r) => s + Number(r.score), 0);
     const totalMax = ex.rows.reduce((s, r) => s + Number(r.max), 0);
     const slug = examSlug(ex.date, name);
@@ -2424,10 +2505,12 @@ function renderTests() {
         </div>` : ""}
       </div>
     </article>`;
-  }).join("") : `<div class="empty">まだ模試結果がありません。</div>`;
-  drawChart(tests);
+  }).join("") : `<div class="empty">まだ成績がありません。</div>`;
+  drawChart(chartRows(allTests));
 }
 $("test-list").addEventListener("click", async (e) => {
+  const gm = e.target.closest("[data-go-mock-result]");
+  if (gm) { openResult(gm.dataset.goMockResult); return; }
   const d = e.target.closest("[data-test-del]");
   const r = e.target.closest("[data-rank-edit]");
   const ja = e.target.closest("[data-judgment-add]");

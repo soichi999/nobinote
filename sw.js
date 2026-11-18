@@ -1,7 +1,7 @@
 // アプリ本体のキャッシュ（オフラインでも起動できるように）
 // CACHE のバージョンは、アプリを更新するたびに必ず変更すること
 // （変えないと、既存ユーザーの端末に古いキャッシュが残り続けて更新が反映されない）
-const CACHE = "tnote-v33";
+const CACHE = "tnote-v35";
 const ASSETS = ["./", "./index.html", "./style.css", "./app.js",
   "./firebase-config.js", "./subjects.js", "./moshi/catalog.js", "./moshi/vocab.js", "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon-180.png"];
 
