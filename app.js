@@ -962,9 +962,13 @@ function mockCardHTML(r) {
   const st = r.status ?? "assigned";
   const stats = mockStats(def, r.scores);
   const late = st === "assigned" && r.dueDate && r.dueDate < today();
+  const afterSubmit = ["submitted", "grading", "graded"].includes(st);
+  const canKey = role === "tutor" || afterSubmit;
   const pdfs = `<div class="mock-pdfs">
-      <a class="pdf-btn" href="${def.q}" target="_blank" rel="noopener">問題用紙（PDF）</a>
-      <a class="pdf-btn" href="${def.a}" target="_blank" rel="noopener">解答用紙（PDF）</a>
+      <a class="pdf-btn" href="${def.q}" download="${esc(def.title)}_問題用紙.pdf">問題用紙</a>
+      <a class="pdf-btn" href="${def.a}" download="${esc(def.title)}_解答用紙.pdf">解答用紙</a>
+      ${canKey ? `<button type="button" class="pdf-btn key" data-mock-key="${esc(def.id)}">解答・解説</button>`
+        : `<span class="pdf-btn locked" title="提出すると見られます">解答・解説（提出後）</span>`}
     </div>`;
   let body = "";
   if (st === "assigned") {
@@ -972,21 +976,22 @@ function mockCardHTML(r) {
       <p class="mock-note">問題用紙と解答用紙を印刷（またはノートに解答）してから、時間を計って解きます。途中の式や考え方も解答用紙に書きましょう。</p>
       ${role === "student" ? `<div class="actions"><button class="primary" data-mock-start="${esc(r.id)}">解き始める（${def.minutes}分）</button></div>` : ""}`;
   } else if (st === "started") {
+    const end = new Date(r.startedAt + def.minutes * 60000);
     body = `${pdfs}
       <p class="mock-timer-line" data-mock-timer="${esc(r.id)}">${mockTimeLeft(r, def)}</p>
+      <p class="mock-note">終了予定 ${end.getHours()}:${String(end.getMinutes()).padStart(2, "0")}。アプリを閉じたり他のアプリを使ったりしても、時間は止まらずに進みます。</p>
       ${role === "student" ? `<div class="actions">
         <button class="primary" data-mock-submit="${esc(r.id)}">解答用紙の写真を撮って提出</button>
       </div>
       <input type="file" accept="image/*" multiple class="hidden-file" data-mock-photo-input="${esc(r.id)}">` : `<p class="mock-note">生徒が受験中です。</p>`}`;
   } else if (st === "submitted" || st === "grading") {
-    body = `<p class="mock-note">提出：${r.submittedAt ? new Date(r.submittedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
-      ${r.startedAt && r.submittedAt ? `（かかった時間 ${fmtElapsed(r.submittedAt - r.startedAt)}）` : ""}　写真 ${r.photoCount ?? 0}枚</p>
+    body = `${pdfs}<p class="mock-note">提出：${r.submittedAt ? new Date(r.submittedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}${r.startedAt && r.submittedAt ? `（かかった時間 ${fmtElapsed(r.submittedAt - r.startedAt)}）` : ""}　写真 ${r.photoCount ?? 0}枚</p>
       ${st === "grading" ? `<p class="mock-note">採点中：${stats.gradedCount}/${def.items.length}問</p>` : ""}
       ${role === "student" ? `<div class="actions"><button class="small outline" data-mock-submit="${esc(r.id)}">写真を追加</button></div>
         <input type="file" accept="image/*" multiple class="hidden-file" data-mock-photo-input="${esc(r.id)}">` : ""}`;
   } else if (st === "graded") {
     const fieldOrder = [...new Set(def.items.map(i => i.field))];
-    body = `<div class="mock-score">
+    body = `${pdfs}<div class="mock-score">
         <span class="score">${stats.got}<small> / ${stats.max}点</small></span>
         <span class="mock-rate ${rateClass(stats.got / (stats.max || 1))}">${pct(stats.got, stats.max)}%</span>
       </div>
@@ -1021,22 +1026,75 @@ function renderMocks() {
   $("mock-list").innerHTML = list.length ? list.map(mockCardHTML).join("")
     : `<div class="empty">${role === "tutor" ? "右上の「模試を出す」から、生徒に実力テストを出せます。" : "まだ模試は出ていません。"}</div>`;
   clearInterval(mockTimer);
-  if (mocks.some(m => m.status === "started")) {
-    mockTimer = setInterval(() => {
-      document.querySelectorAll("[data-mock-timer]").forEach(el => {
-        const r = mocks.find(m => m.id === el.dataset.mockTimer);
-        if (r) el.innerHTML = mockTimeLeft(r, mockDef(r.mockId));
-      });
-    }, 1000);
+  const running = mocks.some(m => m.status === "started");
+  if (running) { tickMockTimers(); mockTimer = setInterval(tickMockTimers, 1000); }
+  updateWakeLock(running && role === "student");
+}
+// 残り時間は「開始した時刻」からの経過で毎回計算する（タイマーを数えるのではない）ので、
+// アプリが裏に回っても、閉じて開き直しても、時間は途切れずに正しく進む
+function tickMockTimers() {
+  document.querySelectorAll("[data-mock-timer]").forEach(el => {
+    const r = mocks.find(m => m.id === el.dataset.mockTimer), def = mockDef(r?.mockId);
+    if (!r || !def) return;
+    el.innerHTML = mockTimeLeft(r, def);
+    const over = Date.now() >= r.startedAt + def.minutes * 60000;
+    const key = "tnote.mockTimeUp." + r.id;
+    let told = false;
+    try { told = sessionStorage.getItem(key) === "1"; } catch {}
+    if (over && role === "student" && !told && document.visibilityState === "visible") {
+      try { sessionStorage.setItem(key, "1"); } catch {}
+      navigator.vibrate?.([300, 150, 300]);
+      setTimeout(() => alert(`${def.title}の制限時間（${def.minutes}分）になりました。解答用紙の写真を撮って提出しましょう。`), 50);
+    }
+  });
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") { tickMockTimers(); updateWakeLock(mocks.some(m => m.status === "started") && role === "student"); }
+});
+// 受験中は画面が自動で消えないようにする（対応している端末だけ）
+let wakeLock = null;
+async function updateWakeLock(on) {
+  try {
+    if (on && !wakeLock && "wakeLock" in navigator && document.visibilityState === "visible") {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    } else if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch { wakeLock = null; }
+}
+
+// 解答・解説PDFはデータベースに分割して保存してある（1件1MBの上限のため）。提出後だけ取り出す
+async function downloadMockKey(mockId, btn) {
+  const def = mockDef(mockId);
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = "読み込み中…";
+  try {
+    const meta = await getDoc(doc(db, "config", "mockkey-" + mockId));
+    if (!meta.exists()) throw new Error("解答・解説がまだ登録されていません");
+    const { chunks } = meta.data();
+    const parts = await Promise.all(Array.from({ length: chunks }, (_, i) => getDoc(doc(db, "config", `mockkey-${mockId}-${i}`))));
+    const b64 = parts.map(p => p.data()?.data ?? "").join("");
+    const bin = atob(b64), bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = `${def?.title ?? "模試"}_解答・解説.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (err) {
+    alert("解答・解説を開けませんでした（" + (err?.message ?? err) + "）");
+  } finally {
+    btn.disabled = false; btn.textContent = label;
   }
 }
 
 $("mock-list").addEventListener("click", async (e) => {
   const b = (k) => e.target.closest(`[data-${k}]`);
   let x;
-  if ((x = b("mock-start"))) {
+  if ((x = b("mock-key"))) {
+    downloadMockKey(x.dataset.mockKey, x);
+  } else if ((x = b("mock-start"))) {
     const r = mocks.find(m => m.id === x.dataset.mockStart), def = mockDef(r?.mockId);
-    if (def && confirm(`${def.title}を始めます。制限時間は${def.minutes}分です。準備はいいですか？`))
+    if (def && confirm(`${def.title}を始めます。制限時間は${def.minutes}分です。\n始めると、アプリを閉じても時間は止まりません。準備はいいですか？`))
       await updateDoc(mockRef(r.id), { status: "started", startedAt: Date.now() });
   } else if ((x = b("mock-submit"))) {
     document.querySelector(`[data-mock-photo-input="${x.dataset.mockSubmit}"]`)?.click();

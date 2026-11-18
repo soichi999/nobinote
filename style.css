@@ -379,6 +379,11 @@ p.hint.tuition-legend{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;
   border:1px solid var(--blue-line);color:var(--blue);font-weight:700;font-size:.88rem;text-decoration:none;background:#fff}
 .pdf-btn::before{content:"";width:.9rem;height:1.1rem;border:2px solid currentColor;border-radius:2px;flex:none}
 .pdf-btn:hover{background:var(--blue-soft)}
+button.pdf-btn{font:inherit;font-weight:700;font-size:.88rem;cursor:pointer}
+.pdf-btn.key{background:#e9f7f2;color:var(--ok);border-color:#bfe6d8}
+.pdf-btn.key:hover{background:#d9f1e8}
+.pdf-btn.locked{color:var(--muted);background:var(--bg);border-style:dashed;cursor:default}
+.pdf-btn.locked:hover{background:var(--bg)}
 .mock-timer-line{margin:.2rem 0 !important}
 .timer{font-size:1.6rem;font-weight:800;color:var(--warn);font-variant-numeric:tabular-nums}
 .timer.over{font-size:1rem;color:var(--err)}
