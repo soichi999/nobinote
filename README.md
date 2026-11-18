@@ -72,6 +72,11 @@
   時間になるとその時点のマークで自動提出（閉じていたときは次に開いたときに提出）。提出するとすぐ自動採点し、
   結果・答案と正解・解答解説が見られる。問題データは `moshi/web/<id>.json`（正解なし）、
   正解はデータベースの `config/mockans-<id>`（提出後にだけ読み出す）。数式は KaTeX で表示
+  受験画面は大問ごとに1つずつ表示し、右下のボタンで大問を切り替える（各大問のマーク数も表示）。
+  英語など欄が1つの問題は「ア」を見せず、文中の空所は下線で表示。
+  採点後は正答率の円グラフ（正解・部分点・不正解の問題数）を表示し、「弱点の問題に挑戦」で
+  まちがえた問題と得点率60%未満の内容の問題をその場で答え合わせしながら解き直せる（模試の点数は変わらない。
+  結果は `practice.<問題id>` に記録）
 - **紙に記述（写真で提出）**：以下の流れ
 先生が作った実力テスト（数学ⅠA 第1〜3部・英語）を生徒に受けさせ、分野ごとの弱点を確かめるタブ。
 - チューターが「模試を出す」でテストと期限を選ぶ
@@ -198,7 +203,7 @@ students/{sid}/homework/{id}        { title, subject, type, detail, dueDate,
                                        photos[], pdfs[{ name, url }],     // 複数対応（photo/pdfは旧単数形式との互換用）
                                        done,                              // type: tf
                                        unit, countFrom, countTo, clearedCounts[] } // type: count
-students/{sid}/mocks/{id}           { mockId, mode(web/paper), answers: { 問題id: { 枠: 記号 } }, dueDate, memo, status, startedAt, submittedAt, gradedAt,
+students/{sid}/mocks/{id}           { mockId, mode(web/paper), answers: { 問題id: { 枠: 記号 } }, practice: { 問題id: 正誤 }, dueDate, memo, status, startedAt, submittedAt, gradedAt,
                                        photoCount, scores: { 問題id: 得点 } }   // status: assigned→started→submitted→grading→graded
 students/{sid}/mocks/{id}/photos/{id} { src, createdAt }   ← 提出した解答用紙の写真
 students/{sid}/books, studyLogs     （旧機能。画面からは外したがデータは残っている）

@@ -989,6 +989,11 @@ function mockStats(def, scores) {
   return { got, max, gradedCount: graded.length, fields: group("field"), levels: group("level"), weak };
 }
 // 表示する%（四捨五入）と色をそろえる
+// 内容名から分野名の重なりを取る（例：語彙 ＋ 語彙-動詞 → 語彙：動詞）
+const tagLabel = (field, tag) => {
+  const t = String(tag ?? ""); const f = String(field ?? "");
+  return t.startsWith(f + "-") ? `${f}：${t.slice(f.length + 1)}` : t.startsWith(f) ? t : `${f}：${t}`;
+};
 const rateClass = (r) => { const p = Math.round(r * 100); return p < 60 ? "low" : p < 80 ? "mid" : "high"; };
 const pct = (got, max) => max ? Math.round(got / max * 100) : 0;
 function rateBars(groups, order) {
@@ -1001,6 +1006,39 @@ function rateBars(groups, order) {
       <div class="rate-track"><div class="rate-fill ${rateClass(r)}" style="width:${pct(g.got, g.max)}%"></div></div>
       <span class="rate-val">${pct(g.got, g.max)}%</span></div>`;
   }).join("")}</div>`;
+}
+// 正答率の円グラフ：中央に得点率、まわりに 正解／部分点／不正解 の問題数の割合
+function donutHTML(def, scores, big) {
+  let ok = 0, part = 0, ng = 0, got = 0, max = 0;
+  def.items.forEach(it => {
+    const v = scores?.[it.id];
+    if (v === undefined || v === null || v === "") return;
+    const n = Number(v); got += n; max += it.pts;
+    if (n >= it.pts) ok++; else if (n > 0) part++; else ng++;
+  });
+  const total = ok + part + ng || 1, r = 42, c = 2 * Math.PI * r;
+  let off = 0;
+  const seg = (n, color) => {
+    const len = c * n / total;
+    const out = n ? `<circle cx="60" cy="60" r="${r}" fill="none" stroke="${color}" stroke-width="16"
+      stroke-dasharray="${len} ${c - len}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"/>` : "";
+    off += len; return out;
+  };
+  const p = pct(got, max);
+  return `<div class="donut-wrap${big ? " big" : ""}">
+    <svg viewBox="0 0 120 120" class="donut" role="img" aria-label="正答率 ${p}%">
+      <circle cx="60" cy="60" r="${r}" fill="none" stroke="var(--line)" stroke-width="16"/>
+      ${seg(ok, "#2f9e74")}${seg(part, "#e6a23c")}${seg(ng, "#d9534f")}
+      <text x="60" y="58" text-anchor="middle" font-size="22" font-weight="800" fill="var(--navy)">${p}%</text>
+      <text x="60" y="76" text-anchor="middle" font-size="10" fill="var(--muted)">正答率</text>
+    </svg>
+    <div class="donut-legend">
+      <p class="donut-score">${got}<small> / ${max}点</small></p>
+      <p><span class="lg ok"></span>正解 ${ok}問</p>
+      ${part ? `<p><span class="lg part"></span>部分点 ${part}問</p>` : ""}
+      <p><span class="lg ng"></span>不正解 ${ng}問</p>
+    </div>
+  </div>`;
 }
 function fmtElapsed(ms) {
   const m = Math.max(0, Math.round(ms / 60000));
@@ -1050,13 +1088,10 @@ function mockCardHTML(r) {
         ${photoPanelHTML(r, false)}` : ""}`;
   } else if (st === "graded") {
     const fieldOrder = [...new Set(def.items.map(i => i.field))];
-    body = `${pdfs}<div class="mock-score">
-        <span class="score">${stats.got}<small> / ${stats.max}点</small></span>
-        <span class="mock-rate ${rateClass(stats.got / (stats.max || 1))}">${pct(stats.got, stats.max)}%</span>
-      </div>
+    body = `${pdfs}${donutHTML(def, r.scores)}
       ${rateBars(stats.fields, fieldOrder)}
       ${stats.weak.length ? `<p class="label" style="margin-top:.9rem">復習したい内容</p>
-        <div class="weak-chips">${stats.weak.slice(0, 6).map(w => `<span class="weak-chip">${esc(w.field)}：${esc(w.tag)}</span>`).join("")}</div>` : `<p class="mock-note">弱点として目立つ内容はありません。</p>`}
+        <div class="weak-chips">${stats.weak.slice(0, 6).map(w => `<span class="weak-chip">${esc(tagLabel(w.field, w.tag))}</span>`).join("")}</div>` : `<p class="mock-note">弱点として目立つ内容はありません。</p>`}
       ${role !== "tutor" && stats.weak.length ? `<p class="mock-note">解答・解説で見直す問題：${stats.weak.slice(0, 3).flatMap(w => w.items.map(it => it.no)).slice(0, 8).map(esc).join("、")}</p>` : ""}
       <div class="actions"><button class="small filled" data-mock-result="${esc(r.id)}">くわしい分析を見る</button></div>`;
   }
@@ -1239,6 +1274,8 @@ $("mock-list").addEventListener("click", async (e) => {
     openExam(x.dataset.examOpen);
   } else if ((x = b("exam-review"))) {
     openExam(x.dataset.examReview, true);
+  } else if ((x = b("practice-open"))) {
+    openExam(x.dataset.practiceOpen, false, "practice");
   } else if ((x = b("exam-grade"))) {
     x.disabled = true; await autoGrade(x.dataset.examGrade, true); x.disabled = false;
   } else if ((x = b("mock-edit"))) {
@@ -1395,16 +1432,13 @@ function openResult(id) {
   def.items.forEach(it => (byField[it.field] ??= []).push(it));
   $("mock-result-title").textContent = def.title;
   $("mock-result-body").innerHTML = `
-    <div class="mock-score big">
-      <span class="score">${s.got}<small> / ${s.max}点</small></span>
-      <span class="mock-rate ${rateClass(s.got / (s.max || 1))}">${pct(s.got, s.max)}%</span>
-    </div>
+    ${donutHTML(def, r.scores, true)}
     ${r.startedAt && r.submittedAt ? `<p class="mock-note">かかった時間 ${fmtElapsed(r.submittedAt - r.startedAt)}（制限 ${def.minutes}分）</p>` : ""}
     <h4 class="modal-sub">分野別</h4>${rateBars(s.fields, fieldOrder)}
     <h4 class="modal-sub">難易度別</h4>${rateBars(s.levels, ["基本", "標準", "応用"])}
     <h4 class="modal-sub">復習したい内容（得点率60%未満）</h4>
     ${s.weak.length ? `<div class="weak-list">${s.weak.map(w => `<div class="weak-row">
-        <span class="weak-name">${esc(w.field)}：${esc(w.tag)}</span>
+        <span class="weak-name">${esc(tagLabel(w.field, w.tag))}</span>
         <span class="weak-items">${w.items.map(it => esc(it.no)).join("、")}</span>
         <span class="rate-val">${pct(w.got, w.max)}%</span></div>`).join("")}</div>`
       : `<p class="mock-note">得点率60%未満の内容はありません。</p>`}
@@ -1453,6 +1487,8 @@ async function loadAnswerKey(mockId) {
 }
 
 let examMockId = null, examData = null, examAnswers = {}, examKey = null, examReview = false, examSaveTimer = null;
+// examMode: "exam"（受験）／"review"（答案と正解）／"practice"（弱点の復習）
+let examMode = "exam", examSec = 0, practiceIds = null, practiceChecked = {};
 const backupKey = (id) => "tnote.examAns." + id;
 function readBackup(id) { try { return JSON.parse(localStorage.getItem(backupKey(id)) || "{}"); } catch { return {}; } }
 function writeBackup(id, ans) { try { localStorage.setItem(backupKey(id), JSON.stringify(ans)); } catch {} }
@@ -1464,19 +1500,27 @@ function mergedAnswers(r) {
   return out;
 }
 
-async function openExam(id, review = false) {
+async function openExam(id, review = false, mode) {
   const r = mocks.find(m => m.id === id), def = mockDef(r?.mockId);
   if (!def?.web) return;
-  examMockId = id; examReview = review; examKey = null;
+  examMockId = id; examMode = mode ?? (review ? "review" : "exam"); examReview = examMode !== "exam";
+  examKey = null; examSec = 0; practiceChecked = {};
   $("exam-view").hidden = false;
   document.body.classList.add("exam-open");
-  $("exam-title").textContent = def.title;
+  $("exam-title").textContent = examMode === "practice" ? `弱点の復習：${def.title}` : def.title;
   $("exam-body").innerHTML = `<p class="hint">読み込み中…</p>`;
   $("exam-nav").innerHTML = "";
+  closeSecMenu();
   try {
     examData = await loadWeb(def);
-    examAnswers = review ? JSON.parse(JSON.stringify(r.answers ?? {})) : mergedAnswers(r);
-    if (review) examKey = await loadAnswerKey(def.id).catch(() => null);
+    if (examMode === "exam") examAnswers = mergedAnswers(r);
+    else if (examMode === "review") examAnswers = JSON.parse(JSON.stringify(r.answers ?? {}));
+    else examAnswers = {};
+    if (examMode !== "exam") examKey = await loadAnswerKey(def.id).catch(() => null);
+    if (examMode === "practice") {
+      practiceIds = practiceSet(r, def).map(it => it.id);
+      if (!examKey) throw new Error("正解データを読み込めませんでした");
+    }
   } catch (err) {
     $("exam-body").innerHTML = `<p class="error">${esc(err?.message ?? err)}</p>`;
     return;
@@ -1485,16 +1529,50 @@ async function openExam(id, review = false) {
 }
 function closeExam() {
   flushExamSave();
-  examMockId = null; examData = null; examKey = null;
+  examMockId = null; examData = null; examKey = null; practiceIds = null;
   $("exam-view").hidden = true;
+  closeSecMenu();
   document.body.classList.remove("exam-open");
 }
 $("exam-close").addEventListener("click", closeExam);
 
+// 復習で出す問題：まちがえた（部分点を含む）問題と、得点率の低い内容の問題
+function practiceSet(r, def) {
+  const s = mockStats(def, r.scores);
+  const weakTags = new Set(s.weak.map(w => `${w.field}｜${w.tag}`));
+  return def.items.filter(it => {
+    const v = r.scores?.[it.id];
+    return (v !== undefined && Number(v) < it.pts) || weakTags.has(`${it.field}｜${it.tag}`);
+  });
+}
+// いま表示する大問（復習のときは、出題する問題がある大問だけ）
+function examSections() {
+  if (!examData) return [];
+  if (examMode !== "practice") return examData.sections;
+  const ids = new Set(practiceIds ?? []);
+  return examData.sections.map(sec => ({ ...sec, items: sec.items.filter(it => ids.has(it.id)) })).filter(sec => sec.items.length);
+}
+const isBlankFilled = (iid, lab) => (examAnswers[iid]?.[lab] ?? "") !== "";
+function secProgress(sec) {
+  if (examMode === "practice") {
+    const ok = sec.items.filter(it => practiceChecked[it.id]?.ok).length;
+    return `${ok}/${sec.items.length}`;
+  }
+  if (examMode === "review") {
+    const def = mockDef(mocks.find(m => m.id === examMockId)?.mockId);
+    const r = mocks.find(m => m.id === examMockId);
+    let got = 0, max = 0;
+    sec.items.forEach(it => { const p = def?.items.find(i => i.id === it.id)?.pts ?? 0; max += p; got += Number(r?.scores?.[it.id] ?? 0); });
+    return `${got}/${max}点`;
+  }
+  let done = 0, total = 0;
+  sec.items.forEach(it => it.blanks.forEach(b => { total++; if (isBlankFilled(it.id, b.label)) done++; }));
+  return `${done}/${total}`;
+}
 function examCounts() {
   let done = 0, total = 0;
   examData.sections.forEach(sec => sec.items.forEach(it => it.blanks.forEach(b => {
-    total++; if ((examAnswers[it.id]?.[b.label] ?? "") !== "") done++;
+    total++; if (isBlankFilled(it.id, b.label)) done++;
   })));
   return { done, total };
 }
@@ -1502,26 +1580,40 @@ function refreshExamHead() {
   if (!examMockId || !examData) return;
   const r = mocks.find(m => m.id === examMockId), def = mockDef(r?.mockId);
   if (!r || !def) return;
-  const { done, total } = examCounts();
-  if (examReview || r.status !== "started") {
+  if (examMode === "practice") {
+    const n = practiceIds?.length ?? 0, ok = Object.values(practiceChecked).filter(x => x.ok).length;
+    $("exam-timer").textContent = "";
+    $("exam-submit").hidden = true;
+    $("exam-progress").textContent = `正解 ${ok}/${n}問`;
+  } else if (examReview || r.status !== "started") {
     $("exam-timer").textContent = "";
     $("exam-submit").hidden = true;
     const s = mockStats(def, r.scores);
-    $("exam-progress").textContent = r.status === "graded" ? `${s.got} / ${s.max}点` : "提出済み";
+    $("exam-progress").textContent = r.status === "graded" ? `${s.got} / ${s.max}点（${pct(s.got, s.max)}%）` : "提出済み";
   } else {
+    const { done, total } = examCounts();
     $("exam-timer").innerHTML = mockTimeLeft(r, def).replace(/<[^>]+>/g, "");
     $("exam-submit").hidden = role !== "student";
     $("exam-progress").textContent = `マーク ${done}/${total}`;
   }
+  renderSecFab();
 }
 function itemHTML(it, metaById) {
   const labels = it.blanks.map(b => b.label);
   const ans = examAnswers[it.id] ?? {};
   const key = examKey?.[it.id];
   const keyChars = Array.from(key ?? "");
-  const res = examReview && key ? scoreWebItem(it, metaById[it.id]?.pts ?? 0, key, ans) : null;
   const pts = metaById[it.id]?.pts ?? 0;
+  const checked = examMode === "practice" ? practiceChecked[it.id] : null;
+  const showKey = (examMode === "review" && key) || !!checked;
+  const res = showKey ? scoreWebItem(it, pts, key, ans) : null;
   const mark = res ? (res.score >= pts ? "ok" : res.score > 0 ? "part" : "ng") : "";
+  const locked = examMode === "review" || !!checked;
+  // 欄が1つだけの問題（英語の4択など）は「ア」を見せず、文中の空所は下線の空欄にする
+  const single = it.blanks.length === 1 && !it.t;
+  let q = it.q;
+  if (single) q = String(q).replace(/[（(]\s*ア\s*[)）]/g, "〔空所〕");
+  const qHTML = richText(q, single ? [] : labels).replace(/〔空所〕/g, `<span class="ans-blank"></span>`);
   const choices = it.choices ? `<ol class="exam-choices">${it.choices.map((c, i) => `<li><span class="cnum">${i + 1}</span>${richText(c)}</li>`).join("")}</ol>` : "";
   const notes = it.notes ? `<div class="exam-notes">${it.notes.map(n => `<p>${richText(n)}</p>`).join("")}</div>` : "";
   // 枠だけの型（選択問題）は、マーク欄と同じなので表示しない
@@ -1529,58 +1621,125 @@ function itemHTML(it, metaById) {
   const t = it.t && !onlyBlanks ? `<div class="exam-t">${richText(it.t, labels)}</div>` : "";
   const rows = it.blanks.map((b, bi) => {
     const v = ans[b.label] ?? "";
-    return `<div class="mark-row">
-      <span class="mark-label">${esc(b.label)}</span>
+    return `<div class="mark-row${single ? " single" : ""}">
+      ${single ? `<span class="mark-label plain">解答</span>` : `<span class="mark-label">${esc(b.label)}</span>`}
       <div class="bubbles">${b.opts.map(o => {
         const cls = ["bubble", v === o ? "on" : "", res && keyChars[bi] === o ? "correct" : "", res && v === o && keyChars[bi] !== o ? "wrong" : ""].filter(Boolean).join(" ");
-        return `<button type="button" class="${cls}" ${examReview ? "disabled" : ""} data-ex-item="${esc(it.id)}" data-ex-label="${esc(b.label)}" data-ex-opt="${esc(o)}">${esc(o)}</button>`;
+        return `<button type="button" class="${cls}" ${locked ? "disabled" : ""} data-ex-item="${esc(it.id)}" data-ex-label="${esc(b.label)}" data-ex-opt="${esc(o)}">${esc(o)}</button>`;
       }).join("")}</div>
     </div>`;
   }).join("");
+  const practiceBtns = examMode === "practice" ? `<div class="actions">${checked
+      ? `<button type="button" class="small outline" data-pr-retry="${esc(it.id)}">もう一度解く</button>`
+      : `<button type="button" class="small filled" data-pr-check="${esc(it.id)}">答え合わせ</button>`}</div>` : "";
   return `<article class="exam-item ${mark}" id="ex-${esc(it.id)}">
-    <div class="exam-q"><span class="exam-no">${esc(it.no)}</span>${res ? `<span class="exam-res ${mark}">${mark === "ok" ? "正解" : mark === "part" ? "部分点" : "不正解"} ${res.score}/${pts}</span>` : ""}
-      <div>${richText(it.q, labels)}</div></div>
+    <div class="exam-q"><span class="exam-no">${esc(it.no)}</span>
+      <span class="exam-tag">${esc(tagLabel(metaById[it.id]?.field, metaById[it.id]?.tag))}</span>
+      ${res ? `<span class="exam-res ${mark}">${mark === "ok" ? "正解" : mark === "part" ? "部分点" : "不正解"}${examMode === "review" ? ` ${res.score}/${pts}` : ""}</span>` : ""}
+      <div>${qHTML}</div></div>
     ${choices}${notes}${t}
     <div class="marks">${rows}</div>
+    ${practiceBtns}
   </article>`;
 }
 function renderExam() {
   const r = mocks.find(m => m.id === examMockId), def = mockDef(r?.mockId);
   if (!r || !def || !examData) return;
   const metaById = Object.fromEntries(def.items.map(i => [i.id, i]));
-  $("exam-nav").innerHTML = examData.sections.map((sec, i) => `<a href="#exsec-${i}">${esc(sec.title)}</a>`).join("");
-  $("exam-body").innerHTML = `
-    ${examReview ? `<p class="exam-intro">${examKey ? "あなたのマーク（色つき）と正解（緑の枠）です。" : "正解はまだ表示できません。"}</p>`
-      : `<p class="exam-intro">${esc(examData.intro ?? "")}<br>マークは自動で保存されます。時間になると、その時点のマークで自動的に提出されます。</p>`}
-    ${examData.sections.map((sec, i) => `<section class="exam-sec" id="exsec-${i}">
-      <h3>${esc(sec.title)}</h3>
-      ${sec.instructions ? `<p class="exam-inst">${richText(sec.instructions)}</p>` : ""}
+  const secs = examSections();
+  if (!secs.length) {
+    $("exam-body").innerHTML = `<div class="empty">復習が必要な問題はありません。全問正解です！</div>`;
+    refreshExamHead();
+    return;
+  }
+  examSec = Math.max(0, Math.min(examSec, secs.length - 1));
+  const sec = secs[examSec];
+  const intro = examSec !== 0 ? "" : examMode === "review"
+      ? `<p class="exam-intro">${examKey ? "あなたのマーク（紺色）と正解（緑の枠）です。右下のボタンで大問を切り替えられます。" : "正解はまだ表示できません。"}</p>`
+      : examMode === "practice"
+        ? `<p class="exam-intro">模試でまちがえた問題と、得点率が低かった内容の問題です（${practiceIds.length}問）。解いたら「答え合わせ」を押しましょう。</p>`
+        : `<p class="exam-intro">${examData.intro ? esc(examData.intro) + "<br>" : ""}マークは自動で保存されます。右下のボタンで大問を切り替えられます。時間になると、その時点のマークで自動的に提出されます。</p>`;
+  const prev = examSec > 0 ? `<button type="button" class="outline" data-sec-go="${examSec - 1}">← ${esc(secs[examSec - 1].title)}</button>` : "<span></span>";
+  const next = examSec < secs.length - 1 ? `<button type="button" class="primary" data-sec-go="${examSec + 1}">${esc(secs[examSec + 1].title)} →</button>`
+    : (examMode === "exam" && role === "student" ? `<button type="button" class="primary" data-ex-submit>提出する</button>` : "<span></span>");
+  $("exam-body").innerHTML = `${intro}
+    <section class="exam-sec">
+      <h3>${esc(sec.title)}<small class="sec-count">大問 ${examSec + 1}/${secs.length}</small></h3>
+      ${sec.instructions ? `<p class="exam-inst">${richText(String(sec.instructions).replace(/[（(]\s*ア\s*[)）]/g, "空所"))}</p>` : ""}
       ${sec.passage ? `<div class="exam-passage">${sec.passage.map(pp => `<p>${richText(pp)}</p>`).join("")}</div>` : ""}
       ${sec.items.map(it => itemHTML(it, metaById)).join("")}
-    </section>`).join("")}
-    ${!examReview && role === "student" ? `<div class="exam-end"><button type="button" class="primary big-action" data-ex-submit>提出する</button></div>` : ""}`;
+    </section>
+    <div class="sec-pager">${prev}${next}</div>`;
+  $("exam-body").scrollTop = 0;
   refreshExamHead();
 }
-$("exam-body").addEventListener("click", (e) => {
+// 右下の「大問を切り替える」ボタン
+function renderSecFab() {
+  const secs = examSections();
+  const fab = $("exam-fab");
+  if (!examData || secs.length < 2) { fab.hidden = true; return; }
+  fab.hidden = false;
+  fab.innerHTML = `<span class="fab-sub">大問 ${examSec + 1}/${secs.length}</span><span class="fab-main">${esc(secs[examSec]?.title ?? "")}</span><span class="fab-arrow">▲</span>`;
+  if (!$("exam-secmenu").hidden) renderSecMenu();
+}
+function renderSecMenu() {
+  const secs = examSections();
+  $("exam-secmenu").innerHTML = `<p class="secmenu-head">大問を選ぶ</p>` + secs.map((s, i) => `
+    <button type="button" class="secmenu-item${i === examSec ? " now" : ""}" data-sec-go="${i}">
+      <span>${esc(s.title)}</span><small>${secProgress(s)}</small></button>`).join("");
+}
+function closeSecMenu() { $("exam-secmenu").hidden = true; $("exam-fab").classList.remove("open"); }
+$("exam-fab").addEventListener("click", () => {
+  const open = $("exam-secmenu").hidden;
+  if (open) { renderSecMenu(); $("exam-secmenu").hidden = false; $("exam-fab").classList.add("open"); }
+  else closeSecMenu();
+});
+$("exam-secmenu").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-sec-go]");
+  if (b) { examSec = Number(b.dataset.secGo); closeSecMenu(); renderExam(); }
+});
+$("exam-body").addEventListener("click", async (e) => {
   if (e.target.closest("[data-ex-submit]")) return confirmSubmitWeb();
+  const go = e.target.closest("[data-sec-go]");
+  if (go) { examSec = Number(go.dataset.secGo); renderExam(); return; }
+  const chk = e.target.closest("[data-pr-check]"), retry = e.target.closest("[data-pr-retry]");
+  if (chk || retry) return practiceCheck((chk ?? retry).dataset[chk ? "prCheck" : "prRetry"], !!retry);
   const bt = e.target.closest("[data-ex-opt]");
-  if (!bt || examReview || role !== "student") return;
-  const r = mocks.find(m => m.id === examMockId);
-  if (r?.status !== "started") return;
+  if (!bt || bt.disabled) return;
   const { exItem: iid, exLabel: lab, exOpt: opt } = bt.dataset;
+  if (examMode === "exam") {
+    const r = mocks.find(m => m.id === examMockId);
+    if (role !== "student" || r?.status !== "started") return;
+  } else if (examMode !== "practice") return;
   const cur = examAnswers[iid]?.[lab] ?? "";
   (examAnswers[iid] ??= {})[lab] = cur === opt ? "" : opt;   // もう一度押すと取り消し
   bt.parentElement.querySelectorAll(".bubble").forEach(x => x.classList.toggle("on", x.dataset.exOpt === examAnswers[iid][lab]));
+  if (examMode !== "exam") return;
   writeBackup(examMockId, examAnswers);
   refreshExamHead();
   clearTimeout(examSaveTimer);
   examSaveTimer = setTimeout(flushExamSave, 1200);
 });
+// 復習：その場で答え合わせ。結果は模試の記録に残す（模試の点数は変わらない）
+async function practiceCheck(iid, retry) {
+  const r = mocks.find(m => m.id === examMockId), def = mockDef(r?.mockId);
+  const it = examData.sections.flatMap(s => s.items).find(x => x.id === iid);
+  if (!it || !def) return;
+  if (retry) { delete practiceChecked[iid]; delete examAnswers[iid]; renderExam(); return; }
+  const pts = def.items.find(i => i.id === iid)?.pts ?? 1;
+  const res = scoreWebItem(it, pts, examKey[iid], examAnswers[iid]);
+  practiceChecked[iid] = { ok: res.score >= pts };
+  renderExam();
+  document.getElementById("ex-" + iid)?.scrollIntoView({ block: "nearest" });
+  if (role === "student") {
+    try { await updateDoc(mockRef(examMockId), { [`practice.${iid}`]: practiceChecked[iid].ok, practiceAt: Date.now() }); } catch {}
+  }
+}
 async function flushExamSave() {
   clearTimeout(examSaveTimer);
   const id = examMockId;
   const r = mocks.find(m => m.id === id);
-  if (!id || examReview || r?.status !== "started" || role !== "student") return;
+  if (!id || examMode !== "exam" || r?.status !== "started" || role !== "student") return;
   try { await updateDoc(mockRef(id), { answers: examAnswers, answeredAt: Date.now() }); } catch {}
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushExamSave(); });
@@ -1646,14 +1805,17 @@ function webCardBody(r, def, st, stats, pdfs) {
       <div class="actions"><button class="small outline" data-exam-grade="${esc(r.id)}">採点をやり直す</button></div>`;
   }
   const fieldOrder = [...new Set(def.items.map(i => i.field))];
-  return `${pdfs}<div class="mock-score">
-      <span class="score">${stats.got}<small> / ${stats.max}点</small></span>
-      <span class="mock-rate ${rateClass(stats.got / (stats.max || 1))}">${pct(stats.got, stats.max)}%</span>
-    </div>
+  const pset = practiceSet(r, def);
+  const pdone = pset.filter(it => r.practice?.[it.id]).length;
+  return `${pdfs}${donutHTML(def, r.scores)}
     ${r.startedAt && r.submittedAt ? `<p class="mock-note">かかった時間 ${fmtElapsed(r.submittedAt - r.startedAt)}${r.autoSubmitted ? "（時間切れで自動提出）" : ""}</p>` : ""}
     ${rateBars(stats.fields, fieldOrder)}
     ${stats.weak.length ? `<p class="label" style="margin-top:.9rem">復習したい内容</p>
-      <div class="weak-chips">${stats.weak.slice(0, 6).map(w => `<span class="weak-chip">${esc(w.field)}：${esc(w.tag)}</span>`).join("")}</div>` : `<p class="mock-note">弱点として目立つ内容はありません。</p>`}
+      <div class="weak-chips">${stats.weak.slice(0, 6).map(w => `<span class="weak-chip">${esc(tagLabel(w.field, w.tag))}</span>`).join("")}</div>` : `<p class="mock-note">弱点として目立つ内容はありません。</p>`}
+    ${pset.length ? `<div class="practice-box">
+        <div><b>弱点の問題に挑戦</b><span>まちがえた問題と苦手な内容の問題 ${pset.length}問${pdone ? `（復習で正解 ${pdone}/${pset.length}）` : ""}</span></div>
+        ${role !== "parent" ? `<button class="primary" data-practice-open="${esc(r.id)}">${pdone ? "続ける" : "挑戦する"}</button>` : ""}
+      </div>` : `<p class="mock-note">全問正解です！</p>`}
     <div class="actions">
       <button class="small filled" data-exam-review="${esc(r.id)}">答案と正解を見る</button>
       <button class="small outline" data-mock-result="${esc(r.id)}">くわしい分析</button>
