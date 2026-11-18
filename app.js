@@ -6,9 +6,10 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 import {
   getFirestore, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
-  query, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove
+  query, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove, getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { SUBJECTS, subjectLabel, subjectColor, subjectOptionsHTML, subjectPickerHTML } from "./subjects.js";
+import { MOCKS } from "./moshi/catalog.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -53,7 +54,7 @@ let unsubs = [];
 const off = () => { unsubs.forEach(u => u()); unsubs = []; };
 
 // 教科セレクトの初期化
-["h-subject", "l-subject", "b-subject", "t-subject"].forEach(id => {
+["h-subject", "l-subject", "t-subject"].forEach(id => {
   $(id).innerHTML = subjectOptionsHTML();
 });
 $("h-subject").insertAdjacentHTML("afterbegin", `<option value="">なし</option>`);
@@ -176,7 +177,7 @@ document.querySelectorAll(".tabs button").forEach(btn => {
 });
 
 /* ---------- 購読 ---------- */
-let lessons = [], homework = [], tests = [], books = [], studyLogs = [], schedule = [], examMeta = {}, tuition = [], plans = [];
+let lessons = [], homework = [], tests = [], schedule = [], examMeta = {}, tuition = [], plans = [], mocks = [];
 const examSlug = (date, name) => encodeURIComponent(`${date}__${name}`).slice(0, 400);
 const sub = (name, order, dir, apply) => {
   const q = query(collection(db, "students", currentSid, name), orderBy(order, dir));
@@ -185,17 +186,16 @@ const sub = (name, order, dir, apply) => {
 function watchAll() {
   off();
   // 生徒切り替え時に前の生徒のデータが一瞬でも表示され続けないよう、即座に状態をリセットしてから再描画する
-  lessons = []; homework = []; tests = []; books = []; studyLogs = []; schedule = []; examMeta = {}; tuition = []; plans = [];
+  lessons = []; homework = []; tests = []; schedule = []; examMeta = {}; tuition = []; plans = []; mocks = [];
   tuitionDates = []; renderTuitionChips();
-  renderHomework(); renderCalendarFeed(); renderCalendars(); renderTests(); renderBooks(); refreshBookSelect();
-  renderStudy(); renderTuition(); $("msg-list").innerHTML = "";
+  renderHomework(); renderCalendarFeed(); renderCalendars(); renderTests(); renderMocks();
+  renderTuition(); $("msg-list").innerHTML = "";
   if (!currentSid) return;
   sub("lessons", "date", "desc", rows => { lessons = rows; renderCalendarFeed(); renderCalendars(); });
   sub("homework", "dueDate", "asc", rows => { homework = rows; renderHomework(); renderCalendarFeed(); renderCalendars(); });
   sub("tests", "date", "asc", rows => { tests = rows; renderTests(); });
   sub("messages", "createdAt", "asc", renderMessages);
-  sub("books", "createdAt", "desc", rows => { books = rows; renderBooks(); refreshBookSelect(); });
-  sub("studyLogs", "date", "desc", rows => { studyLogs = rows; renderStudy(); });
+  sub("mocks", "dueDate", "desc", rows => { mocks = rows; renderMocks(); renderCalendars(); });
   sub("schedule", "date", "asc", rows => { schedule = rows; renderHomework(); renderCalendarFeed(); renderCalendars(); });
   sub("plans", "date", "asc", rows => { plans = rows; renderCalendarFeed(); renderCalendars(); });
   sub("tuition", "createdAt", "desc", rows => { tuition = rows; renderTuition(); });
@@ -768,11 +768,12 @@ function renderCalendars() {
   schedule.forEach(s => add(s.date, "lesson", s.time || "指導日"));
   plans.forEach(p => add(p.date, "plan", p.title || "予定"));
   if (role === "tutor") tuition.forEach(t => (t.dates ?? []).forEach(d => add(d, "tuition", "月謝")));
+  mocks.forEach(m => { if (m.status !== "graded") add(m.dueDate, "mock", "模試"); });
   const marks = {};
   Object.entries(raw).forEach(([date, list]) => {
     const dueCount = list.filter(k => k.kind === "due").length;
     const tuitionCount = list.filter(k => k.kind === "tuition").length;
-    const merged = list.filter(k => k.kind === "lesson" || k.kind === "plan");
+    const merged = list.filter(k => k.kind === "lesson" || k.kind === "plan" || k.kind === "mock");
     if (dueCount) merged.unshift({ kind: "due", text: dueCount > 1 ? `期限×${dueCount}` : "期限" });
     if (tuitionCount) merged.push({ kind: "tuition", text: "月謝" });
     marks[date] = merged;
@@ -828,6 +829,11 @@ function openDayModal(iso) {
       </div>`).join("")}
     </div>`);
   }
+  const dayMocks = mocks.filter(m => m.dueDate === iso);
+  if (dayMocks.length) {
+    sections.push(`<div class="modal-section"><h4 class="modal-sub">模試の期限</h4>${dayMocks.map(m => `<div class="item">
+      <h4>${esc(mockDef(m.mockId)?.title ?? "模試")}</h4><span class="status-chip ${m.status}">${MOCK_STATUS[m.status] ?? ""}</span></div>`).join("")}</div>`);
+  }
   const dayPlans = plans.filter(p => p.date === iso);
   if (dayPlans.length) {
     sections.push(`<div class="modal-section"><h4 class="modal-sub">予定</h4>${dayPlans.map(planItemHTML).join("")}</div>`);
@@ -850,33 +856,12 @@ document.querySelectorAll("[data-open-modal]").forEach(btn => {
 document.querySelectorAll("[data-modal-close]").forEach(btn => {
   btn.addEventListener("click", () => { $(btn.dataset.modalClose).hidden = true; });
 });
-["hw-modal", "schedule-modal", "lesson-modal", "plan-modal"].forEach(id => {
+["hw-modal", "schedule-modal", "lesson-modal", "plan-modal", "mock-modal", "mock-grade-modal", "mock-result-modal", "mock-photo-modal"].forEach(id => {
   $(id).addEventListener("click", (e) => { if (e.target.id === id) $(id).hidden = true; });
 });
 
-/* ---------- 参考書 ---------- */
-function refreshBookSelect() {
-  $("st-book").innerHTML = books.length
-    ? books.map(b => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("")
-    : `<option value="">（参考書を先に登録してください）</option>`;
-}
-function renderBooks() {
-  $("book-list").innerHTML = books.length ? books.map(b => `
-    <article class="book-card">
-      <div class="book-thumb">${b.image ? `<img src="${b.image}" alt="">` : `<div class="book-noimg">${esc(b.name.slice(0, 2))}</div>`}</div>
-      <div class="book-body">
-        <h4>${esc(b.name)}</h4>
-        ${subjectChip(b.subject)}
-        ${role === "student" ? `<button class="small outline danger" data-book-del="${esc(b.id)}">削除</button>` : ""}
-      </div>
-    </article>`).join("") : `<div class="empty">まだ参考書が登録されていません。</div>`;
-}
-$("book-list").addEventListener("click", async (e) => {
-  const d = e.target.closest("[data-book-del]");
-  if (d && confirm("この参考書を削除しますか？（勉強時間の記録は残ります）"))
-    await deleteDoc(doc(db, "students", currentSid, "books", d.dataset.bookDel));
-});
-function fileToDataUrl(file, maxSize = 480) {
+/* ---------- 写真の縮小（連絡・宿題・模試の提出で使う） ---------- */
+function fileToDataUrl(file, maxSize = 480, quality = 0.8) {
   return new Promise((resolve, reject) => {
     const img = new Image(); const reader = new FileReader();
     reader.onerror = reject;
@@ -886,76 +871,334 @@ function fileToDataUrl(file, maxSize = 480) {
         const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
         const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
         cv.getContext("2d").drawImage(img, 0, 0, w, h);
-        resolve(cv.toDataURL("image/jpeg", 0.8));
+        resolve(cv.toDataURL("image/jpeg", quality));
       };
       img.onerror = reject; img.src = reader.result;
     };
     reader.readAsDataURL(file);
   });
 }
-$("book-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const file = $("b-image").files[0];
-  const image = file ? await fileToDataUrl(file).catch(() => "") : "";
-  await addDoc(collection(db, "students", currentSid, "books"), {
-    name: $("b-name").value.trim(), subject: $("b-subject").value, image,
-    createdAt: serverTimestamp()
-  });
-  e.target.reset();
-});
+/* ---------- 模試（実力テスト：出題 → 受験 → 提出 → 採点 → 弱点分析） ---------- */
+const mockDef = (id) => MOCKS.find(m => m.id === id);
+const MOCK_STATUS = { assigned: "未受験", started: "受験中", submitted: "採点待ち", grading: "採点中", graded: "採点済み" };
+const mockRef = (id) => doc(db, "students", currentSid, "mocks", id);
+let mockTimer = null;
 
-/* ---------- 勉強時間 ---------- */
-function renderStudy() {
-  const byMonth = {};
-  studyLogs.forEach(l => { const ym = (l.date || "").slice(0, 7); if (ym) byMonth[ym] = (byMonth[ym] || 0) + Number(l.minutes || 0); });
-  const months = Object.keys(byMonth).sort().slice(-6);
-  $("study-monthly-card").hidden = months.length === 0;
-  const maxMinutes = Math.max(1, ...months.map(m => byMonth[m]));
-  $("study-monthly").innerHTML = months.map(m => {
-    const [y, mo] = m.split("-");
-    const mins = byMonth[m];
-    const w = Math.round(mins / maxMinutes * 100);
-    return `<div class="month-bar-row">
-      <span class="month-bar-label">${y}/${Number(mo)}月</span>
-      <div class="month-bar-track"><div class="month-bar-fill" style="width:${w}%"></div></div>
-      <span class="month-bar-val">${Math.floor(mins / 60)}時間${mins % 60}分</span>
-    </div>`;
-  }).join("");
-
-  const byBook = {};
-  studyLogs.forEach(l => { (byBook[l.bookId] ??= []).push(l); });
-  const rows = Object.entries(byBook).map(([bookId, logs]) => {
-    const book = books.find(b => b.id === bookId);
-    const total = logs.reduce((s, l) => s + Number(l.minutes || 0), 0);
-    return { bookId, book, logs, total };
-  }).sort((a, b) => b.total - a.total);
-  $("study-summary").innerHTML = rows.length ? rows.map(r => `
-    <article class="item">
-      <div class="meta"><span class="date">${esc(r.book?.name ?? "（削除された参考書）")}</span>${subjectChip(r.book?.subject)}</div>
-      <p class="score">${Math.floor(r.total / 60)}<small>時間</small>${r.total % 60}<small>分</small></p>
-      <details><summary class="hint" style="cursor:pointer">記録一覧（${r.logs.length}件）</summary>
-        <div class="list" style="margin-top:.6rem">
-          ${r.logs.map(l => `<div class="study-row"><span>${fmtDate(l.date)}</span><span>${l.minutes}分</span>
-            ${role === "student" ? `<button class="small outline danger" data-study-del="${esc(l.id)}">削除</button>` : ""}</div>`).join("")}
-        </div>
-      </details>
-    </article>`).join("") : `<div class="empty">まだ勉強時間の記録がありません。</div>`;
+$("mk-test").innerHTML = MOCKS.map(m => `<option value="${m.id}">${esc(m.title)}</option>`).join("");
+function showMockInfo() {
+  const m = mockDef($("mk-test").value);
+  $("mk-test-info").textContent = m ? `${m.scope}／${m.minutes}分／${m.items.length}問・${m.total}点` : "";
 }
-$("study-summary").addEventListener("click", async (e) => {
-  const d = e.target.closest("[data-study-del]");
-  if (d && confirm("この記録を削除しますか？")) await deleteDoc(doc(db, "students", currentSid, "studyLogs", d.dataset.studyDel));
-});
-$("study-form").addEventListener("submit", async (e) => {
+$("mk-test").addEventListener("change", showMockInfo);
+showMockInfo();
+$("mk-due").value = today();
+
+$("mock-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const bookId = $("st-book").value;
-  if (!bookId) return alert("先に「参考書」タブで参考書を登録してください。");
-  await addDoc(collection(db, "students", currentSid, "studyLogs"), {
-    bookId, date: $("st-date").value, minutes: Number($("st-minutes").value), createdAt: serverTimestamp()
+  if (!currentSid) return alert("先に生徒を選んでください。");
+  await addDoc(collection(db, "students", currentSid, "mocks"), {
+    mockId: $("mk-test").value, dueDate: $("mk-due").value, memo: $("mk-memo").value.trim(),
+    status: "assigned", scores: {}, photoCount: 0, createdAt: serverTimestamp()
   });
-  e.target.reset(); $("st-date").value = today();
+  $("mk-memo").value = "";
+  $("mock-modal").hidden = true;
 });
 
-/* ---------- 成績（模試） ---------- */
+// 得点の集計：採点済みの問題だけで率を出す
+function mockStats(def, scores) {
+  const group = (key) => {
+    const out = {};
+    def.items.forEach(it => {
+      const g = (out[it[key]] ??= { got: 0, max: 0, all: 0, n: 0 });
+      g.all += it.pts;
+      const v = scores?.[it.id];
+      if (v === undefined || v === null || v === "") return;
+      g.got += Number(v); g.max += it.pts; g.n++;
+    });
+    return out;
+  };
+  const graded = def.items.filter(it => scores?.[it.id] !== undefined && scores?.[it.id] !== null && scores?.[it.id] !== "");
+  const got = graded.reduce((s, it) => s + Number(scores[it.id]), 0);
+  const max = graded.reduce((s, it) => s + it.pts, 0);
+  // 弱点：分野＋内容ごとの得点率が低い順
+  const tags = {};
+  graded.forEach(it => {
+    const k = `${it.field}｜${it.tag}`;
+    const t = (tags[k] ??= { field: it.field, tag: it.tag, got: 0, max: 0, items: [] });
+    t.got += Number(scores[it.id]); t.max += it.pts; t.items.push(it);
+  });
+  const weak = Object.values(tags).filter(t => Math.round(t.got / t.max * 100) < 60).sort((a, b) => a.got / a.max - b.got / b.max);
+  return { got, max, gradedCount: graded.length, fields: group("field"), levels: group("level"), weak };
+}
+// 表示する%（四捨五入）と色をそろえる
+const rateClass = (r) => { const p = Math.round(r * 100); return p < 60 ? "low" : p < 80 ? "mid" : "high"; };
+const pct = (got, max) => max ? Math.round(got / max * 100) : 0;
+function rateBars(groups, order) {
+  const keys = order ? order.filter(k => groups[k]) : Object.keys(groups);
+  return `<div class="rate-bars">${keys.map(k => {
+    const g = groups[k];
+    if (!g.max) return `<div class="rate-row"><span class="rate-label">${esc(k)}</span><div class="rate-track"></div><span class="rate-val muted">未採点</span></div>`;
+    const r = g.got / g.max;
+    return `<div class="rate-row"><span class="rate-label">${esc(k)}</span>
+      <div class="rate-track"><div class="rate-fill ${rateClass(r)}" style="width:${pct(g.got, g.max)}%"></div></div>
+      <span class="rate-val">${pct(g.got, g.max)}%</span></div>`;
+  }).join("")}</div>`;
+}
+function fmtElapsed(ms) {
+  const m = Math.max(0, Math.round(ms / 60000));
+  return m >= 60 ? `${Math.floor(m / 60)}時間${m % 60}分` : `${m}分`;
+}
+function mockTimeLeft(r, def) {
+  if (!r.startedAt) return "";
+  const left = r.startedAt + def.minutes * 60000 - Date.now();
+  if (left <= 0) return `<span class="timer over">時間切れ（${fmtElapsed(-left)}オーバー）</span>`;
+  const mm = Math.floor(left / 60000), ss = Math.floor(left % 60000 / 1000);
+  return `<span class="timer">残り ${mm}:${String(ss).padStart(2, "0")}</span>`;
+}
+
+function mockCardHTML(r) {
+  const def = mockDef(r.mockId);
+  if (!def) return "";
+  const st = r.status ?? "assigned";
+  const stats = mockStats(def, r.scores);
+  const late = st === "assigned" && r.dueDate && r.dueDate < today();
+  const pdfs = `<div class="mock-pdfs">
+      <a class="pdf-btn" href="${def.q}" target="_blank" rel="noopener">問題用紙（PDF）</a>
+      <a class="pdf-btn" href="${def.a}" target="_blank" rel="noopener">解答用紙（PDF）</a>
+    </div>`;
+  let body = "";
+  if (st === "assigned") {
+    body = `${pdfs}
+      <p class="mock-note">問題用紙と解答用紙を印刷（またはノートに解答）してから、時間を計って解きます。途中の式や考え方も解答用紙に書きましょう。</p>
+      ${role === "student" ? `<div class="actions"><button class="primary" data-mock-start="${esc(r.id)}">解き始める（${def.minutes}分）</button></div>` : ""}`;
+  } else if (st === "started") {
+    body = `${pdfs}
+      <p class="mock-timer-line" data-mock-timer="${esc(r.id)}">${mockTimeLeft(r, def)}</p>
+      ${role === "student" ? `<div class="actions">
+        <button class="primary" data-mock-submit="${esc(r.id)}">解答用紙の写真を撮って提出</button>
+      </div>
+      <input type="file" accept="image/*" multiple class="hidden-file" data-mock-photo-input="${esc(r.id)}">` : `<p class="mock-note">生徒が受験中です。</p>`}`;
+  } else if (st === "submitted" || st === "grading") {
+    body = `<p class="mock-note">提出：${r.submittedAt ? new Date(r.submittedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
+      ${r.startedAt && r.submittedAt ? `（かかった時間 ${fmtElapsed(r.submittedAt - r.startedAt)}）` : ""}　写真 ${r.photoCount ?? 0}枚</p>
+      ${st === "grading" ? `<p class="mock-note">採点中：${stats.gradedCount}/${def.items.length}問</p>` : ""}
+      ${role === "student" ? `<div class="actions"><button class="small outline" data-mock-submit="${esc(r.id)}">写真を追加</button></div>
+        <input type="file" accept="image/*" multiple class="hidden-file" data-mock-photo-input="${esc(r.id)}">` : ""}`;
+  } else if (st === "graded") {
+    const fieldOrder = [...new Set(def.items.map(i => i.field))];
+    body = `<div class="mock-score">
+        <span class="score">${stats.got}<small> / ${stats.max}点</small></span>
+        <span class="mock-rate ${rateClass(stats.got / (stats.max || 1))}">${pct(stats.got, stats.max)}%</span>
+      </div>
+      ${rateBars(stats.fields, fieldOrder)}
+      ${stats.weak.length ? `<p class="label" style="margin-top:.9rem">復習したい内容</p>
+        <div class="weak-chips">${stats.weak.slice(0, 6).map(w => `<span class="weak-chip">${esc(w.field)}：${esc(w.tag)}</span>`).join("")}</div>` : `<p class="mock-note">弱点として目立つ内容はありません。</p>`}
+      <div class="actions"><button class="small filled" data-mock-result="${esc(r.id)}">くわしい分析を見る</button></div>`;
+  }
+  const tutorActions = role === "tutor" ? `<div class="actions tutor-actions">
+      ${(r.photoCount ?? 0) > 0 ? `<button class="small outline" data-mock-photos="${esc(r.id)}">提出写真を見る</button>` : ""}
+      ${st !== "assigned" ? `<button class="small outline" data-mock-grade="${esc(r.id)}">${st === "graded" ? "採点を直す" : "採点する"}</button>` : ""}
+      <button class="small outline danger" data-mock-del="${esc(r.id)}">削除</button>
+    </div>` : "";
+  return `<article class="item mock-card st-${st}">
+    <div class="mock-head">
+      <div>
+        <p class="mock-sub">${esc(def.scope)}・${def.minutes}分・${def.total}点</p>
+        <h4>${esc(def.title)}</h4>
+      </div>
+      <span class="status-chip ${st}${late ? " late" : ""}">${late ? "期限切れ" : MOCK_STATUS[st]}</span>
+    </div>
+    <p class="mock-due">期限 ${fmtDate(r.dueDate)}${r.memo ? `　<span class="mock-memo">${esc(r.memo)}</span>` : ""}</p>
+    ${body}
+    ${tutorActions}
+  </article>`;
+}
+function renderMocks() {
+  const list = mocks.slice().sort((a, b) => {
+    const w = (x) => x.status === "graded" ? 1 : 0;
+    return w(a) - w(b) || (b.dueDate ?? "").localeCompare(a.dueDate ?? "");
+  });
+  $("mock-list").innerHTML = list.length ? list.map(mockCardHTML).join("")
+    : `<div class="empty">${role === "tutor" ? "右上の「模試を出す」から、生徒に実力テストを出せます。" : "まだ模試は出ていません。"}</div>`;
+  clearInterval(mockTimer);
+  if (mocks.some(m => m.status === "started")) {
+    mockTimer = setInterval(() => {
+      document.querySelectorAll("[data-mock-timer]").forEach(el => {
+        const r = mocks.find(m => m.id === el.dataset.mockTimer);
+        if (r) el.innerHTML = mockTimeLeft(r, mockDef(r.mockId));
+      });
+    }, 1000);
+  }
+}
+
+$("mock-list").addEventListener("click", async (e) => {
+  const b = (k) => e.target.closest(`[data-${k}]`);
+  let x;
+  if ((x = b("mock-start"))) {
+    const r = mocks.find(m => m.id === x.dataset.mockStart), def = mockDef(r?.mockId);
+    if (def && confirm(`${def.title}を始めます。制限時間は${def.minutes}分です。準備はいいですか？`))
+      await updateDoc(mockRef(r.id), { status: "started", startedAt: Date.now() });
+  } else if ((x = b("mock-submit"))) {
+    document.querySelector(`[data-mock-photo-input="${x.dataset.mockSubmit}"]`)?.click();
+  } else if ((x = b("mock-del"))) {
+    if (confirm("この模試を削除しますか？（提出写真と採点も消えます）")) {
+      const id = x.dataset.mockDel;
+      const ph = await getDocs(collection(db, "students", currentSid, "mocks", id, "photos"));
+      await Promise.all(ph.docs.map(d => deleteDoc(d.ref)));
+      await deleteDoc(mockRef(id));
+    }
+  } else if ((x = b("mock-photos"))) {
+    openMockPhotos(x.dataset.mockPhotos, "mock-photo-body");
+    $("mock-photo-modal").hidden = false;
+  } else if ((x = b("mock-grade"))) {
+    openGrade(x.dataset.mockGrade);
+  } else if ((x = b("mock-result"))) {
+    openResult(x.dataset.mockResult);
+  }
+});
+$("mock-list").addEventListener("change", async (e) => {
+  const input = e.target.closest("[data-mock-photo-input]");
+  if (!input || !input.files.length) return;
+  const id = input.dataset.mockPhotoInput;
+  const r = mocks.find(m => m.id === id);
+  const files = [...input.files];
+  input.closest("article").querySelector(".actions")?.insertAdjacentHTML("beforeend", `<span class="hint">送信中…</span>`);
+  try {
+    // 文字が読めるように大きめに縮小し、1枚ずつ別の記録として保存する（1件1MBの上限を避けるため）
+    for (const f of files) {
+      const src = await fileToDataUrl(f, 1600, 0.72);
+      await addDoc(collection(db, "students", currentSid, "mocks", id, "photos"), { src, createdAt: serverTimestamp() });
+    }
+    const data = { photoCount: (r?.photoCount ?? 0) + files.length };
+    if (r?.status === "started") {
+      if (!confirm(`写真${files.length}枚を送りました。これで提出しますか？（「キャンセル」でまだ写真を追加できます）`)) {
+        await updateDoc(mockRef(id), data); return;
+      }
+      Object.assign(data, { status: "submitted", submittedAt: Date.now() });
+    }
+    await updateDoc(mockRef(id), data);
+  } catch (err) {
+    alert("写真を送れませんでした（" + (err?.message ?? err) + "）");
+  } finally {
+    input.value = "";
+  }
+});
+async function openMockPhotos(id, targetId) {
+  $(targetId).innerHTML = `<p class="hint">読み込み中…</p>`;
+  const snap = await getDocs(query(collection(db, "students", currentSid, "mocks", id, "photos"), orderBy("createdAt", "asc")));
+  $(targetId).innerHTML = snap.docs.length
+    ? snap.docs.map((d, i) => `<a href="#" data-open-img="${i}"><img src="${d.data().src}" alt="解答用紙 ${i + 1}枚目"></a>`).join("")
+    : `<p class="hint">写真はまだありません。</p>`;
+}
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("[data-open-img]");
+  if (!a) return;
+  e.preventDefault();
+  openDataUrlAsBlob(a.querySelector("img").src);
+});
+
+// 採点
+let gradingId = null;
+function openGrade(id) {
+  const r = mocks.find(m => m.id === id), def = mockDef(r?.mockId);
+  if (!def) return;
+  gradingId = id;
+  $("mock-grade-title").textContent = `採点：${def.title}`;
+  const byField = {};
+  def.items.forEach(it => (byField[it.field] ??= []).push(it));
+  $("mock-grade-body").innerHTML = Object.entries(byField).map(([field, list]) => `
+    <fieldset class="grade-group"><legend>${esc(field)}</legend>
+      ${list.map(it => {
+        const v = r.scores?.[it.id];
+        return `<div class="grade-row">
+          <span class="grade-no">${esc(it.no)}</span>
+          <span class="grade-tag">${esc(it.tag)}<small>${esc(it.level)}</small></span>
+          <span class="grade-input">
+            <button type="button" class="ox" data-ox="max" data-item="${esc(it.id)}">○</button>
+            <button type="button" class="ox" data-ox="zero" data-item="${esc(it.id)}">×</button>
+            <input type="number" min="0" max="${it.pts}" step="0.5" inputmode="decimal" data-score="${esc(it.id)}" value="${v ?? ""}">
+            <small>/${it.pts}</small>
+          </span>
+        </div>`;
+      }).join("")}
+    </fieldset>`).join("");
+  $("mock-grade-photos").innerHTML = (r.photoCount ?? 0) ? `<button type="button" class="small outline" id="mock-grade-load-photos">提出写真を表示（${r.photoCount}枚）</button>` : "";
+  updateGradeTotal();
+  $("mock-grade-modal").hidden = false;
+}
+function updateGradeTotal() {
+  const r = mocks.find(m => m.id === gradingId), def = mockDef(r?.mockId);
+  if (!def) return;
+  let got = 0, n = 0;
+  $("mock-grade-body").querySelectorAll("[data-score]").forEach(inp => {
+    const it = def.items.find(i => i.id === inp.dataset.score);
+    inp.closest(".grade-row").classList.toggle("done", inp.value !== "");
+    if (inp.value !== "") { got += Math.min(Number(inp.value), it.pts); n++; }
+  });
+  $("mock-grade-total").textContent = `採点 ${n}/${def.items.length}問　合計 ${got}点`;
+}
+$("mock-grade-body").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-ox]");
+  if (!b) return;
+  const r = mocks.find(m => m.id === gradingId), def = mockDef(r?.mockId);
+  const it = def.items.find(i => i.id === b.dataset.item);
+  const inp = $("mock-grade-body").querySelector(`[data-score="${CSS.escape(b.dataset.item)}"]`);
+  inp.value = b.dataset.ox === "max" ? it.pts : 0;
+  updateGradeTotal();
+});
+$("mock-grade-body").addEventListener("input", updateGradeTotal);
+$("mock-grade-photos").addEventListener("click", (e) => {
+  if (e.target.id === "mock-grade-load-photos") openMockPhotos(gradingId, "mock-grade-photos");
+});
+$("mock-grade-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const r = mocks.find(m => m.id === gradingId), def = mockDef(r?.mockId);
+  const scores = {};
+  $("mock-grade-body").querySelectorAll("[data-score]").forEach(inp => {
+    if (inp.value === "") return;
+    const it = def.items.find(i => i.id === inp.dataset.score);
+    scores[it.id] = Math.max(0, Math.min(Number(inp.value), it.pts));
+  });
+  const all = Object.keys(scores).length === def.items.length;
+  await updateDoc(mockRef(gradingId), { scores, status: all ? "graded" : "grading", ...(all ? { gradedAt: Date.now() } : {}) });
+  $("mock-grade-modal").hidden = true;
+  if (!all) alert(`途中まで保存しました（${Object.keys(scores).length}/${def.items.length}問）。全問入れると結果が生徒にも表示されます。`);
+});
+
+// くわしい分析
+function openResult(id) {
+  const r = mocks.find(m => m.id === id), def = mockDef(r?.mockId);
+  if (!def) return;
+  const s = mockStats(def, r.scores);
+  const fieldOrder = [...new Set(def.items.map(i => i.field))];
+  const byField = {};
+  def.items.forEach(it => (byField[it.field] ??= []).push(it));
+  $("mock-result-title").textContent = def.title;
+  $("mock-result-body").innerHTML = `
+    <div class="mock-score big">
+      <span class="score">${s.got}<small> / ${s.max}点</small></span>
+      <span class="mock-rate ${rateClass(s.got / (s.max || 1))}">${pct(s.got, s.max)}%</span>
+    </div>
+    ${r.startedAt && r.submittedAt ? `<p class="mock-note">かかった時間 ${fmtElapsed(r.submittedAt - r.startedAt)}（制限 ${def.minutes}分）</p>` : ""}
+    <h4 class="modal-sub">分野別</h4>${rateBars(s.fields, fieldOrder)}
+    <h4 class="modal-sub">難易度別</h4>${rateBars(s.levels, ["基本", "標準", "応用"])}
+    <h4 class="modal-sub">復習したい内容（得点率60%未満）</h4>
+    ${s.weak.length ? `<div class="weak-list">${s.weak.map(w => `<div class="weak-row">
+        <span class="weak-name">${esc(w.field)}：${esc(w.tag)}</span>
+        <span class="weak-items">${w.items.map(it => esc(it.no)).join("、")}</span>
+        <span class="rate-val">${pct(w.got, w.max)}%</span></div>`).join("")}</div>`
+      : `<p class="mock-note">得点率60%未満の内容はありません。</p>`}
+    <h4 class="modal-sub">問題ごとの結果</h4>
+    ${Object.entries(byField).map(([field, list]) => `<details class="item-detail"><summary>${esc(field)}</summary>
+      <div class="item-grid">${list.map(it => {
+        const v = r.scores?.[it.id];
+        const cls = v === undefined ? "" : Number(v) >= it.pts ? "ok" : Number(v) > 0 ? "part" : "ng";
+        return `<div class="item-cell ${cls}"><span>${esc(it.no)}</span><small>${esc(it.tag)}</small><b>${v ?? "－"}/${it.pts}</b></div>`;
+      }).join("")}</div></details>`).join("")}`;
+  $("mock-result-modal").hidden = false;
+}
+
+/* ---------- 成績（外部の模試・テスト） ---------- */
 const JUDGMENT_RANKS = ["A", "B", "C", "D", "E"];
 function renderTests() {
   const byExam = {};
@@ -1293,7 +1536,6 @@ $("tutor-pass-form").addEventListener("submit", async (e) => {
 /* ---------- 初期値 ---------- */
 $("l-date").value = today();
 $("t-date").value = today();
-$("st-date").value = today();
 $("sc-date").value = today();
 
 /* ---------- PWA / 通知 ---------- */
@@ -1361,8 +1603,7 @@ async function registerPushToken() {
 wireDirtySave("hw-form", "h-save-btn");
 wireDirtySave("schedule-form", "sc-save-btn");
 wireDirtySave("lesson-form", "l-save-btn");
-wireDirtySave("study-form", "st-save-btn");
-wireDirtySave("book-form", "b-save-btn");
+wireDirtySave("mock-form", "mk-save-btn");
 wireDirtySave("test-form", "t-save-btn");
 wireDirtySave("tuition-form", "tu-save-btn");
 wireDirtySave("plan-form", "pl-save-btn");

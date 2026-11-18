@@ -22,8 +22,7 @@
 | 機能 | チューター | 生徒 | 保護者 |
 |---|---|---|---|
 | カレンダー（宿題・指導記録・指導予定） | 宿題出題・指導記録/予定の登録可 | 宿題の進度更新のみ可 | 閲覧のみ |
-| 勉強時間 | 閲覧のみ | 登録可 | 閲覧のみ |
-| 参考書 | 閲覧のみ | 登録可 | 閲覧のみ |
+| 模試（実力テスト） | 出題・採点 | 受験・提出 | 閲覧のみ |
 | 成績 | 閲覧のみ | 登録可（順位・志望校判定も編集可） | 閲覧のみ |
 | 月謝 | 登録・振込確認 | 非表示 | 閲覧のみ |
 | 連絡 | 閲覧・返信可 | 閲覧・返信可 | 閲覧・返信可 |
@@ -66,8 +65,19 @@
 - 指導開始1時間前・宿題期限前日にプッシュ通知（要 Cloud Functions）。新しい宿題・指導記録・指導予定・
   予定・連絡が追加されるたびにも通知が届く
 
+### 模試（実力テスト）
+先生が作った実力テスト（数学ⅠA 第1〜3部・英語）を生徒に受けさせ、分野ごとの弱点を確かめるタブ。
+- チューターが「模試を出す」でテストと期限を選ぶ
+- 生徒は問題用紙・解答用紙のPDFを開いて印刷し、「解き始める」で制限時間のタイマーを開始
+- 解き終わったら解答用紙の写真を撮って提出（写真は1枚ずつ `mocks/{id}/photos` に保存。1件1MBの上限を避けるため）
+- チューターは提出写真を見ながら各問を ○／×／部分点 で採点（途中保存可。全問入れると「採点済み」）
+- 採点済みになると、全員に合計点・分野別・難易度別の得点率と「復習したい内容」（得点率60%未満の内容）が表示される
+- テストの一覧と各問の分野・内容・難易度・配点は `moshi/catalog.js`、PDFは `moshi/` にある。
+  **正解はこのリポジトリに入れない**（公開されるため）。採点は手元の解答・解説を見て行う
+- 期限はカレンダーにも「模試」として表示される
+
 ### 成績
-- 模試ごとに教科別の点数（素点／満点／偏差値）を何科目でも追加登録可能
+- 外部の模試・テストごとに教科別の点数（素点／満点／偏差値）を何科目でも追加登録可能
 - 模試ごとの合計点・順位（手入力）・志望校判定（設定タブで登録した志望校ごとにA〜E判定）を表示
 - 科目別の得点率推移グラフ
 
@@ -90,11 +100,11 @@
   大項目ごとに折りたたみ、チェックボックスで何個でも選択可）：生徒のみ編集可
 - 変更を加えると保存ボタンが青く変わる（未変更時はグレーで無効ではないが操作不要なことが分かる表示）
 
-教科は大項目ごとに色相を固定し、抽象度が上がるほど淡く表示することで、宿題・指導記録・参考書・成績すべてで
+教科は大項目ごとに色相を固定し、抽象度が上がるほど淡く表示することで、宿題・指導記録・成績すべてで
 共通の色分けバッジとして扱われます。
 
-タブが多く画面幅に収まらない場合、タブをタップすると選ばれたタブが自動的に見える位置までスクロールします
-（「連絡」「設定」など右側に隠れているタブをタップしたときに迷わないように）。
+メニューはアイコン付きのタブで、スマホの幅では画面の下に固定表示されます。
+（以前あった「勉強時間」「参考書」タブは使われていなかったため外しました。記録済みのデータは消していません）
 
 指導予定のZoom URLは端末に記憶され、次回の登録フォームにも自動入力されます（生徒ごとに固定のURLを
 使っている場合、毎回入力しなくてよくなります）。
@@ -167,8 +177,10 @@ students/{sid}/homework/{id}        { title, subject, type, detail, dueDate,
                                        photos[], pdfs[{ name, url }],     // 複数対応（photo/pdfは旧単数形式との互換用）
                                        done,                              // type: tf
                                        unit, countFrom, countTo, clearedCounts[] } // type: count
-students/{sid}/books/{id}           { name, subject, image }
-students/{sid}/studyLogs/{id}       { bookId, date, minutes }
+students/{sid}/mocks/{id}           { mockId, dueDate, memo, status, startedAt, submittedAt, gradedAt,
+                                       photoCount, scores: { 問題id: 得点 } }   // status: assigned→started→submitted→grading→graded
+students/{sid}/mocks/{id}/photos/{id} { src, createdAt }   ← 提出した解答用紙の写真
+students/{sid}/books, studyLogs     （旧機能。画面からは外したがデータは残っている）
 students/{sid}/tests/{id}           { examName, date, subject, score, max, deviation }
 students/{sid}/examMeta/{examSlug}  { rank, judgments: [{ school, rank }] }
 students/{sid}/tuition/{id}         { dates[], amount, paid }
@@ -182,6 +194,7 @@ students/{sid}/tokens/{fcmToken}    { role, updatedAt }   ← 通知の送り先
 |---|---|
 | `index.html` / `style.css` / `app.js` | アプリ本体 |
 | `subjects.js` | 教科マスタ（グループ・色・選択UI生成） |
+| `moshi/catalog.js` / `moshi/*.pdf` | 模試（実力テスト）の一覧・採点項目と、問題用紙・解答用紙のPDF |
 | `firebase-config.js` / `firebase-config-sw.js` | Firebase の設定値（要編集） |
 | `manifest.json` / `icon-*.png` | PWA（ホーム画面追加） |
 | `sw.js` | オフラインキャッシュ |

@@ -52,14 +52,13 @@
     <label>生徒<select id="student-select"></select></label>
   </div>
 
-  <nav class="tabs">
-    <button data-tab="calendar" class="active">カレンダー</button>
-    <button data-tab="study">勉強時間</button>
-    <button data-tab="books">参考書</button>
-    <button data-tab="tests">成績</button>
-    <button data-tab="tuition" class="student-hide" hidden>月謝</button>
-    <button data-tab="messages">連絡</button>
-    <button data-tab="settings">設定</button>
+  <nav class="tabs" aria-label="メニュー">
+    <button data-tab="calendar" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>カレンダー</span></button>
+    <button data-tab="mock"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h7.5L19 8v12.5H7z"/><path d="M14 3.5V8.5h5M10 13h6M10 17h4"/></svg><span>模試</span></button>
+    <button data-tab="tests"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M7 16v-5M12 16V7M17 16v-8"/></svg><span>成績</span></button>
+    <button data-tab="tuition" class="student-hide" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10.5h18M7 15h4"/></svg><span>月謝</span></button>
+    <button data-tab="messages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v11H9l-5 4z"/></svg><span>連絡</span></button>
+    <button data-tab="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></svg><span>設定</span></button>
   </nav>
 
   <!-- カレンダー（宿題・指導記録・指導予定を統合） -->
@@ -79,7 +78,7 @@
         <button type="button" class="small outline" data-cal="main" data-nav="1">›</button>
       </div>
       <div id="calendar" class="calendar"></div>
-      <p class="hint left cal-legend"><span class="pill lesson">指導日</span><span class="pill due">宿題期限</span><span class="pill tuition tutor-only" hidden>月謝</span><span class="pill plan">予定</span></p>
+      <p class="hint left cal-legend"><span class="pill lesson">指導日</span><span class="pill due">宿題期限</span><span class="pill tuition tutor-only" hidden>月謝</span><span class="pill plan">予定</span><span class="pill mock">模試</span></p>
     </div>
     <div class="calendar-action-grid">
       <button type="button" class="cal-action-btn tutor-only" hidden data-open-modal="hw-modal">宿題を出す</button>
@@ -90,42 +89,24 @@
     <div id="calendar-feed" class="list"></div>
   </section>
 
-  <!-- 勉強時間 -->
-  <section id="tab-study" class="tab" hidden>
-    <form id="study-form" class="card student-only-form">
-      <h3>勉強時間を記録</h3>
-      <div class="grid">
-        <label>参考書<select id="st-book"></select></label>
-        <label>日付<input type="date" id="st-date" required></label>
-      </div>
-      <label>時間（分）<input type="number" id="st-minutes" min="1" placeholder="30" required></label>
-      <button id="st-save-btn" type="submit" class="save-btn">記録する</button>
-    </form>
-    <div class="card" id="study-monthly-card" hidden>
-      <h3>月間の学習時間</h3>
-      <div id="study-monthly" class="month-bars"></div>
-    </div>
-    <div id="study-summary" class="list"></div>
-  </section>
 
-  <!-- 参考書 -->
-  <section id="tab-books" class="tab" hidden>
-    <form id="book-form" class="card student-only-form">
-      <h3>参考書を登録</h3>
-      <div class="grid">
-        <label>名前<input type="text" id="b-name" placeholder="青チャート 数学Ⅰ・A" required></label>
-        <label>教科<select id="b-subject"></select></label>
+
+  <!-- 模試（実力テスト） -->
+  <section id="tab-mock" class="tab" hidden>
+    <div class="section-head">
+      <div>
+        <h2 class="section-title">模試</h2>
+        <p class="section-lead" id="mock-lead">先生が出した実力テストを受けて、分野ごとの得意・苦手を確かめます。</p>
       </div>
-      <label>画像<input type="file" id="b-image" accept="image/*"></label>
-      <button id="b-save-btn" type="submit" class="save-btn">登録</button>
-    </form>
-    <div id="book-list" class="grid-cards"></div>
+      <button type="button" class="primary tutor-only" hidden data-open-modal="mock-modal">模試を出す</button>
+    </div>
+    <div id="mock-list" class="list"></div>
   </section>
 
   <!-- 成績 -->
   <section id="tab-tests" class="tab" hidden>
     <form id="test-form" class="card student-only-form">
-      <h3>模試の結果を追加</h3>
+      <h3>外部の模試・テストの結果を追加</h3>
       <label>模試名<input type="text" id="t-exam" placeholder="第2回 全国模試" required></label>
       <div class="grid">
         <label>日付<input type="date" id="t-date" required></label>
@@ -342,7 +323,7 @@
       <button type="button" class="small outline" data-modal-close="plan-modal">閉じる</button>
     </div>
     <form id="plan-form">
-      <label>タイトル<input type="text" id="pl-title" placeholder="面談／模試申込 締切 など" required></label>
+      <label>タイトル<input type="text" id="pl-title" placeholder="面談／外部模試の申込締切 など" required></label>
       <div class="grid">
         <label>日付<input type="date" id="pl-date" required></label>
         <label>時間（任意）<input type="time" id="pl-time"></label>
@@ -350,6 +331,64 @@
       <label>メモ<textarea id="pl-memo" rows="2"></textarea></label>
       <button id="pl-save-btn" type="submit" class="save-btn">追加</button>
     </form>
+  </div>
+</div>
+
+<!-- 模試を出す -->
+<div id="mock-modal" class="modal-overlay" hidden>
+  <div class="modal-panel">
+    <div class="modal-head">
+      <h3 style="border:none;padding:0">模試を出す</h3>
+      <button type="button" class="small outline" data-modal-close="mock-modal">閉じる</button>
+    </div>
+    <form id="mock-form">
+      <label>テスト<select id="mk-test" required></select></label>
+      <p class="hint left" id="mk-test-info"></p>
+      <label>受験の期限<input type="date" id="mk-due" required></label>
+      <label>メモ（任意）<input type="text" id="mk-memo" placeholder="今週末までに。時間を計って解こう"></label>
+      <button id="mk-save-btn" type="submit" class="save-btn">出す</button>
+    </form>
+  </div>
+</div>
+
+<!-- 模試の採点 -->
+<div id="mock-grade-modal" class="modal-overlay" hidden>
+  <div class="modal-panel wide">
+    <div class="modal-head">
+      <h3 style="border:none;padding:0" id="mock-grade-title">採点</h3>
+      <button type="button" class="small outline" data-modal-close="mock-grade-modal">閉じる</button>
+    </div>
+    <p class="hint left">各問の得点を入れます。「○」で満点、「×」で0点。部分点は数字で入力。空欄の問題は未採点として扱います。</p>
+    <div id="mock-grade-photos" class="mock-photos"></div>
+    <form id="mock-grade-form">
+      <div id="mock-grade-body"></div>
+      <div class="grade-footer">
+        <span id="mock-grade-total" class="grade-total"></span>
+        <button id="mk-grade-save" type="submit" class="primary">採点を保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 模試の結果（分析） -->
+<div id="mock-result-modal" class="modal-overlay" hidden>
+  <div class="modal-panel wide">
+    <div class="modal-head">
+      <h3 style="border:none;padding:0" id="mock-result-title">結果</h3>
+      <button type="button" class="small outline" data-modal-close="mock-result-modal">閉じる</button>
+    </div>
+    <div id="mock-result-body"></div>
+  </div>
+</div>
+
+<!-- 提出写真 -->
+<div id="mock-photo-modal" class="modal-overlay" hidden>
+  <div class="modal-panel wide">
+    <div class="modal-head">
+      <h3 style="border:none;padding:0">提出された解答用紙</h3>
+      <button type="button" class="small outline" data-modal-close="mock-photo-modal">閉じる</button>
+    </div>
+    <div id="mock-photo-body" class="mock-photos large"></div>
   </div>
 </div>
 
