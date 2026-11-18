@@ -2055,28 +2055,37 @@ function renderVocabCard() {
   const wk = ["日", "月", "火", "水", "木", "金", "土"];
   const weekRow = `<div class="vc-week">${week.map(d => {
     const [y, m, dd] = d.split("-").map(Number);
-    return `<span class="vc-day${vocab.days?.[d]?.done ? " done" : ""}${d === t ? " today" : ""}"><small>${wk[new Date(y, m - 1, dd).getDay()]}</small>${vocab.days?.[d]?.done ? "✓" : "・"}</span>`;
+    return `<span class="vc-day${vocab.days?.[d]?.done ? " done" : ""}${d === t ? " today" : ""}"><small>${wk[new Date(y, m - 1, dd).getDay()]}</small>${vocab.days?.[d]?.done ? ICON_CHECK : "・"}</span>`;
   }).join("")}</div>`;
-  let status, btn = "";
-  if (day?.done) status = `<b class="vc-done">今日は完了！</b> 1回目で ${day.first}/${day.total} 問正解`;
-  else if (td?.phase === "review") status = `<b class="vc-warn">まちがえた単語の復習が残っています</b>（あと${td.queue.length}語）`;
-  else if (td && (td.idx > 0 || td.answered)) status = `とちゅう（${td.idx + (td.answered ? 1 : 0)}/${td.ids.length}問）`;
-  else status = `今日の${DAILY_N}問はまだです`;
-  if (role === "tutor") btn = `<button type="button" class="outline" data-vocab-trial>お試しで解く（記録されません）</button>`;
+  // 今日の状態：見出し・説明・進み具合
+  let state, title, note, prog = 0;
+  if (day?.done) { state = "done"; title = "今日は完了"; note = `1回目で ${day.first}/${day.total}問 正解`; prog = 100; }
+  else if (td?.phase === "review") { state = "review"; title = "復習が残っています"; note = `まちがえた単語 あと${td.queue.length}語`; prog = 100; }
+  else if (td && (td.idx > 0 || td.answered)) { const k = td.idx + (td.answered ? 1 : 0); state = "doing"; title = "とちゅうです"; note = `${k} / ${td.ids.length}問`; prog = Math.round(k / td.ids.length * 100); }
+  else { state = "todo"; title = "今日の10問"; note = "英単語の意味を4つから選びます"; }
+  let btn = "";
   if (role === "student") {
-    btn = day?.done ? `<button type="button" class="small outline" data-vocab-open>今日の単語を見直す</button>`
-      : `<button type="button" class="primary" data-vocab-open>${td?.phase === "review" ? "復習を続ける" : td && (td.idx > 0 || td.answered) ? "続きから" : "はじめる"}</button>`;
-  }
+    btn = day?.done ? `<button type="button" class="outline vc-btn" data-vocab-open>今日の単語を見直す</button>`
+      : `<button type="button" class="primary vc-btn" data-vocab-open>${state === "review" ? "復習を続ける" : state === "doing" ? "続きから" : "はじめる"}</button>`;
+  } else if (role === "tutor") btn = `<button type="button" class="outline vc-btn" data-vocab-trial>お試しで解く（記録されません）</button>`;
   card.innerHTML = `
-    <div class="vc-head">
-      <div><h3 style="border:none;padding:0;margin:0">今日の単語帳</h3>
-        <p class="vc-sub">英検2級レベル・1日${DAILY_N}問・英語→日本語</p></div>
-      <div class="vc-streak"><b>${vocabStreak()}</b><small>日連続</small></div>
+    <div class="vc-top">
+      <div><p class="vc-kicker">毎日の単語帳</p><p class="vc-sub">英検2級レベル・1日${DAILY_N}問</p></div>
+      <span class="vc-badge ${state}">${state === "done" ? "完了" : state === "review" ? "復習中" : state === "doing" ? "とちゅう" : "未実施"}</span>
     </div>
-    <p class="vc-status">${status}</p>
-    ${weekRow}
-    <p class="vc-sub">これまでに出た単語 ${learned}語・定着 ${mastered}語（全${VOCAB.length}語）</p>
-    ${btn ? `<div class="actions">${btn}</div>` : ""}`;
+    <div class="vc-today ${state}">
+      <p class="vc-title">${title}</p>
+      <p class="vc-note">${note}</p>
+      <div class="vc-bar"><div style="width:${prog}%"></div></div>
+    </div>
+    ${btn}
+    <div class="vc-stats">
+      <div><b>${vocabStreak()}</b><span>日連続</span></div>
+      <div><b>${learned}</b><span>出た単語</span></div>
+      <div><b>${mastered}</b><span>定着した単語</span></div>
+    </div>
+    <p class="vc-label">この1週間</p>
+    ${weekRow}`;
 }
 $("vocab-card")?.addEventListener("click", (e) => {
   if (e.target.closest("[data-vocab-open]")) openVocab();
@@ -2126,27 +2135,39 @@ function speak(text) {
   u.lang = "en-US"; u.rate = 0.9;
   speechSynthesis.speak(u);
 }
+// 絵文字は使わず、線の図形（SVG）で表す
+const ICON_SPEAK = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>`;
+const ICON_CHECK = `<svg viewBox="0 0 24 24" class="ic-check" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+const ICON_CROSS = `<svg viewBox="0 0 24 24" class="ic-check" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>`;
+const POS_NAME = { 動: "動詞", 名: "名詞", 形: "形容詞", 副: "副詞" };
+const speakBtn = (text, label) => canSpeak ? `<button type="button" class="speak-btn" data-speak="${esc(text)}">${ICON_SPEAK}<span>${label}</span></button>` : "";
+// 豆知識は「。」ごとに区切って箇条書きにする
+const tipList = (tip) => String(tip).split("。").map(x => x.trim()).filter(Boolean).map(x => `<li>${esc(x)}</li>`).join("");
 function vocabQuestionHTML(id, answered) {
   const v = VOCAB_BY_ID[id];
   if (!vocabChoices || vocabChoices.id !== id) vocabChoices = { id, list: makeChoices(id) };
   const list = vocabChoices.list;
   return `<div class="vq">
-      <p class="vq-pos">${esc({ 動: "動詞", 名: "名詞", 形: "形容詞", 副: "副詞" }[v[1]] ?? v[1])}</p>
-      <p class="vq-word">${esc(v[0])}${canSpeak ? `<button type="button" class="speak-btn" data-speak="${esc(v[0])}" aria-label="発音を聞く">🔊</button>` : ""}</p>
+      <p class="vq-pos">${esc(POS_NAME[v[1]] ?? v[1])}</p>
+      <div class="vq-wordline"><p class="vq-word">${esc(v[0])}</p>${speakBtn(v[0], "発音")}</div>
       <p class="vq-ask">この単語の意味として正しいものは？</p>
       <div class="vq-choices">${list.map((c, i) => {
         const cls = ["vq-choice", answered && c === v[2] ? "correct" : "", answered && answered.pick === c && c !== v[2] ? "wrong" : ""].filter(Boolean).join(" ");
         return `<button type="button" class="${cls}" data-vq-pick="${i}" ${answered ? "disabled" : ""}><span class="cnum">${i + 1}</span>${esc(c)}</button>`;
       }).join("")}</div>
-      ${answered ? `<div class="exp-box ${answered.ok ? "ok" : "ng"}">
-          <p class="exp-result">${answered.ok ? "正解！" : "不正解"}</p>
-          <p class="vq-meaning"><b>${esc(v[0])}</b><span class="vq-pos-tag">${esc(v[1])}</span>${esc(v[2])}</p>
-          <div class="vq-exbox">
-            <p class="exp-label">例文${canSpeak ? `<button type="button" class="speak-btn small" data-speak="${esc(v[3])}" aria-label="例文を聞く">🔊</button>` : ""}</p>
+      ${answered ? `<div class="vx">
+          <div class="vx-result ${answered.ok ? "ok" : "ng"}">${answered.ok ? ICON_CHECK : ICON_CROSS}<span>${answered.ok ? "正解" : "不正解"}</span>
+            ${answered.ok ? "" : `<small>正しい意味は「${esc(v[2])}」</small>`}</div>
+          <div class="vx-main">
+            <p class="vx-word">${esc(v[0])}<span class="vx-pos">${esc(POS_NAME[v[1]] ?? v[1])}</span></p>
+            <p class="vx-mean">${esc(v[2])}</p>
+          </div>
+          <section class="vx-sec">
+            <div class="vx-h"><span>例文</span>${speakBtn(v[3], "例文を聞く")}</div>
             <p class="vq-ex">${highlightWord(v[3], v[0])}</p>
             <p class="vq-exj">${esc(v[4])}</p>
-          </div>
-          ${v[6] ? `<div class="vq-tip"><p class="exp-label">💡 覚え方・豆知識</p><p>${esc(v[6])}</p></div>` : ""}
+          </section>
+          ${v[6] ? `<section class="vx-sec tip"><div class="vx-h"><span>覚え方のポイント</span></div><ul class="vx-tips">${tipList(v[6])}</ul></section>` : ""}
         </div>` : ""}
     </div>`;
 }

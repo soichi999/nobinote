@@ -667,3 +667,50 @@ button.ghost-dark{background:#fff;border:1px solid var(--blue-line);color:var(--
 .trial-list{display:flex;flex-wrap:wrap;gap:.5rem}
 .trial-list button{border-color:#c4b5fd;color:#6d28d9}
 .trial-result{background:#faf7ff;border:1.5px dashed #a78bfa;border-radius:14px;padding:.9rem 1rem;margin-bottom:.8rem}
+
+/* ---- 単語の解説（見出しで区切る・絵文字なし） ---- */
+.vq-wordline{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.speak-btn{display:inline-flex;align-items:center;gap:.3rem;background:#fff;border:1px solid var(--blue-line);color:var(--blue);
+  border-radius:999px;padding:.25rem .7rem;font-size:.78rem;font-weight:700;cursor:pointer;vertical-align:middle}
+.speak-btn svg{width:1.05rem;height:1.05rem;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.speak-btn:hover{background:var(--blue-soft)}
+.ic-check{width:1.2rem;height:1.2rem;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.vc-day .ic-check{width:.95rem;height:.95rem;margin:0 auto}
+.vx{margin-top:1rem;display:flex;flex-direction:column;gap:.7rem}
+.vx-result{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;border-radius:12px;padding:.6rem .8rem;font-weight:800;font-size:1.05rem}
+.vx-result.ok{background:#e9f7f2;color:var(--ok)}
+.vx-result.ng{background:#fdeeec;color:var(--err)}
+.vx-result small{flex-basis:100%;font-size:.82rem;font-weight:700;color:var(--fg)}
+.vx-main{border:1px solid var(--line);border-radius:12px;padding:.7rem .9rem}
+.vx-word{margin:0;font-size:1.3rem;font-weight:800;color:var(--navy);font-family:"Times New Roman",Georgia,serif;display:flex;align-items:center;gap:.5rem}
+.vx-pos{font-family:inherit;font-size:.7rem;font-weight:800;color:#0f766e;background:#ccfbf1;border-radius:6px;padding:.05rem .4rem}
+.vx-mean{margin:.2rem 0 0;font-size:1.05rem;font-weight:700}
+.vx-sec{border-left:4px solid var(--blue);background:#f8fbff;border-radius:0 12px 12px 0;padding:.55rem .8rem}
+.vx-sec.tip{border-left-color:#d97706;background:#fffaf0}
+.vx-h{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.3rem}
+.vx-h > span{font-size:.78rem;font-weight:800;color:var(--blue)}
+.vx-sec.tip .vx-h > span{color:#b45309}
+.vx-tips{margin:0;padding-left:1.1rem;font-size:.9rem;line-height:1.8}
+.vx-tips li{margin:.1rem 0}
+
+/* ---- 単語帳カード（カレンダー） ---- */
+.vocab-card{border-left:0;border-top:5px solid #0ea5a4}
+.vc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:.6rem}
+.vc-kicker{margin:0;font-size:1.05rem;font-weight:800;color:var(--navy)}
+.vc-badge{flex:none;font-size:.75rem;font-weight:800;padding:.2rem .7rem;border-radius:999px;background:var(--bg);color:var(--muted)}
+.vc-badge.done{background:#e9f7f2;color:var(--ok)}.vc-badge.review{background:#fdeeec;color:var(--err)}
+.vc-badge.doing{background:#fdf4e5;color:var(--warn)}.vc-badge.todo{background:#e6fffb;color:#0f766e}
+.vc-today{margin:.8rem 0;padding:.8rem .9rem;border-radius:12px;background:#f0fdfa}
+.vc-today.done{background:#eef9f4}.vc-today.review{background:#fdf2f1}.vc-today.doing{background:#fffaf0}
+.vc-title{margin:0;font-size:1.15rem;font-weight:800;color:var(--navy)}
+.vc-today.review .vc-title{color:var(--err)}
+.vc-note{margin:.15rem 0 .5rem;font-size:.85rem;color:var(--muted)}
+.vc-bar{height:8px;border-radius:99px;background:rgba(15,118,110,.12);overflow:hidden}
+.vc-bar div{height:100%;border-radius:99px;background:#0ea5a4}
+.vc-today.done .vc-bar div{background:var(--ok)}.vc-today.review .vc-bar div{background:var(--err)}.vc-today.doing .vc-bar div{background:var(--warn)}
+.vc-btn{width:100%;padding:.85rem 1rem;font-size:1rem}
+.vc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:.9rem 0 .6rem}
+.vc-stats div{background:var(--bg);border-radius:10px;padding:.5rem .3rem;text-align:center;display:flex;flex-direction:column}
+.vc-stats b{font-size:1.3rem;color:var(--navy);line-height:1.2}
+.vc-stats span{font-size:.7rem;color:var(--muted);font-weight:700}
+.vc-label{margin:0 0 .3rem;font-size:.75rem;font-weight:800;color:var(--muted)}
