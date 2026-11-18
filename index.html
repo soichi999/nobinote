@@ -48,6 +48,7 @@
     <span id="notif-text">新しい宿題や連絡を通知で受け取れます。</span>
     <button id="notif-enable" class="small primary">通知をオンにする</button>
   </div>
+  <div id="mock-banner" class="mock-banner" hidden></div>
   <div id="student-picker" class="row" hidden>
     <label>生徒<select id="student-select"></select></label>
   </div>
@@ -98,7 +99,7 @@
         <h2 class="section-title">模試</h2>
         <p class="section-lead" id="mock-lead">先生が出した実力テストを受けて、分野ごとの得意・苦手を確かめます。</p>
       </div>
-      <button type="button" class="primary tutor-only" hidden data-open-modal="mock-modal">模試を出す</button>
+      <button type="button" class="primary tutor-only" hidden id="mock-add-btn" data-open-modal="mock-modal">模試を出す</button>
     </div>
     <div id="mock-list" class="list"></div>
   </section>
@@ -338,7 +339,7 @@
 <div id="mock-modal" class="modal-overlay" hidden>
   <div class="modal-panel">
     <div class="modal-head">
-      <h3 style="border:none;padding:0">模試を出す</h3>
+      <h3 style="border:none;padding:0" id="mock-modal-title">模試を出す</h3>
       <button type="button" class="small outline" data-modal-close="mock-modal">閉じる</button>
     </div>
     <form id="mock-form">
@@ -346,6 +347,10 @@
       <p class="hint left" id="mk-test-info"></p>
       <label>受験の期限<input type="date" id="mk-due" required></label>
       <label>メモ（任意）<input type="text" id="mk-memo" placeholder="今週末までに。時間を計って解こう"></label>
+      <div id="mk-reset-wrap" class="reset-box" hidden>
+        <p class="hint left" id="mk-status-text"></p>
+        <label class="check-line"><input type="checkbox" id="mk-reset">受験前の状態に戻す（タイマー・提出写真・採点を消して、もう一度受けられるようにする）</label>
+      </div>
       <button id="mk-save-btn" type="submit" class="save-btn">出す</button>
     </form>
   </div>

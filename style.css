@@ -442,3 +442,40 @@ button.ox[data-ox="zero"]:hover{background:#fdeeec;color:var(--err)}
   .grade-input{grid-row:1 / span 2;grid-column:2}
   .section-head{flex-direction:column}
 }
+
+/* ---- 模試の編集：受験前に戻す ---- */
+.reset-box{border:1px dashed #f0c9c3;background:#fdf6f5;border-radius:12px;padding:.7rem .8rem .2rem;margin-bottom:1rem}
+.reset-box .hint.left{margin:0 0 .5rem}
+.check-line{display:flex;gap:.5rem;align-items:flex-start;color:var(--fg);font-weight:600;font-size:.85rem}
+.check-line input{width:auto;margin:.25rem 0 0;flex:none}
+select:disabled{background:var(--bg);color:var(--muted);cursor:not-allowed}
+
+/* ---- 生徒向け：模試の手順・写真・お知らせ ---- */
+.stepper{display:flex;list-style:none;margin:.3rem 0 .4rem;padding:0;gap:.3rem;counter-reset:none}
+.stepper li{flex:1;display:flex;flex-direction:column;align-items:center;gap:.2rem;font-size:.72rem;color:var(--muted);
+  font-weight:700;position:relative;text-align:center}
+.stepper li::before{content:"";position:absolute;top:.8rem;left:-50%;width:100%;height:2px;background:var(--line);z-index:0}
+.stepper li:first-child::before{display:none}
+.stepper li span{width:1.6rem;height:1.6rem;border-radius:999px;display:flex;align-items:center;justify-content:center;
+  background:var(--line);color:var(--muted);font-size:.8rem;position:relative;z-index:1}
+.stepper li.done span{background:var(--ok);color:#fff}
+.stepper li.done::before,.stepper li.now::before{background:var(--ok)}
+.stepper li.now{color:var(--blue)}
+.stepper li.now span{background:var(--blue);color:#fff;box-shadow:0 0 0 4px var(--blue-soft)}
+button.big-action{padding:.85rem 1.6rem;font-size:1rem}
+.photo-panel{border:1px solid var(--line);border-radius:12px;padding:.8rem;background:var(--bg)}
+.photo-panel .label{margin:0 0 .5rem !important}
+.thumbs{display:flex;flex-wrap:wrap;gap:.5rem}
+.thumb{position:relative}
+.thumb img{width:76px;height:100px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block;background:#fff}
+.thumb-del{position:absolute;top:-6px;right:-6px;width:24px;height:24px;padding:0;border-radius:999px;background:var(--err);
+  color:#fff;font-weight:800;line-height:1;font-size:.9rem}
+.photo-panel .actions button.primary:disabled{background:var(--blue-line);color:var(--muted);box-shadow:none;cursor:not-allowed}
+.upload-status{margin:.4rem 0 0 !important;font-size:.8rem;color:var(--blue);font-weight:700;min-height:1em}
+.mock-banner{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;justify-content:space-between;
+  background:#fff;border:1px solid var(--blue-line);border-left:5px solid var(--blue);border-radius:12px;
+  padding:.65rem .9rem;margin-bottom:1rem;font-size:.88rem;font-weight:700;color:var(--navy);box-shadow:var(--shadow)}
+.mock-banner button{background:var(--blue);color:#fff;font-weight:700}
+.mock-banner.running{position:sticky;top:4.2rem;z-index:6;border-left-color:var(--warn);background:#fffaf0}
+.banner-timer{font-size:1.15rem;color:var(--warn);font-variant-numeric:tabular-nums;margin-left:auto}
+@media (max-width:640px){ .mock-banner.running{top:4.6rem} }

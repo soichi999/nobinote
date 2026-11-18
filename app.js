@@ -187,6 +187,7 @@ function watchAll() {
   off();
   // 生徒切り替え時に前の生徒のデータが一瞬でも表示され続けないよう、即座に状態をリセットしてから再描画する
   lessons = []; homework = []; tests = []; schedule = []; examMeta = {}; tuition = []; plans = []; mocks = [];
+  Object.keys(photoCache).forEach(k => delete photoCache[k]);
   tuitionDates = []; renderTuitionChips();
   renderHomework(); renderCalendarFeed(); renderCalendars(); renderTests(); renderMocks();
   renderTuition(); $("msg-list").innerHTML = "";
@@ -893,14 +894,62 @@ $("mk-test").addEventListener("change", showMockInfo);
 showMockInfo();
 $("mk-due").value = today();
 
+// 出す／編集する（編集はチューターのみ）
+let editingMockId = null;
+function setMockFormMode(r) {
+  editingMockId = r?.id ?? null;
+  const st = r?.status ?? "assigned";
+  $("mock-modal-title").textContent = r ? "模試を編集" : "模試を出す";
+  $("mk-save-btn").textContent = r ? "更新" : "出す";
+  $("mk-test").value = r?.mockId ?? MOCKS[0].id;
+  $("mk-due").value = r?.dueDate ?? today();
+  $("mk-memo").value = r?.memo ?? "";
+  $("mk-reset").checked = false;
+  // 受験が始まったあとはテストを変えられない（変えるときは「受験前の状態に戻す」）
+  $("mk-reset-wrap").hidden = !r || st === "assigned";
+  $("mk-status-text").textContent = r && st !== "assigned" ? `いまの状態：${MOCK_STATUS[st]}。テストを変えるには「受験前の状態に戻す」にチェックを入れてください。` : "";
+  $("mk-test").disabled = !!r && st !== "assigned";
+  showMockInfo();
+}
+$("mock-add-btn")?.addEventListener("click", () => setMockFormMode(null));
+$("mk-reset")?.addEventListener("change", () => {
+  const r = mocks.find(m => m.id === editingMockId);
+  $("mk-test").disabled = !$("mk-reset").checked && (r?.status ?? "assigned") !== "assigned";
+});
+function startEditMock(r) {
+  setMockFormMode(r);
+  $("mock-modal").hidden = false;
+}
+async function deleteMockPhotos(id) {
+  const ph = await getDocs(collection(db, "students", currentSid, "mocks", id, "photos"));
+  await Promise.all(ph.docs.map(d => deleteDoc(d.ref)));
+}
 $("mock-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!currentSid) return alert("先に生徒を選んでください。");
-  await addDoc(collection(db, "students", currentSid, "mocks"), {
-    mockId: $("mk-test").value, dueDate: $("mk-due").value, memo: $("mk-memo").value.trim(),
-    status: "assigned", scores: {}, photoCount: 0, createdAt: serverTimestamp()
-  });
-  $("mk-memo").value = "";
+  const base = { mockId: $("mk-test").value, dueDate: $("mk-due").value, memo: $("mk-memo").value.trim() };
+  try {
+    if (editingMockId) {
+      const r = mocks.find(m => m.id === editingMockId);
+      const reset = $("mk-reset").checked;
+      if (reset && !confirm("タイマー・提出写真・採点を消して、受験前の状態に戻します。よろしいですか？")) return;
+      const data = { dueDate: base.dueDate, memo: base.memo };
+      if (reset || (r?.status ?? "assigned") === "assigned") data.mockId = base.mockId;
+      if (reset) {
+        await deleteMockPhotos(editingMockId);
+        Object.assign(data, { status: "assigned", scores: {}, photoCount: 0, startedAt: null, submittedAt: null, gradedAt: null });
+        try { sessionStorage.removeItem("tnote.mockTimeUp." + editingMockId); } catch {}
+      }
+      await updateDoc(mockRef(editingMockId), data);
+    } else {
+      await addDoc(collection(db, "students", currentSid, "mocks"), {
+        ...base, status: "assigned", scores: {}, photoCount: 0, createdAt: serverTimestamp()
+      });
+    }
+  } catch (err) {
+    return alert("保存できませんでした（" + (err?.message ?? err) + "）");
+  }
+  setMockFormMode(null);
   $("mock-modal").hidden = true;
 });
 
@@ -973,22 +1022,20 @@ function mockCardHTML(r) {
   let body = "";
   if (st === "assigned") {
     body = `${pdfs}
-      <p class="mock-note">問題用紙と解答用紙を印刷（またはノートに解答）してから、時間を計って解きます。途中の式や考え方も解答用紙に書きましょう。</p>
-      ${role === "student" ? `<div class="actions"><button class="primary" data-mock-start="${esc(r.id)}">解き始める（${def.minutes}分）</button></div>` : ""}`;
+      <p class="mock-note">① 問題用紙と解答用紙をダウンロードして印刷します（印刷できないときはノートに解答してOK）。<br>
+        ② 準備ができたら「解き始める」を押します。途中の式や考え方も書きましょう。</p>
+      ${role === "student" ? `<div class="actions"><button class="primary big-action" data-mock-start="${esc(r.id)}">解き始める（${def.minutes}分）</button></div>` : ""}`;
   } else if (st === "started") {
     const end = new Date(r.startedAt + def.minutes * 60000);
     body = `${pdfs}
       <p class="mock-timer-line" data-mock-timer="${esc(r.id)}">${mockTimeLeft(r, def)}</p>
       <p class="mock-note">終了予定 ${end.getHours()}:${String(end.getMinutes()).padStart(2, "0")}。アプリを閉じたり他のアプリを使ったりしても、時間は止まらずに進みます。</p>
-      ${role === "student" ? `<div class="actions">
-        <button class="primary" data-mock-submit="${esc(r.id)}">解答用紙の写真を撮って提出</button>
-      </div>
-      <input type="file" accept="image/*" multiple class="hidden-file" data-mock-photo-input="${esc(r.id)}">` : `<p class="mock-note">生徒が受験中です。</p>`}`;
+      ${role === "student" ? photoPanelHTML(r, true) : `<p class="mock-note">生徒が受験中です。</p>`}`;
   } else if (st === "submitted" || st === "grading") {
     body = `${pdfs}<p class="mock-note">提出：${r.submittedAt ? new Date(r.submittedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}${r.startedAt && r.submittedAt ? `（かかった時間 ${fmtElapsed(r.submittedAt - r.startedAt)}）` : ""}　写真 ${r.photoCount ?? 0}枚</p>
       ${st === "grading" ? `<p class="mock-note">採点中：${stats.gradedCount}/${def.items.length}問</p>` : ""}
-      ${role === "student" ? `<div class="actions"><button class="small outline" data-mock-submit="${esc(r.id)}">写真を追加</button></div>
-        <input type="file" accept="image/*" multiple class="hidden-file" data-mock-photo-input="${esc(r.id)}">` : ""}`;
+      ${role === "student" ? `<p class="mock-note">提出できました。先生の採点を待っている間に、解答・解説で答え合わせをしておきましょう。</p>
+        ${photoPanelHTML(r, false)}` : ""}`;
   } else if (st === "graded") {
     const fieldOrder = [...new Set(def.items.map(i => i.field))];
     body = `${pdfs}<div class="mock-score">
@@ -998,11 +1045,13 @@ function mockCardHTML(r) {
       ${rateBars(stats.fields, fieldOrder)}
       ${stats.weak.length ? `<p class="label" style="margin-top:.9rem">復習したい内容</p>
         <div class="weak-chips">${stats.weak.slice(0, 6).map(w => `<span class="weak-chip">${esc(w.field)}：${esc(w.tag)}</span>`).join("")}</div>` : `<p class="mock-note">弱点として目立つ内容はありません。</p>`}
+      ${role !== "tutor" && stats.weak.length ? `<p class="mock-note">解答・解説で見直す問題：${stats.weak.slice(0, 3).flatMap(w => w.items.map(it => it.no)).slice(0, 8).map(esc).join("、")}</p>` : ""}
       <div class="actions"><button class="small filled" data-mock-result="${esc(r.id)}">くわしい分析を見る</button></div>`;
   }
   const tutorActions = role === "tutor" ? `<div class="actions tutor-actions">
       ${(r.photoCount ?? 0) > 0 ? `<button class="small outline" data-mock-photos="${esc(r.id)}">提出写真を見る</button>` : ""}
       ${st !== "assigned" ? `<button class="small outline" data-mock-grade="${esc(r.id)}">${st === "graded" ? "採点を直す" : "採点する"}</button>` : ""}
+      <button class="small outline" data-mock-edit="${esc(r.id)}">編集</button>
       <button class="small outline danger" data-mock-del="${esc(r.id)}">削除</button>
     </div>` : "";
   return `<article class="item mock-card st-${st}">
@@ -1014,21 +1063,81 @@ function mockCardHTML(r) {
       <span class="status-chip ${st}${late ? " late" : ""}">${late ? "期限切れ" : MOCK_STATUS[st]}</span>
     </div>
     <p class="mock-due">期限 ${fmtDate(r.dueDate)}${r.memo ? `　<span class="mock-memo">${esc(r.memo)}</span>` : ""}</p>
+    ${role !== "tutor" ? stepperHTML(st) : ""}
     ${body}
     ${tutorActions}
   </article>`;
 }
+const STEPS = ["印刷", "解く", "写真で提出", "結果"];
+function stepperHTML(st) {
+  const cur = { assigned: 0, started: 1, submitted: 3, grading: 3, graded: 4 }[st] ?? 0;
+  return `<ol class="stepper">${STEPS.map((t, i) => `<li class="${i < cur ? "done" : i === cur ? "now" : ""}"><span>${i + 1}</span>${t}</li>`).join("")}</ol>`;
+}
+// 生徒：撮った写真を確かめてから提出する
+const photoCache = {};   // 模試id → [{ id, src }]
+function photoPanelHTML(r, beforeSubmit) {
+  const list = photoCache[r.id];
+  const n = list ? list.length : (r.photoCount ?? 0);
+  const thumbs = list ? list.map(p => `<div class="thumb"><img src="${p.src}" alt="">
+      ${beforeSubmit ? `<button type="button" class="thumb-del" data-photo-del="${esc(r.id)}" data-pid="${esc(p.id)}" aria-label="この写真を消す">×</button>` : ""}</div>`).join("")
+    : (n ? `<p class="hint left">写真を読み込み中…</p>` : "");
+  return `<div class="photo-panel">
+      <p class="label">${beforeSubmit ? "③ 解き終わったら、解答用紙を1ページずつ撮影" : `提出した写真（${n}枚）`}</p>
+      <div class="thumbs">${thumbs}</div>
+      <div class="actions">
+        <button type="button" class="${beforeSubmit ? "outline" : "small outline"}" data-mock-submit="${esc(r.id)}">${n ? "写真を追加" : "写真を撮る・選ぶ"}</button>
+        ${beforeSubmit ? `<button type="button" class="primary" data-mock-finish="${esc(r.id)}" ${n ? "" : "disabled"}>${n ? `${n}枚で提出する` : "写真を撮ると提出できます"}</button>` : ""}
+      </div>
+      <p class="upload-status" data-upload-status="${esc(r.id)}"></p>
+      <input type="file" accept="image/*" multiple class="hidden-file" data-mock-photo-input="${esc(r.id)}">
+    </div>`;
+}
+const photoLoading = new Set();
+async function loadPhotoThumbs(id, force = false) {
+  if ((photoCache[id] && !force) || photoLoading.has(id)) return;
+  photoLoading.add(id);
+  try {
+  const snap = await getDocs(query(collection(db, "students", currentSid, "mocks", id, "photos"), orderBy("createdAt", "asc")));
+  photoCache[id] = snap.docs.map(d => ({ id: d.id, src: d.data().src }));
+  } finally { photoLoading.delete(id); }
+  renderMocks();
+}
+// 画面上部のお知らせ：受験中は残り時間、まだ受けていない模試があればその案内
+function renderMockBanner() {
+  const bar = $("mock-banner");
+  if (role === "tutor") { bar.hidden = true; return; }
+  const running = mocks.find(m => m.status === "started");
+  const pending = mocks.filter(m => m.status === "assigned").sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
+  if (running && role === "student") {
+    const def = mockDef(running.mockId);
+    bar.className = "mock-banner running";
+    bar.innerHTML = `<span>受験中：${esc(def?.title ?? "")}</span><span class="banner-timer" data-mock-timer="${esc(running.id)}"></span>
+      <button type="button" class="small" data-go-mock>開く</button>`;
+    bar.hidden = false;
+  } else if (pending.length) {
+    const def = mockDef(pending[0].mockId);
+    bar.className = "mock-banner";
+    bar.innerHTML = `<span>まだ受けていない模試が${pending.length}つあります（${esc(def?.title ?? "")}・期限 ${fmtDate(pending[0].dueDate)}）</span>
+      <button type="button" class="small" data-go-mock>模試へ</button>`;
+    bar.hidden = false;
+  } else bar.hidden = true;
+}
+$("mock-banner").addEventListener("click", (e) => {
+  if (e.target.closest("[data-go-mock]")) document.querySelector('.tabs [data-tab="mock"]').click();
+});
+
 function renderMocks() {
-  const list = mocks.slice().sort((a, b) => {
-    const w = (x) => x.status === "graded" ? 1 : 0;
-    return w(a) - w(b) || (b.dueDate ?? "").localeCompare(a.dueDate ?? "");
-  });
+  const ORDER = { started: 0, assigned: 1, submitted: 2, grading: 2, graded: 3 };
+  const list = mocks.slice().sort((a, b) =>
+    (ORDER[a.status] ?? 1) - (ORDER[b.status] ?? 1) || (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
   $("mock-list").innerHTML = list.length ? list.map(mockCardHTML).join("")
     : `<div class="empty">${role === "tutor" ? "右上の「模試を出す」から、生徒に実力テストを出せます。" : "まだ模試は出ていません。"}</div>`;
   clearInterval(mockTimer);
   const running = mocks.some(m => m.status === "started");
   if (running) { tickMockTimers(); mockTimer = setInterval(tickMockTimers, 1000); }
   updateWakeLock(running && role === "student");
+  renderMockBanner();
+  if (role === "student") list.filter(m => ["started", "submitted", "grading"].includes(m.status)).forEach(m => loadPhotoThumbs(m.id));
 }
 // 残り時間は「開始した時刻」からの経過で毎回計算する（タイマーを数えるのではない）ので、
 // アプリが裏に回っても、閉じて開き直しても、時間は途切れずに正しく進む
@@ -1036,12 +1145,13 @@ function tickMockTimers() {
   document.querySelectorAll("[data-mock-timer]").forEach(el => {
     const r = mocks.find(m => m.id === el.dataset.mockTimer), def = mockDef(r?.mockId);
     if (!r || !def) return;
-    el.innerHTML = mockTimeLeft(r, def);
+    el.innerHTML = el.classList.contains("banner-timer")
+      ? mockTimeLeft(r, def).replace(/<[^>]+>/g, "") : mockTimeLeft(r, def);
     const over = Date.now() >= r.startedAt + def.minutes * 60000;
     const key = "tnote.mockTimeUp." + r.id;
     let told = false;
     try { told = sessionStorage.getItem(key) === "1"; } catch {}
-    if (over && role === "student" && !told && document.visibilityState === "visible") {
+    if (over && role === "student" && !told && document.visibilityState === "visible" && r.status === "started") {
       try { sessionStorage.setItem(key, "1"); } catch {}
       navigator.vibrate?.([300, 150, 300]);
       setTimeout(() => alert(`${def.title}の制限時間（${def.minutes}分）になりました。解答用紙の写真を撮って提出しましょう。`), 50);
@@ -1092,17 +1202,31 @@ $("mock-list").addEventListener("click", async (e) => {
   let x;
   if ((x = b("mock-key"))) {
     downloadMockKey(x.dataset.mockKey, x);
+  } else if ((x = b("mock-edit"))) {
+    const r = mocks.find(m => m.id === x.dataset.mockEdit);
+    if (r) startEditMock(r);
   } else if ((x = b("mock-start"))) {
     const r = mocks.find(m => m.id === x.dataset.mockStart), def = mockDef(r?.mockId);
     if (def && confirm(`${def.title}を始めます。制限時間は${def.minutes}分です。\n始めると、アプリを閉じても時間は止まりません。準備はいいですか？`))
       await updateDoc(mockRef(r.id), { status: "started", startedAt: Date.now() });
   } else if ((x = b("mock-submit"))) {
     document.querySelector(`[data-mock-photo-input="${x.dataset.mockSubmit}"]`)?.click();
+  } else if ((x = b("mock-finish"))) {
+    const r = mocks.find(m => m.id === x.dataset.mockFinish);
+    const n = photoCache[r?.id]?.length ?? r?.photoCount ?? 0;
+    if (r && n && confirm(`写真${n}枚で提出します。\n提出すると解答・解説が見られるようになり、もう解き直しはできません。よろしいですか？`))
+      await updateDoc(mockRef(r.id), { status: "submitted", submittedAt: Date.now() });
+  } else if ((x = b("photo-del"))) {
+    const id = x.dataset.photoDel;
+    if (confirm("この写真を消しますか？")) {
+      await deleteDoc(doc(db, "students", currentSid, "mocks", id, "photos", x.dataset.pid));
+      photoCache[id] = (photoCache[id] ?? []).filter(p => p.id !== x.dataset.pid);
+      await updateDoc(mockRef(id), { photoCount: photoCache[id].length });
+    }
   } else if ((x = b("mock-del"))) {
     if (confirm("この模試を削除しますか？（提出写真と採点も消えます）")) {
       const id = x.dataset.mockDel;
-      const ph = await getDocs(collection(db, "students", currentSid, "mocks", id, "photos"));
-      await Promise.all(ph.docs.map(d => deleteDoc(d.ref)));
+      await deleteMockPhotos(id);
       await deleteDoc(mockRef(id));
     }
   } else if ((x = b("mock-photos"))) {
@@ -1118,25 +1242,22 @@ $("mock-list").addEventListener("change", async (e) => {
   const input = e.target.closest("[data-mock-photo-input]");
   if (!input || !input.files.length) return;
   const id = input.dataset.mockPhotoInput;
-  const r = mocks.find(m => m.id === id);
   const files = [...input.files];
-  input.closest("article").querySelector(".actions")?.insertAdjacentHTML("beforeend", `<span class="hint">送信中…</span>`);
+  const status = () => document.querySelector(`[data-upload-status="${id}"]`);
   try {
     // 文字が読めるように大きめに縮小し、1枚ずつ別の記録として保存する（1件1MBの上限を避けるため）
+    let i = 0;
     for (const f of files) {
+      i++;
+      if (status()) status().textContent = `写真を送信中… ${i}/${files.length}`;
       const src = await fileToDataUrl(f, 1600, 0.72);
-      await addDoc(collection(db, "students", currentSid, "mocks", id, "photos"), { src, createdAt: serverTimestamp() });
+      const ref = await addDoc(collection(db, "students", currentSid, "mocks", id, "photos"), { src, createdAt: serverTimestamp() });
+      (photoCache[id] ??= []).push({ id: ref.id, src });
     }
-    const data = { photoCount: (r?.photoCount ?? 0) + files.length };
-    if (r?.status === "started") {
-      if (!confirm(`写真${files.length}枚を送りました。これで提出しますか？（「キャンセル」でまだ写真を追加できます）`)) {
-        await updateDoc(mockRef(id), data); return;
-      }
-      Object.assign(data, { status: "submitted", submittedAt: Date.now() });
-    }
-    await updateDoc(mockRef(id), data);
+    await updateDoc(mockRef(id), { photoCount: photoCache[id].length });
   } catch (err) {
-    alert("写真を送れませんでした（" + (err?.message ?? err) + "）");
+    alert("写真を送れませんでした（" + (err?.message ?? err) + "）。電波のよい場所でもう一度試してください。");
+    loadPhotoThumbs(id, true);
   } finally {
     input.value = "";
   }
