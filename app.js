@@ -1119,7 +1119,8 @@ async function loadPhotoThumbs(id, force = false) {
 }
 // 画面上部のお知らせ：受験中は残り時間、まだ受けていない模試があればその案内
 function renderMockBanner() {
-  const bar = $("mock-banner");
+  const bar = $("mock-banner"), pend = $("mock-pending");
+  pend.hidden = true;
   if (role === "tutor") { bar.hidden = true; return; }
   const running = mocks.find(m => m.status === "started");
   const pending = mocks.filter(m => m.status === "assigned").sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
@@ -1129,15 +1130,18 @@ function renderMockBanner() {
     bar.innerHTML = `<span>受験中：${esc(def?.title ?? "")}</span><span class="banner-timer" data-mock-timer="${esc(running.id)}"></span>
       <button type="button" class="small" ${isWeb(running) ? `data-exam-open="${esc(running.id)}"` : "data-go-mock"}>開く</button>`;
     bar.hidden = false;
-  } else if (pending.length) {
-    const def = mockDef(pending[0].mockId);
-    bar.className = "mock-banner";
-    bar.innerHTML = `<span>まだ受けていない模試が${pending.length}つあります（${esc(def?.title ?? "")}・期限 ${fmtDate(pending[0].dueDate)}）</span>
-      <button type="button" class="small" data-go-mock>模試へ</button>`;
-    bar.hidden = false;
-  } else bar.hidden = true;
+  } else {
+    bar.hidden = true;
+    // まだ受けていない模試は、カレンダーの「宿題の達成度」の下に赤で目立たせて出す
+    if (pending.length) {
+      const def = mockDef(pending[0].mockId);
+      pend.innerHTML = `<span>まだ受けていない模試が${pending.length}つあります（${esc(def?.title ?? "")}・期限 ${fmtDate(pending[0].dueDate)}）</span>
+        <button type="button" class="small" data-go-mock>模試へ</button>`;
+      pend.hidden = false;
+    }
+  }
 }
-$("mock-banner").addEventListener("click", (e) => {
+for (const id of ["mock-banner", "mock-pending"]) $(id).addEventListener("click", (e) => {
   if (e.target.closest("[data-go-mock]")) document.querySelector('.tabs [data-tab="mock"]').click();
   const o = e.target.closest("[data-exam-open]");
   if (o) openExam(o.dataset.examOpen);
@@ -1429,7 +1433,7 @@ function richText(src, labels = []) {
   const blank = /\[([^\]\s]{1,4})\]/g;
   return String(src ?? "").split("$").map((seg, i) => {
     if (i % 2) return renderTex(seg.replace(blank, (m, l) => labels.includes(l) ? `\\boxed{\\text{${l}}}` : m));
-    return esc(seg).replace(/&lt;br&gt;/g, "<br>").replace(/&lt;(\/?)u&gt;/g, "<$1u>")
+    return esc(seg).replace(/\n/g, "<br>").replace(/&lt;br&gt;/g, "<br>").replace(/&lt;(\/?)u&gt;/g, "<$1u>")
       .replace(blank, (m, l) => labels.includes(l) ? `<span class="blank">${esc(l)}</span>` : m);
   }).join("");
 }
