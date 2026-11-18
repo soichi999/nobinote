@@ -20,7 +20,8 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] ?? c));
 const fmtDate = (s) => { if (!s) return ""; const [y, m, d] = s.split("-"); return `${y}/${m}/${d}`; };
-const today = () => new Date().toISOString().slice(0, 10);
+// 端末の日付で「今日」を決める（toISOString は世界標準時なので、日本の朝9時前に前日になってしまう）
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const show = (v) => ["gate-view", "pass-view", "app-view"].forEach(id => { $(id).hidden = id !== v; });
 // フォームに変更が入るまで保存/追加ボタンをグレーのままにし、変更が入ったら青くする
 function wireDirtySave(formId, btnId) {
@@ -92,7 +93,7 @@ function enter(r) {
   const saved = store.get(r === "tutor" ? TUTOR_KEY : FAMILY_KEY);
   if (saved && verify(r, saved)) return start(r, saved);
   pendingRole = r;
-  $("pass-title").textContent = r === "tutor" ? "チューター" : "学生・保護者";
+  $("pass-title").textContent = r === "tutor" ? "先生" : "学生・保護者";
   $("pass-lead").textContent = "パスコードを入力してください";
   $("pass-input").value = ""; $("pass-error").textContent = "";
   show("pass-view");
@@ -102,7 +103,7 @@ function verify(r, code) {
   if (r === "tutor") return code === tutorPass;
   return students.some(s => s.studentPasscode === code || s.parentPasscode === code);
 }
-const ROLE_LABEL = { tutor: "チューター", student: "生徒", parent: "保護者" };
+const ROLE_LABEL = { tutor: "先生", student: "生徒", parent: "保護者" };
 function start(r, code) {
   if (r === "tutor") {
     role = "tutor";
@@ -115,6 +116,7 @@ function start(r, code) {
   }
   store.set(r === "tutor" ? TUTOR_KEY : FAMILY_KEY, code);
   $("whoami").textContent = ROLE_LABEL[role];
+  $("account-who").textContent = `${ROLE_LABEL[role]}としてログインしています。`;
   document.querySelectorAll(".tutor-only").forEach(el => { el.hidden = role !== "tutor"; });
   document.querySelectorAll(".student-hide").forEach(el => { el.hidden = role === "student"; });
   document.querySelectorAll(".parent-hide").forEach(el => { el.hidden = role === "parent"; });
@@ -174,6 +176,8 @@ document.querySelectorAll(".tabs button").forEach(btn => {
     document.querySelectorAll(".tab").forEach(s => { s.hidden = s.id !== "tab-" + btn.dataset.tab; });
     btn.scrollIntoView({ block: "nearest", inline: "nearest" });
     if (btn.dataset.tab === "calendar") scrollTodayIntoView("calendar");
+    if (btn.dataset.tab === "messages") { markMessagesRead(messages); }
+    updateMsgBadge();
   });
 });
 
@@ -206,6 +210,7 @@ function watchAll() {
     if (role === "student" && !$("vocab-view").hidden) return;
     vocab = data;
     renderVocabCard();
+    renderTodayCard();
   }));
   sub("mocks", "dueDate", "desc", rows => { mocks = rows; renderMocks(); renderCalendars(); renderCalendarFeed(); });
   sub("schedule", "date", "asc", rows => { schedule = rows; renderHomework(); renderCalendarFeed(); renderCalendars(); });
@@ -245,7 +250,7 @@ function hwBadge(r) {
 function startOfWeekISO() {
   const d = new Date();
   d.setDate(d.getDate() - d.getDay());
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 function homeworkForAchievement() {
   const weekStart = startOfWeekISO();
@@ -262,7 +267,7 @@ function renderHomework() {
   const doneCount = rows.filter(r => hwProgress(r) >= 100).length;
   drawRing("hw-ring", avgPct);
   $("hw-ring-label").textContent = avgPct + "%";
-  $("hw-ring-sub").textContent = rows.length ? `${doneCount} / ${rows.length} 件 達成（平均 ${avgPct}%）` : "まだ宿題がありません。";
+  $("hw-ring-sub").textContent = rows.length ? `${rows.length}件中 ${doneCount}件 できた` : "まだ宿題がありません。";
 
 }
 function miniRingSVG(pct) {
@@ -305,6 +310,7 @@ function hwPhotoList(r) {
   if (r.photo) list.unshift(r.photo);
   return list;
 }
+const ICON_CLIP = `<svg viewBox="0 0 24 24" class="ic-inline" aria-hidden="true"><path d="M8 12.5l6.2-6.2a3 3 0 0 1 4.3 4.2l-7.8 7.8a5 5 0 0 1-7.1-7.1l7-7"/></svg>`;
 function homeworkItemHTML(r) {
   return `
     <article class="item">
@@ -321,20 +327,23 @@ function homeworkItemHTML(r) {
         }).join("")}</div>
       ` : role === "parent" || role === "tutor" ? "" : `
         <div class="actions">
-          <button class="small outline" data-toggle="${esc(r.id)}" data-done="${r.done ? 1 : 0}">
+          <button class="${r.done ? "small outline" : "primary"}" data-toggle="${esc(r.id)}" data-done="${r.done ? 1 : 0}">
             ${r.done ? "未完了に戻す" : "完了にする"}</button>
         </div>
       `}
-      ${hwPdfList(r).length ? `<div class="pdf-list">${hwPdfList(r).map((p, i) =>
-        `<p><a href="${p.url}" class="zoom-link pdf-open-link">📎 ${esc(p.name || `添付PDF${i + 1}`)}</a></p>`
-      ).join("")}</div>` : ""}
-      ${hwPhotoList(r).length ? `<div class="hw-photo-grid">${hwPhotoList(r).map(src => `<img class="hw-photo" src="${src}" alt="提出写真">`).join("")}</div>` : ""}
-      <div class="actions">
-        <button class="small outline" data-photo="${esc(r.id)}">写真を添付</button>
-        <button class="small outline" data-ask="${esc(r.id)}">質問する</button>
-        ${role === "tutor" ? `<button class="small outline" data-hw-edit="${esc(r.id)}">編集</button>
-        <button class="small outline danger" data-del="${esc(r.id)}">削除</button>` : ""}
-      </div>
+      ${role === "parent" && !hwPdfList(r).length && !hwPhotoList(r).length ? "" : `<details class="more">
+        <summary>くわしく${hwPdfList(r).length ? `（添付 ${hwPdfList(r).length}）` : ""}${hwPhotoList(r).length ? `（写真 ${hwPhotoList(r).length}）` : ""}</summary>
+        ${hwPdfList(r).length ? `<div class="pdf-list">${hwPdfList(r).map((p, i) =>
+          `<p><a href="${p.url}" class="zoom-link pdf-open-link">${ICON_CLIP}${esc(p.name || `添付PDF${i + 1}`)}</a></p>`
+        ).join("")}</div>` : ""}
+        ${hwPhotoList(r).length ? `<div class="hw-photo-grid">${hwPhotoList(r).map(src => `<img class="hw-photo" src="${src}" alt="提出写真">`).join("")}</div>` : ""}
+        <div class="actions">
+          ${role !== "parent" ? `<button class="small outline" data-photo="${esc(r.id)}">写真を添付</button>` : ""}
+          ${role === "student" ? `<button class="small outline" data-ask="${esc(r.id)}">先生に質問する</button>` : ""}
+          ${role === "tutor" ? `<button class="small outline" data-hw-edit="${esc(r.id)}">編集</button>
+          <button class="small outline danger" data-del="${esc(r.id)}">削除</button>` : ""}
+        </div>
+      </details>`}
       <input type="file" accept="image/*" multiple class="hidden-file" data-photo-input="${esc(r.id)}">
     </article>`;
 }
@@ -575,6 +584,53 @@ $("plan-form").addEventListener("submit", async (e) => {
   $("plan-modal").hidden = true;
 });
 
+/* ---------- ホームの「今日やること」：今日の指導・期限が近い宿題・今日の英単語・模試 ---------- */
+function renderTodayCard() {
+  const box = $("today-card");
+  if (!box) return;
+  if (!currentSid) { box.hidden = true; return; }
+  const t = today(), tmr = addDays(t, 1);
+  const rows = [];
+  schedule.filter(s => s.date === t).forEach(s => rows.push(`<li class="td-row lesson">
+      <span class="td-dot"></span><div class="td-main"><b>今日の指導 ${esc(s.time || "")}</b>${s.memo ? `<small>${esc(s.memo)}</small>` : ""}</div>
+      ${s.zoomUrl ? `<a class="zoom-btn" href="${esc(s.zoomUrl)}" target="_blank" rel="noopener">ZOOM</a>` : ""}</li>`));
+  const lateHw = homework.filter(h => h.dueDate && h.dueDate < t && h.dueDate >= startOfWeekISO() && hwProgress(h) < 100);
+  if (lateHw.length) rows.push(`<li class="td-row due late"><span class="td-dot"></span>
+      <div class="td-main"><b>期限切れの宿題 ${lateHw.length}件</b><small>${lateHw.map(h => esc(h.title)).slice(0, 2).join("、")}${lateHw.length > 2 ? " ほか" : ""}</small></div>
+      <button type="button" class="small outline" data-td-late>見る</button></li>`);
+  homework.filter(h => h.dueDate && h.dueDate >= t && h.dueDate <= tmr && hwProgress(h) < 100)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate)).forEach(h => {
+      const late = h.dueDate < t;
+      rows.push(`<li class="td-row due${late ? " late" : ""}"><span class="td-dot"></span>
+        <div class="td-main"><b>${esc(h.title)}</b><small>${late ? "期限切れ" : h.dueDate === t ? "今日まで" : "明日まで"}・宿題${h.type === "count" ? `（${(h.clearedCounts ?? []).length}/${hwCounts(h).length}）` : ""}</small></div>
+        <button type="button" class="small outline" data-td-hw="${esc(h.id)}">見る</button></li>`);
+    });
+  mocks.filter(m => m.status === "started" || (m.status === "assigned" && m.dueDate && m.dueDate <= addDays(t, 2))).forEach(m => {
+    const late = m.status === "assigned" && m.dueDate < t;
+    rows.push(`<li class="td-row mock${late ? " late" : ""}"><span class="td-dot"></span>
+      <div class="td-main"><b>${esc(mockDef(m.mockId)?.title ?? "模試")}</b><small>${m.status === "started" ? "受験中" : late ? "期限切れ" : `期限 ${fmtMD(m.dueDate)}`}・模試</small></div>
+      <button type="button" class="small outline" data-feed-mock="${esc(m.id)}">開く</button></li>`);
+  });
+  const vdone = vocab.days?.[localToday()]?.done;
+  if (role === "student") rows.push(`<li class="td-row vocab${vdone ? " done" : ""}"><span class="td-dot"></span>
+      <div class="td-main"><b>今日の英単語</b><small>${vdone ? "完了しました" : "10問"}</small></div>
+      ${vdone ? "" : `<button type="button" class="small primary" data-vocab-open>はじめる</button>`}</li>`);
+  box.hidden = false;
+  box.innerHTML = `<p class="td-title">今日やること<span>${fmtDateLong(t)}</span></p>
+    ${rows.length ? `<ul class="td-list">${rows.join("")}</ul>` : `<p class="td-empty">今日やることはありません。</p>`}`;
+}
+$("today-card")?.addEventListener("click", (e) => {
+  if (e.target.closest("[data-vocab-open]")) return openVocab();
+  const fm = e.target.closest("[data-feed-mock]");
+  if (fm) return handleHomeworkFeedClick(e);
+  if (e.target.closest("[data-td-late]")) { $("hw-ring-card").click(); return; }
+  const hw = e.target.closest("[data-td-hw]");
+  if (hw) {
+    const h = homework.find(x => x.id === hw.dataset.tdHw);
+    if (h) openDayModal(h.dueDate);
+  }
+});
+
 /* ---------- カレンダー下：日付別フィード（宿題・指導予定・指導記録・予定を統合、新しい日付が上） ---------- */
 function renderCalendarFeed() {
   const monthPrefix = `${calState.main.getFullYear()}-${String(calState.main.getMonth() + 1).padStart(2, "0")}`;
@@ -585,18 +641,33 @@ function renderCalendarFeed() {
   schedule.forEach(s => { if (s.date?.startsWith(monthPrefix)) ensure(s.date).sched.push(s); });
   plans.forEach(p => { if (p.date?.startsWith(monthPrefix)) ensure(p.date).plan.push(p); });
   mocks.forEach(m => { if (m.dueDate?.startsWith(monthPrefix)) ensure(m.dueDate).mock.push(m); });
-  const dates = Object.keys(dateMap).sort((a, b) => b.localeCompare(a));
-  $("calendar-feed").innerHTML = dates.length ? dates.map(date => {
+  // 今月を見ているときは、月をまたいだすぐ先（7日分）の予定も出す
+  if (today().startsWith(monthPrefix)) {
+    const lim = addDays(today(), 7), inNext = (d) => d && !d.startsWith(monthPrefix) && d > today() && d <= lim;
+    homework.forEach(h => { if (inNext(h.dueDate)) ensure(h.dueDate).hw.push(h); });
+    schedule.forEach(x => { if (inNext(x.date)) ensure(x.date).sched.push(x); });
+    plans.forEach(x => { if (inNext(x.date)) ensure(x.date).plan.push(x); });
+    mocks.forEach(m => { if (inNext(m.dueDate)) ensure(m.dueDate).mock.push(m); });
+  }
+  const t = today();
+  const upcoming = Object.keys(dateMap).filter(d => d >= t).sort();
+  const past = Object.keys(dateMap).filter(d => d < t).sort((a, b) => b.localeCompare(a));
+  const group = (date) => {
     const { hw, lesson, sched, plan, mock } = dateMap[date];
     return `<div class="feed-date-group">
-      <h4 class="feed-date-heading">${fmtDateLong(date)}</h4>
+      <h4 class="feed-date-heading">${date === t ? "今日・" : ""}${fmtDateLong(date)}</h4>
       ${mock.map(mockFeedItemHTML).join("")}
       ${sched.map(scheduleItemHTML).join("")}
       ${lesson.map(lessonItemHTML).join("")}
       ${hw.map(homeworkItemHTML).join("")}
       ${plan.map(planItemHTML).join("")}
     </div>`;
-  }).join("") : `<div class="empty">この月の予定・記録はまだありません。</div>`;
+  };
+  $("calendar-feed").innerHTML = (upcoming.length || past.length)
+    ? `${upcoming.length ? `<p class="feed-section">これからの予定</p>${upcoming.map(group).join("")}` : ""}
+       ${past.length ? `<details class="feed-past"><summary>これまでの記録（${past.length}日分）</summary>${past.map(group).join("")}</details>` : ""}`
+    : `<div class="empty">この月の予定・記録はまだありません。</div>`;
+  renderTodayCard();
 }
 // data: URLへの直接ナビゲーションはブラウザ（特にChrome）にブロックされることがあるため、
 // 一度Blobに変換してからblob: URLで開く
@@ -850,7 +921,7 @@ function openDayModal(iso) {
       </div>`).join("")}
     </div>`);
   }
-  if (role !== "parent" && dayHomework.length) {
+  if (dayHomework.length) {
     sections.push(`<div class="modal-section"><h4 class="modal-sub">宿題期限</h4>
       ${dayHomework.map(h => `<details class="modal-hw-item">
         <summary>${subjectChip(h.subject)}<span class="modal-hw-title">${esc(h.title)}</span>${hwBadge(h)}</summary>
@@ -1057,7 +1128,7 @@ function donutHTML(def, scores, big) {
   let off = 0;
   const seg = (n, color) => {
     const len = c * n / total;
-    const out = n ? `<circle cx="60" cy="60" r="${r}" fill="none" stroke="${color}" stroke-width="16"
+    const out = n ? `<circle cx="60" cy="60" r="${r}" fill="none" style="stroke:${color}" stroke-width="16"
       stroke-dasharray="${len} ${c - len}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"/>` : "";
     off += len; return out;
   };
@@ -1065,7 +1136,7 @@ function donutHTML(def, scores, big) {
   return `<div class="donut-wrap${big ? " big" : ""}">
     <svg viewBox="0 0 120 120" class="donut" role="img" aria-label="正答率 ${p}%">
       <circle cx="60" cy="60" r="${r}" fill="none" stroke="var(--line)" stroke-width="16"/>
-      ${seg(ok, "#2f9e74")}${seg(part, "#e6a23c")}${seg(ng, "#d9534f")}
+      ${seg(ok, "var(--ok-mid)")}${seg(part, "var(--warn-mid)")}${seg(ng, "var(--err-mid)")}
       <text x="60" y="58" text-anchor="middle" font-size="22" font-weight="800" fill="var(--navy)">${p}%</text>
       <text x="60" y="76" text-anchor="middle" font-size="10" fill="var(--muted)">正答率</text>
     </svg>
@@ -1102,16 +1173,15 @@ function mockCardHTML(r) {
       <a class="pdf-btn" href="${def.q}" download="${esc(def.title)}_問題用紙.pdf">問題用紙</a>
       ${web ? "" : `<a class="pdf-btn" href="${def.a}" download="${esc(def.title)}_解答用紙.pdf">解答用紙</a>`}
       ${canKey ? `<button type="button" class="pdf-btn key" data-mock-key="${esc(def.id)}">解答・解説</button>`
-        : `<span class="pdf-btn locked" title="提出すると見られます">解答・解説（提出後）</span>`}
+        : `<span class="pdf-locked">解答・解説は提出すると見られます</span>`}
     </div>`;
   let body = "";
   if (web) {
     body = webCardBody(r, def, st, stats, pdfs);
   } else if (st === "assigned") {
-    body = `${pdfs}
-      <p class="mock-note">① 問題用紙と解答用紙をダウンロードして印刷します（印刷できないときはノートに解答してOK）。<br>
-        ② 準備ができたら「解き始める」を押します。途中の式や考え方も書きましょう。</p>
-      ${role === "student" ? `<div class="actions"><button class="primary big-action" data-mock-start="${esc(r.id)}">解き始める（${def.minutes}分）</button></div>` : ""}`;
+    body = `${role === "student" ? `<button class="primary block-btn" data-mock-start="${esc(r.id)}">解き始める（${def.minutes}分）</button>` : ""}
+      <p class="mock-note">① 下の問題用紙と解答用紙を印刷します（印刷できないときはノートに解答してOK）。② 準備ができたら「解き始める」を押します。途中の式や考え方も書きましょう。</p>
+      ${pdfs}`;
   } else if (st === "started") {
     const end = new Date(r.startedAt + def.minutes * 60000);
     body = `${pdfs}
@@ -1153,11 +1223,11 @@ function mockCardHTML(r) {
     ${tutorActions}
   </article>`;
 }
-const STEPS = ["印刷", "解く", "写真で提出", "結果"];
+const STEPS = ["印刷", "解く", "写真提出", "採点", "結果"];
 const WEB_STEPS = ["解き始める", "マークする", "提出", "結果"];
 function stepperHTML(st, web) {
   const cur = web ? ({ assigned: 0, started: 1, submitted: 3, grading: 3, graded: 4 }[st] ?? 0)
-    : ({ assigned: 0, started: 1, submitted: 3, grading: 3, graded: 4 }[st] ?? 0);
+    : ({ assigned: 0, started: 1, submitted: 3, grading: 3, graded: 5 }[st] ?? 0);
   return `<ol class="stepper">${(web ? WEB_STEPS : STEPS).map((t, i) => `<li class="${i < cur ? "done" : i === cur ? "now" : ""}"><span>${i + 1}</span>${t}</li>`).join("")}</ol>`;
 }
 // 生徒：撮った写真を確かめてから提出する
@@ -1195,7 +1265,9 @@ function renderMockBanner() {
   pend.hidden = true;
   if (role === "tutor") { bar.hidden = true; return; }
   const running = mocks.find(m => m.status === "started");
-  const pending = mocks.filter(m => m.status === "assigned").sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
+  const soon = addDays(today(), 2);
+  const pending = mocks.filter(m => m.status === "assigned" && !(m.dueDate && m.dueDate <= soon))   // 期限が近いものは「今日やること」に出す
+    .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
   if (running && role === "student") {
     const def = mockDef(running.mockId);
     bar.className = "mock-banner running";
@@ -1277,6 +1349,7 @@ function tickMockTimers() {
 }
 const autoSubmitting = new Set();
 document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && role) { renderCalendarFeed(); renderCalendars(); renderVocabCard(); }
   if (document.visibilityState === "visible") { tickMockTimers(); updateWakeLock(mocks.some(m => m.status === "started") && role === "student"); }
 });
 // 受験中は画面が自動で消えないようにする（対応している端末だけ）
@@ -1333,7 +1406,7 @@ $("mock-list").addEventListener("click", async (e) => {
     if (r) startEditMock(r);
   } else if ((x = b("mock-start"))) {
     const r = mocks.find(m => m.id === x.dataset.mockStart), def = mockDef(r?.mockId);
-    if (def && confirm(`${def.title}を始めます。制限時間は${def.minutes}分です。\n始めると、アプリを閉じても時間は止まりません。${isWeb(r) ? "時間になると、その時点のマークで自動的に提出されます。" : ""}準備はいいですか？`)) {
+    if (def && confirm(`${def.title}を始めます。制限時間は${def.minutes}分です。\n始めると、アプリを閉じても時間は止まりません。${isWeb(r) ? "時間になると、その時点のマークで自動的に提出されます。" : "\n問題用紙と解答用紙は印刷しましたか？（ノートに解答してもOK）"}\n準備はいいですか？`)) {
       await updateDoc(mockRef(r.id), { status: "started", startedAt: Date.now() });
       if (isWeb(r)) openExam(r.id);
     }
@@ -1943,18 +2016,17 @@ function webCardBody(r, def, st, stats, pdfs) {
   const answers = r.answers ?? {};
   const answered = Object.values(answers).reduce((n, m) => n + Object.values(m ?? {}).filter(v => v !== "").length, 0);
   if (st === "assigned") {
-    return `<p class="mock-note">画面でマークして解くテストです（${def.items.length}問・${def.minutes}分）。提出するとすぐに採点され、解答・解説も見られます。<br>
-      紙で問題を見たいときは、問題用紙をダウンロードして印刷できます（答えは画面でマーク）。</p>
-      ${pdfs}
-      ${role === "student" ? `<div class="actions"><button class="primary big-action" data-mock-start="${esc(r.id)}">解き始める（${def.minutes}分）</button></div>` : ""}`;
+    return `${role === "student" ? `<button class="primary block-btn" data-mock-start="${esc(r.id)}">解き始める（${def.minutes}分）</button>` : ""}
+      <p class="mock-note">画面でマークして解くテストです（${def.items.length}問・${def.minutes}分）。提出するとすぐに採点され、解答・解説も見られます。紙で問題を見たいときは、下の問題用紙を印刷できます。</p>
+      ${pdfs}`;
   }
   if (st === "started") {
     const end = new Date(r.startedAt + def.minutes * 60000);
     return `<p class="mock-timer-line" data-mock-timer="${esc(r.id)}">${mockTimeLeft(r, def)}</p>
+      ${role === "student" ? `<button class="primary block-btn" data-exam-open="${esc(r.id)}">解答画面を開く</button>`
+        : `<p class="mock-note">生徒が受験中です（マーク済み ${answered}か所）。</p>`}
       <p class="mock-note">終了予定 ${end.getHours()}:${String(end.getMinutes()).padStart(2, "0")}。アプリを閉じても時間は進み、時間になるとその時点のマークで自動提出されます。</p>
-      ${pdfs}
-      ${role === "student" ? `<div class="actions"><button class="primary big-action" data-exam-open="${esc(r.id)}">解答画面を開く</button></div>`
-        : `<p class="mock-note">生徒が受験中です（マーク済み ${answered}か所）。</p>`}`;
+      ${pdfs}`;
   }
   if (st === "submitted" || st === "grading") {
     return `${pdfs}<p class="mock-note">提出済み。自動採点をしています…</p>
@@ -2052,7 +2124,7 @@ function renderVocabCard() {
   let btn = "";
   if (role === "student") {
     btn = day?.done ? `<button type="button" class="outline vc-btn" data-vocab-open>今日の単語を見直す</button>`
-      : `<button type="button" class="primary vc-btn" data-vocab-open>${state === "review" ? "復習を続ける" : state === "doing" ? "続きから" : "はじめる"}</button>`;
+      : state === "todo" ? "" : `<button type="button" class="primary vc-btn" data-vocab-open>${state === "review" ? "復習を続ける" : "続きから"}</button>`;
   } else if (role === "tutor") btn = `<button type="button" class="outline vc-btn" data-vocab-trial>お試しで解く（記録されません）</button>`;
   card.innerHTML = `
     <div class="vc-top">
@@ -2114,11 +2186,35 @@ function highlightWord(sentence, word) {
 }
 // 英語の読み上げ（端末の音声。使えない端末ではボタンを出さない）
 const canSpeak = "speechSynthesis" in window;
+// 端末にある英語の声のうち、なめらかな声を優先して選ぶ（がさがさした簡易音声を避ける）
+let bestVoice = null;
+function pickVoice() {
+  const vs = speechSynthesis.getVoices().filter(v => /^en[-_]/i.test(v.lang));
+  if (!vs.length) return null;
+  const score = (v) => {
+    const n = v.name;
+    let p = 0;
+    if (/premium|enhanced|neural|natural/i.test(n)) p += 50;          // 高品質版
+    if (/Google US English|Samantha|Ava|Allison|Susan|Zoe|Nicky|Evan|Tom|Karen|Daniel|Serena|Moira/i.test(n)) p += 20;
+    if (/en[-_]US/i.test(v.lang)) p += 10;
+    if (v.localService) p += 3;
+    if (/compact|eloquence|Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Wobble|Whisper|Zarvox|Trinoids|Organ|Junior|Ralph|Fred|Kathy|Jester|Superstar|Grandma|Grandpa|Flo|Reed|Rocko|Sandy|Shelley|Eddy|Good News/i.test(n)) p -= 60;  // 機械的・おもしろ系の声
+    if (/[^\x00-\x7F]/.test(n.replace(/\s*\(.*\)$/, ""))) p -= 60;   // 「ささやき声」など日本語名の効果音系の声
+    return p;
+  };
+  return vs.sort((a, b) => score(b) - score(a))[0];
+}
+if (canSpeak) {
+  bestVoice = pickVoice();
+  speechSynthesis.addEventListener?.("voiceschanged", () => { bestVoice = pickVoice(); });
+}
 function speak(text) {
   if (!canSpeak) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = "en-US"; u.rate = 0.9;
+  bestVoice ??= pickVoice();
+  if (bestVoice) u.voice = bestVoice;
+  u.lang = bestVoice?.lang ?? "en-US"; u.rate = 0.88; u.pitch = 1;
   speechSynthesis.speak(u);
 }
 // 絵文字は使わず、線の図形（SVG）で表す
@@ -2133,29 +2229,49 @@ function vocabQuestionHTML(id, answered) {
   const v = VOCAB_BY_ID[id];
   if (!vocabChoices || vocabChoices.id !== id) vocabChoices = { id, list: makeChoices(id) };
   const list = vocabChoices.list;
+  if (answered) return vocabAnswerHTML(v, answered);
   return `<div class="vq">
       <p class="vq-pos">${esc(POS_NAME[v[1]] ?? v[1])}</p>
       <div class="vq-wordline"><p class="vq-word">${esc(v[0])}</p>${speakBtn(v[0], "発音")}</div>
       <p class="vq-ask">この単語の意味として正しいものは？</p>
-      <div class="vq-choices">${list.map((c, i) => {
-        const cls = ["vq-choice", answered && c === v[2] ? "correct" : "", answered && answered.pick === c && c !== v[2] ? "wrong" : ""].filter(Boolean).join(" ");
-        return `<button type="button" class="${cls}" data-vq-pick="${i}" ${answered ? "disabled" : ""}><span class="cnum">${i + 1}</span>${esc(c)}</button>`;
-      }).join("")}</div>
-      ${answered ? `<div class="vx">
-          <div class="vx-result ${answered.ok ? "ok" : "ng"}">${answered.ok ? ICON_CHECK : ICON_CROSS}<span>${answered.ok ? "正解" : "不正解"}</span>
-            ${answered.ok ? "" : `<small>正しい意味は「${esc(v[2])}」</small>`}</div>
-          <div class="vx-main">
-            <p class="vx-word">${esc(v[0])}<span class="vx-pos">${esc(POS_NAME[v[1]] ?? v[1])}</span></p>
-            <p class="vx-mean">${esc(v[2])}</p>
-          </div>
-          <section class="vx-sec">
-            <div class="vx-h"><span>例文</span>${speakBtn(v[3], "例文を聞く")}</div>
-            <p class="vq-ex">${highlightWord(v[3], v[0])}</p>
-            <p class="vq-exj">${esc(v[4])}</p>
-          </section>
-          ${v[6] ? `<section class="vx-sec tip"><div class="vx-h"><span>覚え方のポイント</span></div><ul class="vx-tips">${tipList(v[6])}</ul></section>` : ""}
-        </div>` : ""}
+      <div class="vq-choices">${list.map((c, i) =>
+        `<button type="button" class="vq-choice" data-vq-pick="${i}"><span class="cnum">${i + 1}</span>${esc(c)}</button>`).join("")}</div>
     </div>`;
+}
+// 解答・解説の画面（問題とは別の画面）
+function vocabAnswerHTML(v, answered) {
+  return `<div class="vq vx-page">
+      <p class="vx-pagetitle">解答・解説</p>
+      <div class="vx-result ${answered.ok ? "ok" : "ng"}">${answered.ok ? ICON_CIRCLE : ICON_CROSS}<span>${answered.ok ? "正解" : "不正解"}</span></div>
+      <dl class="vx-answers">
+        <div><dt>あなたの答え</dt><dd class="${answered.ok ? "ok" : "ng"}">${esc(answered.pick)}</dd></div>
+        ${answered.ok ? "" : `<div><dt>正しい意味</dt><dd class="ok">${esc(v[2])}</dd></div>`}
+      </dl>
+      <div class="vx-main">
+        <p class="vx-word">${esc(v[0])}<span class="vx-pos">${esc(POS_NAME[v[1]] ?? v[1])}</span>${speakBtn(v[0], "発音")}</p>
+        <p class="vx-mean">${esc(v[2])}</p>
+      </div>
+      <section class="vx-sec">
+        <div class="vx-h"><span>例文</span>${speakBtn(v[3], "例文を聞く")}</div>
+        <p class="vq-ex">${highlightWord(v[3], v[0])}</p>
+        <p class="vq-exj">${esc(v[4])}</p>
+      </section>
+      ${v[6] ? `<section class="vx-sec tip"><div class="vx-h"><span>覚え方のポイント</span></div><ul class="vx-tips">${tipList(v[6])}</ul></section>` : ""}
+    </div>`;
+}
+// 正解は ○、不正解は ✕ を、線を描くアニメーションで大きく見せる
+const ICON_CIRCLE = `<svg viewBox="0 0 24 24" class="ic-check" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/></svg>`;
+function showMark(ok) {
+  return new Promise(resolve => {
+    const el = document.createElement("div");
+    el.className = "mark-pop " + (ok ? "ok" : "ng");
+    el.innerHTML = ok
+      ? `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="36"/></svg><p>正解</p>`
+      : `<svg viewBox="0 0 100 100"><path d="M26 26 L74 74"/><path d="M74 26 L26 74" class="second"/></svg><p>不正解</p>`;
+    $("vocab-view").appendChild(el);
+    setTimeout(() => { el.classList.add("out"); }, 750);
+    setTimeout(() => { el.remove(); resolve(); }, 1000);
+  });
 }
 function renderVocab() {
   const td = vocab.today;
@@ -2228,9 +2344,14 @@ $("vocab-body").addEventListener("click", async (e) => {
       vocab.words[id] = w;
     }
     navigator.vibrate?.(ok ? 30 : [60, 40, 60]);
-    renderVocab();
-    requestAnimationFrame(() => $("vocab-body").querySelector(".exp-box")?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+    $("vocab-body").querySelectorAll("[data-vq-pick]").forEach(b => {
+      b.disabled = true;
+      const c = vocabChoices.list[Number(b.dataset.vqPick)];
+      if (c === v[2]) b.classList.add("correct"); else if (b === pick) b.classList.add("wrong");
+    });
     saveVocab();
+    await showMark(ok);
+    renderVocab();
     return;
   }
   if (e.target.closest("[data-vq-next]") && td.answered) {
@@ -2330,26 +2451,28 @@ $("test-list").addEventListener("click", async (e) => {
   }
 });
 function drawChart(rows) {
+  $("chart-legend").innerHTML = "";
   if (rows.length < 2) { $("chart").innerHTML = `<p class="hint">2件以上登録すると推移グラフが表示されます。</p>`; return; }
-  const W = 640, H = 240, P = 36;
+  // スマホの幅（約340px）で、文字が実寸で12px以上になる大きさで描く
+  const W = 340, H = 220, P = 30, PT = 12;
   const bySubject = {};
   rows.forEach(r => (bySubject[r.subject] ??= []).push(r));
-  const xs = (i, n) => P + (W - P * 2) * (n === 1 ? .5 : i / (n - 1));
-  const ys = (p) => H - P - (H - P * 2) * (p / 100);
+  const xs = (i, n) => P + (W - P - 12) * (n === 1 ? .5 : i / (n - 1));
+  const ys = (p) => H - 24 - (H - 24 - PT) * (p / 100);
   let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="得点率の推移">`;
-  [0, 25, 50, 75, 100].forEach(p => {
-    svg += `<line x1="${P}" y1="${ys(p)}" x2="${W - P}" y2="${ys(p)}" stroke="#e2eaf5"/>`
-        +  `<text x="${P - 6}" y="${ys(p) + 4}" font-size="10" fill="#66748c" text-anchor="end">${p}</text>`;
+  [0, 50, 100].forEach(p => {
+    svg += `<line x1="${P}" y1="${ys(p)}" x2="${W - 8}" y2="${ys(p)}" style="stroke:var(--line)"/>`
+        +  `<text x="${P - 5}" y="${ys(p) + 4}" font-size="12" style="fill:var(--muted)" text-anchor="end">${p}</text>`;
   });
-  Object.entries(bySubject).forEach(([subject, list], si) => {
+  Object.entries(bySubject).forEach(([subject, list]) => {
     const c = subjectColor(subject).line;
     const pts = list.map((r, i) => [xs(i, list.length), ys(r.score / r.max * 100)]);
-    svg += `<polyline fill="none" stroke="${c}" stroke-width="2.5" stroke-linejoin="round"
-      points="${pts.map(p => p.join(",")).join(" ")}"/>`;
-    pts.forEach(([x, y]) => svg += `<circle cx="${x}" cy="${y}" r="4" fill="#fff" stroke="${c}" stroke-width="2.5"/>`);
-    svg += `<text x="${P}" y="${16 + si * 15}" font-size="11" fill="${c}" font-weight="700">■ ${esc(subjectLabel(subject))}</text>`;
+    svg += `<polyline fill="none" stroke="${c}" stroke-width="3" stroke-linejoin="round" points="${pts.map(p => p.join(",")).join(" ")}"/>`;
+    pts.forEach(([x, y]) => svg += `<circle cx="${x}" cy="${y}" r="5" fill="#fff" stroke="${c}" stroke-width="3"/>`);
   });
   $("chart").innerHTML = svg + `</svg>`;
+  $("chart-legend").innerHTML = Object.keys(bySubject).map(sub =>
+    `<span><i style="background:${subjectColor(sub).line}"></i>${esc(subjectLabel(sub))}</span>`).join("");
 }
 $("test-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -2405,7 +2528,9 @@ function renderMessages(rows) {
       }).join("")}
     </div>`).join("") : `<div class="empty">まだメッセージはありません。</div>`;
   $("msg-list").lastElementChild?.scrollIntoView({ block: "nearest" });
-  markMessagesRead(rows);
+  // 連絡タブを見ているときだけ既読にし、見ていないときはタブに未読の数を出す
+  if (!$("tab-messages").hidden) markMessagesRead(rows);
+  updateMsgBadge();
 }
 $("msg-list").addEventListener("click", async (e) => {
   const d = e.target.closest("[data-msg-del]");
@@ -2440,11 +2565,20 @@ document.querySelectorAll(".quick-reply-btn").forEach(btn => {
     $("m-reply-preview").hidden = true;
   });
 });
+function updateMsgBadge() {
+  const n = messages.filter(m => m.authorRole !== role && !m.readBy?.[role]).length;
+  const b = $("msg-badge");
+  if (!b) return;
+  b.hidden = !n || !$("tab-messages").hidden;
+  b.textContent = n > 9 ? "9+" : String(n);
+}
 function markMessagesRead(rows) {
   if (!role) return;
   rows.filter(r => r.authorRole !== role && !(r.readBy ?? {})[role]).forEach(r => {
+    r.readBy = { ...(r.readBy ?? {}), [role]: true };   // 画面の未読の数はすぐに消す
     updateDoc(doc(db, "students", currentSid, "messages", r.id), { [`readBy.${role}`]: true }).catch(() => {});
   });
+  updateMsgBadge();
 }
 $("msg-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -2626,10 +2760,13 @@ if ("serviceWorker" in navigator) {
     location.reload();
   });
 }
+const NOTIF_DISMISS_KEY = "tnote.notifDismissed";
 function updateNotifBar() {
   const bar = $("notif-bar");
+  const settingsBtn = $("settings-notif");
+  if (settingsBtn) settingsBtn.hidden = !("Notification" in window) || Notification.permission === "granted";
   if (!("Notification" in window) || !role) { bar.hidden = true; return; }
-  if (Notification.permission === "granted") { bar.hidden = true; return; }
+  if (Notification.permission === "granted" || store.get(NOTIF_DISMISS_KEY) === "1") { bar.hidden = true; return; }
   if (isIOS && !standalone) {
     $("notif-text").textContent = "通知を使うには、共有ボタンから「ホーム画面に追加」してこのアプリを開いてください。";
     $("notif-enable").hidden = true;
@@ -2639,6 +2776,9 @@ function updateNotifBar() {
   }
   bar.hidden = false;
 }
+$("notif-dismiss")?.addEventListener("click", () => { store.set(NOTIF_DISMISS_KEY, "1"); $("notif-bar").hidden = true; });
+$("settings-notif")?.addEventListener("click", () => { store.del(NOTIF_DISMISS_KEY); $("notif-enable").click(); });
+$("logout-settings")?.addEventListener("click", () => { if (confirm("ログアウトしますか？")) $("logout").click(); });
 $("notif-enable").addEventListener("click", async () => {
   try {
     if (await Notification.requestPermission() !== "granted") { updateNotifBar(); return; }
