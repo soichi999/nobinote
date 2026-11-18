@@ -71,6 +71,7 @@
       <div><h3 style="border:none;padding:0">宿題の達成度</h3><p class="hint left" id="hw-ring-sub">まだ宿題がありません。</p></div>
     </div>
     <div id="mock-pending" class="mock-banner pending" hidden></div>
+    <div id="vocab-card" class="card vocab-card" hidden></div>
     <div class="card" id="hw-subject-card" hidden>
       <h3>教科別の達成度</h3>
       <div id="hw-subject-bars" class="subject-bars"></div>
@@ -418,6 +419,15 @@
   <div id="exam-body" class="exam-body"></div>
   <div id="exam-secmenu" class="exam-secmenu" hidden></div>
   <button type="button" id="exam-fab" class="exam-fab" hidden aria-label="大問を切り替える"></button>
+</div>
+
+<!-- 毎日の単語帳 -->
+<div id="vocab-view" class="exam-view" hidden>
+  <header class="exam-head">
+    <button type="button" id="vocab-close" class="small ghost-dark">閉じる</button>
+    <div class="exam-title"><b>今日の単語帳</b><span id="vocab-progress"></span></div>
+  </header>
+  <div id="vocab-body" class="exam-body"></div>
 </div>
 
 <script type="module" src="app.js"></script>

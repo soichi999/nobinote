@@ -10,6 +10,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { SUBJECTS, subjectLabel, subjectColor, subjectOptionsHTML, subjectPickerHTML } from "./subjects.js";
 import { MOCKS } from "./moshi/catalog.js";
+import { VOCAB } from "./moshi/vocab.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -187,6 +188,7 @@ function watchAll() {
   off();
   // 生徒切り替え時に前の生徒のデータが一瞬でも表示され続けないよう、即座に状態をリセットしてから再描画する
   lessons = []; homework = []; tests = []; schedule = []; examMeta = {}; tuition = []; plans = []; mocks = [];
+  vocab = { words: {}, days: {}, today: null }; renderVocabCard();
   Object.keys(photoCache).forEach(k => delete photoCache[k]);
   tuitionDates = []; renderTuitionChips();
   renderHomework(); renderCalendarFeed(); renderCalendars(); renderTests(); renderMocks();
@@ -196,6 +198,13 @@ function watchAll() {
   sub("homework", "dueDate", "asc", rows => { homework = rows; renderHomework(); renderCalendarFeed(); renderCalendars(); });
   sub("tests", "date", "asc", rows => { tests = rows; renderTests(); });
   sub("messages", "createdAt", "asc", renderMessages);
+  unsubs.push(onSnapshot(doc(db, "students", currentSid, "vocab", "state"), snap => {
+    // 自分が答えている最中は、画面の内容を上書きしない
+    if (role === "student" && !$("vocab-view").hidden) return;
+    const d = snap.exists() ? snap.data() : {};
+    vocab = { words: d.words ?? {}, days: d.days ?? {}, today: d.today ?? null };
+    renderVocabCard();
+  }));
   sub("mocks", "dueDate", "desc", rows => { mocks = rows; renderMocks(); renderCalendars(); renderCalendarFeed(); });
   sub("schedule", "date", "asc", rows => { schedule = rows; renderHomework(); renderCalendarFeed(); renderCalendars(); });
   sub("plans", "date", "asc", rows => { plans = rows; renderCalendarFeed(); renderCalendars(); });
@@ -1520,6 +1529,13 @@ function scoreWebItem(item, pts, keyStr, ans) {
   const good = groups.filter(g => g.every(l => ok[l])).length;
   return { score: Math.round(pts * good / groups.length * 2) / 2, ok };
 }
+// 問題ごとの解説（提出後にだけ読み出す）。なければ空
+async function loadExplanations(mockId) {
+  try {
+    const k = await getDoc(doc(db, "config", "mockexp-" + mockId));
+    return k.exists() ? JSON.parse(k.data().data) : {};
+  } catch { return {}; }
+}
 async function loadAnswerKey(mockId) {
   const k = await getDoc(doc(db, "config", "mockans-" + mockId));
   if (!k.exists()) throw new Error("自動採点のデータがまだ登録されていません");
@@ -1528,7 +1544,7 @@ async function loadAnswerKey(mockId) {
 
 let examMockId = null, examData = null, examAnswers = {}, examKey = null, examReview = false, examSaveTimer = null;
 // examMode: "exam"（受験）／"review"（答案と正解）／"practice"（弱点の復習）
-let examMode = "exam", examSec = 0, practiceIds = null, practiceChecked = {};
+let examMode = "exam", examSec = 0, practiceIds = null, practiceChecked = {}, practiceIdx = 0, examExp = null;
 const backupKey = (id) => "tnote.examAns." + id;
 function readBackup(id) { try { return JSON.parse(localStorage.getItem(backupKey(id)) || "{}"); } catch { return {}; } }
 function writeBackup(id, ans) { try { localStorage.setItem(backupKey(id), JSON.stringify(ans)); } catch {} }
@@ -1559,7 +1575,9 @@ async function openExam(id, review = false, mode) {
     if (examMode !== "exam") examKey = await loadAnswerKey(def.id).catch(() => null);
     if (examMode === "practice") {
       practiceIds = practiceSet(r, def).map(it => it.id);
+      practiceIdx = 0;
       if (!examKey) throw new Error("正解データを読み込めませんでした");
+      examExp = await loadExplanations(def.id);
     }
   } catch (err) {
     $("exam-body").innerHTML = `<p class="error">${esc(err?.message ?? err)}</p>`;
@@ -1621,10 +1639,10 @@ function refreshExamHead() {
   const r = mocks.find(m => m.id === examMockId), def = mockDef(r?.mockId);
   if (!r || !def) return;
   if (examMode === "practice") {
-    const n = practiceIds?.length ?? 0, ok = Object.values(practiceChecked).filter(x => x.ok).length;
+    const n = practiceIds?.length ?? 0, ok = practiceIds?.filter(id => practiceChecked[id]?.ok).length ?? 0;
     $("exam-timer").textContent = "";
     $("exam-submit").hidden = true;
-    $("exam-progress").textContent = `正解 ${ok}/${n}問`;
+    $("exam-progress").textContent = practiceIdx < n ? `問題 ${practiceIdx + 1}/${n}・正解 ${ok}` : `正解 ${ok}/${n}問`;
   } else if (examReview || r.status !== "started") {
     $("exam-timer").textContent = "";
     $("exam-submit").hidden = true;
@@ -1669,9 +1687,7 @@ function itemHTML(it, metaById) {
       }).join("")}</div>
     </div>`;
   }).join("");
-  const practiceBtns = examMode === "practice" ? `<div class="actions">${checked
-      ? `<button type="button" class="small outline" data-pr-retry="${esc(it.id)}">もう一度解く</button>`
-      : `<button type="button" class="small filled" data-pr-check="${esc(it.id)}">答え合わせ</button>`}</div>` : "";
+  const practiceBtns = "";
   return `<article class="exam-item ${mark}" id="ex-${esc(it.id)}">
     <div class="exam-q"><span class="exam-no">${esc(it.no)}</span>
       <span class="exam-tag">${esc(tagLabel(metaById[it.id]?.field, metaById[it.id]?.tag))}</span>
@@ -1682,9 +1698,56 @@ function itemHTML(it, metaById) {
     ${practiceBtns}
   </article>`;
 }
+// 解き直し：1問ずつ出題 → 答え合わせ → その問題の解説 → 次の問題
+function renderPractice(r, def) {
+  const metaById = Object.fromEntries(def.items.map(i => [i.id, i]));
+  const ids = practiceIds ?? [];
+  if (!ids.length) {
+    $("exam-body").innerHTML = `<div class="empty">解き直す問題はありません。全問正解です！</div>`;
+    return refreshExamHead();
+  }
+  if (practiceIdx >= ids.length) {
+    const ok = ids.filter(id => practiceChecked[id]?.ok).length;
+    const wrong = ids.filter(id => !practiceChecked[id]?.ok);
+    $("exam-body").innerHTML = `<div class="pr-done">
+        <p class="pr-done-title">おつかれさま！</p>
+        <p class="pr-done-score">${ok}<small> / ${ids.length}問 正解</small></p>
+        <div class="pr-done-list">${ids.map(id => `<span class="pr-dot ${practiceChecked[id]?.ok ? "ok" : "ng"}">${esc(metaById[id]?.no ?? id)}</span>`).join("")}</div>
+        <div class="pr-done-actions">
+          ${wrong.length ? `<button type="button" class="primary" data-pr-again="wrong">まちがえた${wrong.length}問をもう一度</button>` : `<p class="mock-note">全部正解できました！</p>`}
+          <button type="button" class="outline" data-pr-again="all">最初から全部</button>
+          <button type="button" class="outline" data-pr-close>閉じる</button>
+        </div>
+      </div>`;
+    return refreshExamHead();
+  }
+  const id = ids[practiceIdx];
+  const sec = examData.sections.find(sc => sc.items.some(x => x.id === id));
+  const it = sec?.items.find(x => x.id === id);
+  if (!it) { practiceIdx++; return renderPractice(r, def); }
+  const checked = practiceChecked[id];
+  const exp = examExp?.[id];
+  const last = practiceIdx === ids.length - 1;
+  $("exam-body").innerHTML = `
+    <div class="pr-progress"><div style="width:${Math.round(practiceIdx / ids.length * 100)}%"></div></div>
+    <p class="pr-sec">${esc(sec.title)}</p>
+    ${sec.instructions ? `<p class="exam-inst">${richText(String(sec.instructions).replace(/[（(]\s*ア\s*[)）]/g, "空所"))}</p>` : ""}
+    ${sec.passage ? `<details class="pr-passage" open><summary>本文</summary><div class="exam-passage">${sec.passage.map(pp => `<p>${richText(pp)}</p>`).join("")}</div></details>` : ""}
+    ${itemHTML(it, metaById)}
+    ${checked ? `<div class="exp-box ${checked.ok ? "ok" : "ng"}">
+        <p class="exp-result">${checked.ok ? "正解！" : "不正解"}</p>
+        <p class="exp-label">解説</p>
+        <div class="exp-text">${exp ? richText(exp) : "この問題の解説は、解答・解説PDFを見てください。"}</div>
+      </div>
+      <div class="pr-nav"><button type="button" class="primary big-action" data-pr-next>${last ? "結果を見る" : "次の問題へ →"}</button></div>`
+    : `<div class="pr-nav"><button type="button" class="primary big-action" data-pr-check="${esc(id)}">答え合わせ</button></div>`}`;
+  $("exam-body").scrollTop = 0;
+  refreshExamHead();
+}
 function renderExam() {
   const r = mocks.find(m => m.id === examMockId), def = mockDef(r?.mockId);
   if (!r || !def || !examData) return;
+  if (examMode === "practice") return renderPractice(r, def);
   const metaById = Object.fromEntries(def.items.map(i => [i.id, i]));
   const secs = examSections();
   if (!secs.length) {
@@ -1717,7 +1780,7 @@ function renderExam() {
 function renderSecFab() {
   const secs = examSections();
   const fab = $("exam-fab");
-  if (!examData || secs.length < 2) { fab.hidden = true; return; }
+  if (!examData || secs.length < 2 || examMode === "practice") { fab.hidden = true; return; }
   fab.hidden = false;
   fab.innerHTML = `<span class="fab-sub">大問 ${examSec + 1}/${secs.length}</span><span class="fab-main">${esc(secs[examSec]?.title ?? "")}</span><span class="fab-arrow">▲</span>`;
   if (!$("exam-secmenu").hidden) renderSecMenu();
@@ -1742,8 +1805,19 @@ $("exam-body").addEventListener("click", async (e) => {
   if (e.target.closest("[data-ex-submit]")) return confirmSubmitWeb();
   const go = e.target.closest("[data-sec-go]");
   if (go) { examSec = Number(go.dataset.secGo); renderExam(); return; }
-  const chk = e.target.closest("[data-pr-check]"), retry = e.target.closest("[data-pr-retry]");
-  if (chk || retry) return practiceCheck((chk ?? retry).dataset[chk ? "prCheck" : "prRetry"], !!retry);
+  const chk = e.target.closest("[data-pr-check]");
+  if (chk) return practiceCheck(chk.dataset.prCheck);
+  if (e.target.closest("[data-pr-next]")) { practiceIdx++; return renderExam(); }
+  if (e.target.closest("[data-pr-close]")) return closeExam();
+  const again = e.target.closest("[data-pr-again]");
+  if (again) {
+    const r = mocks.find(m => m.id === examMockId), def = mockDef(r?.mockId);
+    const all = practiceSet(r, def).map(it => it.id);
+    practiceIds = again.dataset.prAgain === "wrong" ? practiceIds.filter(id => !practiceChecked[id]?.ok) : all;
+    practiceIds.forEach(id => { delete practiceChecked[id]; delete examAnswers[id]; });
+    practiceIdx = 0;
+    return renderExam();
+  }
   const bt = e.target.closest("[data-ex-opt]");
   if (!bt || bt.disabled) return;
   const { exItem: iid, exLabel: lab, exOpt: opt } = bt.dataset;
@@ -1761,16 +1835,17 @@ $("exam-body").addEventListener("click", async (e) => {
   examSaveTimer = setTimeout(flushExamSave, 1200);
 });
 // 復習：その場で答え合わせ。結果は模試の記録に残す（模試の点数は変わらない）
-async function practiceCheck(iid, retry) {
+async function practiceCheck(iid) {
   const r = mocks.find(m => m.id === examMockId), def = mockDef(r?.mockId);
   const it = examData.sections.flatMap(s => s.items).find(x => x.id === iid);
   if (!it || !def) return;
-  if (retry) { delete practiceChecked[iid]; delete examAnswers[iid]; renderExam(); return; }
+  const missing = it.blanks.filter(b => !isBlankFilled(iid, b.label)).length;
+  if (missing) return alert(it.blanks.length > 1 ? `まだマークしていない欄が${missing}か所あります。` : "答えをマークしてから「答え合わせ」を押してください。");
   const pts = def.items.find(i => i.id === iid)?.pts ?? 1;
   const res = scoreWebItem(it, pts, examKey[iid], examAnswers[iid]);
   practiceChecked[iid] = { ok: res.score >= pts };
   renderExam();
-  document.getElementById("ex-" + iid)?.scrollIntoView({ block: "nearest" });
+  requestAnimationFrame(() => document.querySelector(".exp-box")?.scrollIntoView({ block: "start", behavior: "smooth" }));
   if (role === "student") {
     try { await updateDoc(mockRef(examMockId), { [`practice.${iid}`]: practiceChecked[iid].ok, practiceAt: Date.now() }); } catch {}
   }
@@ -1860,6 +1935,228 @@ function webCardBody(r, def, st, stats, pdfs) {
       <button class="small filled" data-exam-review="${esc(r.id)}">答案と正解を見る</button>
       <button class="small outline" data-mock-result="${esc(r.id)}">くわしい分析</button>
     </div>`;
+}
+
+/* ---------- 毎日の単語帳：1日10問 → 1問ずつ4択 → 解説 → まちがえた単語は全部正解するまで復習 ---------- */
+const VOCAB_BY_ID = Object.fromEntries(VOCAB.map(v => [`${v[0]}:${v[1]}`, v]));
+const VOCAB_IDS = VOCAB.map(v => `${v[0]}:${v[1]}`);
+const DAILY_N = 10;
+const BOX_DAYS = [1, 2, 4, 7, 15, 30];   // 正解するたびに次の出題までの日数をのばす（まちがえたら翌日）
+const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const addDays = (iso, n) => { const [y, m, d] = iso.split("-").map(Number); const t = new Date(y, m - 1, d + n); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`; };
+let vocab = { words: {}, days: {}, today: null };
+let vocabChoices = null;   // いま出している問題の選択肢
+const vocabRef = () => doc(db, "students", currentSid, "vocab", "state");
+const senses = (m) => String(m).replace(/（[^）]*）/g, "").split(/[、,]/).map(x => x.trim()).filter(Boolean);
+const shuffle = (a) => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
+
+// 今日の10問：復習の時期が来た単語 → まだ出していない単語 の順
+function pickDaily() {
+  const t = localToday();
+  const due = Object.entries(vocab.words).filter(([id, w]) => VOCAB_BY_ID[id] && w.due <= t)
+    .sort((a, b) => a[1].due.localeCompare(b[1].due) || (a[1].box ?? 0) - (b[1].box ?? 0)).map(([id]) => id);
+  const fresh = VOCAB_IDS.filter(id => !vocab.words[id]);
+  const reviewN = Math.min(due.length, fresh.length ? 6 : DAILY_N);
+  let ids = [...due.slice(0, reviewN), ...fresh.slice(0, DAILY_N - reviewN)];
+  if (ids.length < DAILY_N) {
+    const extra = Object.entries(vocab.words).filter(([id]) => VOCAB_BY_ID[id] && !ids.includes(id))
+      .sort((a, b) => (a[1].box ?? 0) - (b[1].box ?? 0)).map(([id]) => id);
+    ids = [...ids, ...extra].slice(0, DAILY_N);
+  }
+  return shuffle(ids);
+}
+// 選択肢：正しい意味＋同じ品詞の別の意味3つ（似た意味のものは入れない）
+function makeChoices(id) {
+  const v = VOCAB_BY_ID[id];
+  const mine = new Set(senses(v[2]));
+  const ok = (c) => c[0] !== v[0] && !(v[5] && c[5] === v[5]) && !senses(c[2]).some(s => mine.has(s));
+  let pool = shuffle(VOCAB.filter(c => c[1] === v[1] && ok(c)));
+  if (pool.length < 3) pool = pool.concat(shuffle(VOCAB.filter(c => c[1] !== v[1] && ok(c))));
+  const picked = [];
+  for (const c of pool) { if (picked.length === 3) break; if (!picked.some(p => p[2] === c[2])) picked.push(c); }
+  return shuffle([v[2], ...picked.map(c => c[2])]);
+}
+async function saveVocab() {
+  if (role !== "student") return;
+  try { await setDoc(vocabRef(), vocab); } catch {}
+}
+function vocabStreak() {
+  let n = 0, d = localToday();
+  if (!vocab.days?.[d]?.done) d = addDays(d, -1);
+  while (vocab.days?.[d]?.done) { n++; d = addDays(d, -1); }
+  return n;
+}
+function renderVocabCard() {
+  const card = $("vocab-card");
+  if (!card) return;
+  if (!currentSid) { card.hidden = true; return; }
+  card.hidden = false;
+  const t = localToday(), td = vocab.today?.date === t ? vocab.today : null, day = vocab.days?.[t];
+  const learned = Object.keys(vocab.words ?? {}).length;
+  const mastered = Object.values(vocab.words ?? {}).filter(w => (w.box ?? 0) >= 3).length;
+  const week = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
+  const wk = ["日", "月", "火", "水", "木", "金", "土"];
+  const weekRow = `<div class="vc-week">${week.map(d => {
+    const [y, m, dd] = d.split("-").map(Number);
+    return `<span class="vc-day${vocab.days?.[d]?.done ? " done" : ""}${d === t ? " today" : ""}"><small>${wk[new Date(y, m - 1, dd).getDay()]}</small>${vocab.days?.[d]?.done ? "✓" : "・"}</span>`;
+  }).join("")}</div>`;
+  let status, btn = "";
+  if (day?.done) status = `<b class="vc-done">今日は完了！</b> 1回目で ${day.first}/${day.total} 問正解`;
+  else if (td?.phase === "review") status = `<b class="vc-warn">まちがえた単語の復習が残っています</b>（あと${td.queue.length}語）`;
+  else if (td && (td.idx > 0 || td.answered)) status = `とちゅう（${td.idx + (td.answered ? 1 : 0)}/${td.ids.length}問）`;
+  else status = `今日の${DAILY_N}問はまだです`;
+  if (role === "student") {
+    btn = day?.done ? `<button type="button" class="small outline" data-vocab-open>今日の単語を見直す</button>`
+      : `<button type="button" class="primary" data-vocab-open>${td?.phase === "review" ? "復習を続ける" : td && (td.idx > 0 || td.answered) ? "続きから" : "はじめる"}</button>`;
+  }
+  card.innerHTML = `
+    <div class="vc-head">
+      <div><h3 style="border:none;padding:0;margin:0">今日の単語帳</h3>
+        <p class="vc-sub">英検2級レベル・1日${DAILY_N}問・英語→日本語</p></div>
+      <div class="vc-streak"><b>${vocabStreak()}</b><small>日連続</small></div>
+    </div>
+    <p class="vc-status">${status}</p>
+    ${weekRow}
+    <p class="vc-sub">これまでに出た単語 ${learned}語・定着 ${mastered}語（全${VOCAB.length}語）</p>
+    ${btn ? `<div class="actions">${btn}</div>` : ""}`;
+}
+$("vocab-card")?.addEventListener("click", (e) => { if (e.target.closest("[data-vocab-open]")) openVocab(); });
+
+function openVocab() {
+  const t = localToday();
+  if (vocab.today?.date !== t) {
+    vocab.today = { date: t, ids: pickDaily(), idx: 0, results: {}, phase: "main", queue: [], answered: null };
+    saveVocab();
+  }
+  vocabChoices = null;
+  $("vocab-view").hidden = false;
+  document.body.classList.add("exam-open");
+  renderVocab();
+}
+function closeVocab() {
+  $("vocab-view").hidden = true;
+  document.body.classList.remove("exam-open");
+  renderVocabCard();
+}
+$("vocab-close").addEventListener("click", closeVocab);
+
+function vocabQuestionHTML(id, answered) {
+  const v = VOCAB_BY_ID[id];
+  if (!vocabChoices || vocabChoices.id !== id) vocabChoices = { id, list: makeChoices(id) };
+  const list = vocabChoices.list;
+  return `<div class="vq">
+      <p class="vq-pos">${esc({ 動: "動詞", 名: "名詞", 形: "形容詞", 副: "副詞" }[v[1]] ?? v[1])}</p>
+      <p class="vq-word">${esc(v[0])}</p>
+      <p class="vq-ask">この単語の意味として正しいものは？</p>
+      <div class="vq-choices">${list.map((c, i) => {
+        const cls = ["vq-choice", answered && c === v[2] ? "correct" : "", answered && answered.pick === c && c !== v[2] ? "wrong" : ""].filter(Boolean).join(" ");
+        return `<button type="button" class="${cls}" data-vq-pick="${i}" ${answered ? "disabled" : ""}><span class="cnum">${i + 1}</span>${esc(c)}</button>`;
+      }).join("")}</div>
+      ${answered ? `<div class="exp-box ${answered.ok ? "ok" : "ng"}">
+          <p class="exp-result">${answered.ok ? "正解！" : "不正解"}</p>
+          <p class="vq-meaning"><b>${esc(v[0])}</b>　${esc(v[2])}</p>
+          <p class="vq-ex">${esc(v[3])}</p>
+          <p class="vq-exj">${esc(v[4])}</p>
+        </div>` : ""}
+    </div>`;
+}
+function renderVocab() {
+  const td = vocab.today;
+  if (!td) return;
+  const n = td.ids.length;
+  const body = $("vocab-body");
+  if (td.phase === "main" && td.idx < n) {
+    const id = td.ids[td.idx];
+    $("vocab-progress").textContent = `${td.idx + 1} / ${n}問`;
+    const answered = td.answered?.id === id ? td.answered : null;
+    body.innerHTML = `<div class="pr-progress"><div style="width:${Math.round(td.idx / n * 100)}%"></div></div>
+      ${vocabQuestionHTML(id, answered)}
+      ${answered ? `<div class="pr-nav"><button type="button" class="primary big-action" data-vq-next>${td.idx === n - 1 ? "結果を見る" : "次の問題へ →"}</button></div>` : ""}`;
+  } else if (td.phase === "main") {
+    const wrong = td.ids.filter(id => td.results[id] === false);
+    const ok = n - wrong.length;
+    $("vocab-progress").textContent = `${ok} / ${n}問 正解`;
+    body.innerHTML = `<div class="pr-done">
+        <p class="pr-done-title">${wrong.length ? "10問おわり！" : "全問正解！"}</p>
+        <p class="pr-done-score">${ok}<small> / ${n}問 正解</small></p>
+        ${wrong.length ? `<p class="mock-note">まちがえた単語 ${wrong.length}語を、全部正解するまで復習します。</p>
+          <div class="pr-done-list">${wrong.map(id => `<span class="pr-dot ng">${esc(VOCAB_BY_ID[id][0])}</span>`).join("")}</div>
+          <div class="pr-done-actions"><button type="button" class="primary big-action" data-vq-review>復習をはじめる</button></div>`
+        : `<div class="pr-done-actions"><button type="button" class="primary big-action" data-vq-finish>完了にする</button></div>`}
+      </div>`;
+  } else if (td.phase === "review" && td.queue.length) {
+    const id = td.queue[0];
+    const answered = td.answered?.id === id ? td.answered : null;
+    $("vocab-progress").textContent = `復習 のこり${td.queue.length}語`;
+    body.innerHTML = `<p class="vq-review-tag">まちがえた単語の復習（全部正解するまで続きます）</p>
+      ${vocabQuestionHTML(id, answered)}
+      ${answered ? `<div class="pr-nav"><button type="button" class="primary big-action" data-vq-next>${answered.ok && td.queue.length === 1 ? "完了！" : "次へ →"}</button></div>` : ""}`;
+  } else {
+    const day = vocab.days?.[td.date];
+    $("vocab-progress").textContent = "完了";
+    body.innerHTML = `<div class="pr-done">
+        <p class="pr-done-title">今日の単語帳 完了！</p>
+        <p class="pr-done-score">${vocabStreak()}<small> 日連続</small></p>
+        <p class="mock-note">1回目で ${day?.first ?? "-"}/${day?.total ?? n} 問正解。また明日！</p>
+        <div class="pr-done-list">${td.ids.map(id => `<span class="pr-dot ${td.results[id] ? "ok" : "ng"}">${esc(VOCAB_BY_ID[id][0])}　${esc(VOCAB_BY_ID[id][2])}</span>`).join("")}</div>
+        <div class="pr-done-actions"><button type="button" class="outline" data-vq-close>閉じる</button></div>
+      </div>`;
+  }
+  body.scrollTop = 0;
+}
+$("vocab-body").addEventListener("click", async (e) => {
+  const td = vocab.today;
+  if (!td || role !== "student") { if (e.target.closest("[data-vq-close]")) closeVocab(); return; }
+  const pick = e.target.closest("[data-vq-pick]");
+  if (pick && !td.answered) {
+    const id = td.phase === "main" ? td.ids[td.idx] : td.queue[0];
+    const v = VOCAB_BY_ID[id];
+    const choice = vocabChoices.list[Number(pick.dataset.vqPick)];
+    const ok = choice === v[2];
+    td.answered = { id, pick: choice, ok };
+    if (td.phase === "main") {
+      td.results[id] = ok;
+      // 次に出す日：正解なら間をあけ、まちがえたら翌日
+      const w = vocab.words[id] ?? { box: 0, ok: 0, ng: 0 };
+      w.box = ok ? Math.min((w.box ?? 0) + 1, BOX_DAYS.length - 1) : 0;
+      w.due = addDays(td.date, ok ? BOX_DAYS[w.box] : 1);
+      w[ok ? "ok" : "ng"] = (w[ok ? "ok" : "ng"] ?? 0) + 1;
+      w.last = td.date;
+      vocab.words[id] = w;
+    }
+    navigator.vibrate?.(ok ? 30 : [60, 40, 60]);
+    renderVocab();
+    requestAnimationFrame(() => $("vocab-body").querySelector(".exp-box")?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+    saveVocab();
+    return;
+  }
+  if (e.target.closest("[data-vq-next]") && td.answered) {
+    if (td.phase === "main") td.idx++;
+    else {
+      // 復習：正解ならその単語は終わり、まちがえたら列の最後へ
+      const id = td.queue.shift();
+      if (!td.answered.ok) td.queue.push(id);
+      if (!td.queue.length) finishVocab();
+    }
+    td.answered = null; vocabChoices = null;
+    renderVocab(); saveVocab();
+    return;
+  }
+  if (e.target.closest("[data-vq-review]")) {
+    td.phase = "review";
+    td.queue = shuffle(td.ids.filter(id => td.results[id] === false));
+    td.answered = null; vocabChoices = null;
+    renderVocab(); saveVocab();
+    return;
+  }
+  if (e.target.closest("[data-vq-finish]")) { finishVocab(); renderVocab(); saveVocab(); return; }
+  if (e.target.closest("[data-vq-close]")) closeVocab();
+});
+function finishVocab() {
+  const td = vocab.today;
+  td.phase = "done";
+  const first = td.ids.filter(id => td.results[id]).length;
+  vocab.days = { ...(vocab.days ?? {}), [td.date]: { done: true, first, total: td.ids.length, finishedAt: Date.now() } };
 }
 
 /* ---------- 成績（外部の模試・テスト） ---------- */

@@ -595,3 +595,58 @@ button.ghost-dark{background:#fff;border:1px solid var(--blue-line);color:var(--
 .feed-mock-score{color:var(--navy);font-size:.9rem}
 .mock-card.flash{animation:flash 1.6s ease}
 @keyframes flash{0%,60%{box-shadow:0 0 0 4px #f8b4cb,var(--shadow)}100%{box-shadow:var(--shadow)}}
+
+/* ---- 解き直し：1問ずつ ---- */
+.pr-progress{height:6px;background:var(--line);border-radius:99px;overflow:hidden;margin:.2rem auto .8rem}
+.pr-progress div{height:100%;background:var(--blue);border-radius:99px;transition:width .3s}
+.pr-sec{font-weight:800;color:var(--navy);margin:.2rem auto .2rem;font-size:.95rem}
+.pr-passage{margin-bottom:.8rem}
+.pr-passage summary{cursor:pointer;font-weight:700;color:var(--blue);font-size:.85rem;margin-bottom:.4rem}
+.exp-box{border-radius:14px;padding:.9rem 1rem;margin:.2rem auto .8rem;border:1px solid}
+.exp-box.ok{background:#eef9f4;border-color:#bfe6d8}
+.exp-box.ng{background:#fdf2f1;border-color:#f3ccc6}
+.exp-result{font-size:1.15rem;font-weight:800;margin:0 0 .4rem}
+.exp-box.ok .exp-result{color:var(--ok)}.exp-box.ng .exp-result{color:var(--err)}
+.exp-label{font-size:.75rem;font-weight:800;color:var(--muted);margin:0 0 .2rem}
+.exp-text{font-size:.92rem;line-height:1.9}
+.pr-nav{text-align:center;margin:1rem auto 2rem}
+.pr-done{text-align:center;background:#fff;border:1px solid var(--line);border-radius:16px;padding:1.6rem 1rem;margin-top:1rem}
+.pr-done-title{font-size:1.2rem;font-weight:800;color:var(--navy);margin:0}
+.pr-done-score{font-size:2.4rem;font-weight:800;color:var(--blue);margin:.3rem 0}
+.pr-done-score small{font-size:.95rem;color:var(--muted)}
+.pr-done-list{display:flex;flex-wrap:wrap;gap:.35rem;justify-content:center;margin:.6rem 0 1rem}
+.pr-dot{font-size:.72rem;font-weight:800;padding:.15rem .55rem;border-radius:999px}
+.pr-dot.ok{background:#e9f7f2;color:var(--ok)}.pr-dot.ng{background:#fdeeec;color:var(--err)}
+.pr-done-actions{display:flex;flex-direction:column;gap:.5rem;align-items:center}
+.pr-done-actions button{min-width:240px}
+
+/* ---- 毎日の単語帳 ---- */
+.vocab-card{border-left:5px solid #0ea5a4}
+.vc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:.8rem}
+.vc-sub{margin:.15rem 0 0;font-size:.78rem;color:var(--muted)}
+.vc-streak{text-align:center;background:#e6fffb;color:#0f766e;border-radius:12px;padding:.3rem .7rem;line-height:1.1;flex:none}
+.vc-streak b{font-size:1.5rem;display:block}
+.vc-streak small{font-size:.7rem;font-weight:700}
+.vc-status{margin:.7rem 0 .5rem;font-size:.9rem}
+.vc-done{color:var(--ok)}.vc-warn{color:var(--err)}
+.vc-week{display:flex;gap:.3rem;margin:.3rem 0 .4rem}
+.vc-day{flex:1;text-align:center;border-radius:8px;background:var(--bg);padding:.2rem 0;font-weight:800;color:var(--muted);font-size:.85rem;display:flex;flex-direction:column}
+.vc-day small{font-size:.65rem;font-weight:700}
+.vc-day.done{background:#ccfbf1;color:#0f766e}
+.vc-day.today{outline:2px solid #0ea5a4}
+.vq{background:#fff;border:1px solid var(--line);border-radius:16px;padding:1.2rem 1rem;box-shadow:var(--shadow);margin-top:.6rem}
+.vq-pos{margin:0;font-size:.75rem;font-weight:800;color:#0f766e}
+.vq-word{margin:.1rem 0 .3rem;font-size:2.2rem;font-weight:800;color:var(--navy);font-family:"Times New Roman",Georgia,serif;letter-spacing:.01em}
+.vq-ask{margin:0 0 .8rem;font-size:.85rem;color:var(--muted)}
+.vq-choices{display:flex;flex-direction:column;gap:.5rem}
+.vq-choice{display:flex;align-items:center;gap:.6rem;text-align:left;background:#fff;border:1.5px solid var(--blue-line);border-radius:12px;
+  padding:.8rem .9rem;font-size:1rem;font-weight:700;color:var(--fg)}
+.vq-choice:hover:not(:disabled){border-color:var(--blue);background:var(--blue-soft)}
+.vq-choice.correct{border-color:#2f9e74;background:#e9f7f2;color:var(--ok)}
+.vq-choice.wrong{border-color:#d9534f;background:#fdeeec;color:var(--err)}
+.vq-choice:disabled{cursor:default}
+.vq .exp-box{margin-top:1rem}
+.vq-meaning{margin:.2rem 0 .5rem;font-size:1rem}
+.vq-ex{margin:.2rem 0 0;font-family:"Times New Roman",Georgia,serif;font-size:1.02rem}
+.vq-exj{margin:.1rem 0 0;font-size:.85rem;color:var(--muted)}
+.vq-review-tag{margin:.4rem 0 0;font-size:.8rem;font-weight:800;color:var(--err)}
