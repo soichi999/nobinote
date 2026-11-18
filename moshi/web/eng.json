@@ -1,0 +1,3281 @@
+{
+ "id": "eng",
+ "title": "英語 実力テスト",
+ "minutes": 90,
+ "sections": [
+  {
+   "title": "第1問A 語彙（空所補充）",
+   "instructions": "（ ア ）に入れるのに最も適切なものを1〜4から1つ選びなさい。〔各1点〕",
+   "items": [
+    {
+     "id": "1A-01",
+     "no": "1A-01",
+     "q": "Because of the heavy snow, the school decided to ( ア ) the sports festival until next week.",
+     "choices": [
+      "predict",
+      "prohibit",
+      "postpone",
+      "produce"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-02",
+     "no": "1A-02",
+     "q": "Scientists are still trying to ( ア ) why some birds can find their way home over thousands of kilometers.",
+     "choices": [
+      "determine",
+      "deserve",
+      "decorate",
+      "defeat"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-03",
+     "no": "1A-03",
+     "q": "The company had to ( ア ) its prices because the cost of materials rose sharply.",
+     "choices": [
+      "inherit",
+      "ignore",
+      "imitate",
+      "increase"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-04",
+     "no": "1A-04",
+     "q": "Many young people ( ア ) their dreams even when their parents disagree.",
+     "choices": [
+      "pretend",
+      "permit",
+      "pursue",
+      "persuade"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-05",
+     "no": "1A-05",
+     "q": "If you don't ( ア ) enough water during the summer, you may feel sick.",
+     "choices": [
+      "confess",
+      "consume",
+      "conclude",
+      "consist"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-06",
+     "no": "1A-06",
+     "q": "The city will ( ア ) the new rule strictly, so drivers who break it must pay a fine.",
+     "choices": [
+      "endure",
+      "entertain",
+      "enclose",
+      "enforce"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-07",
+     "no": "1A-07",
+     "q": "The police found no ( ア ) that the man had been at the scene of the crime.",
+     "choices": [
+      "expense",
+      "evidence",
+      "excuse",
+      "experience"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-08",
+     "no": "1A-08",
+     "q": "There is a serious ( ア ) of doctors in rural areas, so many patients have to travel to the city.",
+     "choices": [
+      "shortage",
+      "surface",
+      "sample",
+      "storage"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-09",
+     "no": "1A-09",
+     "q": "Eating too much sugar may have serious ( ア ) for your health in the future.",
+     "choices": [
+      "conditions",
+      "contracts",
+      "contents",
+      "consequences"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-10",
+     "no": "1A-10",
+     "q": "The ( ア ) for electric cars has increased rapidly, and factories cannot make enough of them.",
+     "choices": [
+      "device",
+      "debate",
+      "demand",
+      "distance"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-11",
+     "no": "1A-11",
+     "q": "Our club does not have a large ( ア ), so we have to be careful about how we spend money.",
+     "choices": [
+      "branch",
+      "border",
+      "burden",
+      "budget"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-12",
+     "no": "1A-12",
+     "q": "She was ( ア ) to speak in front of the class because she was afraid of making mistakes.",
+     "choices": [
+      "reliable",
+      "reluctant",
+      "relevant",
+      "remarkable"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-13",
+     "no": "1A-13",
+     "q": "This new machine is much more ( ア ) than the old one; it uses half as much electricity.",
+     "choices": [
+      "enormous",
+      "elderly",
+      "efficient",
+      "eager"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-14",
+     "no": "1A-14",
+     "q": "The information on the website was not ( ア ), so we had to check it again with another source.",
+     "choices": [
+      "accurate",
+      "awful",
+      "anxious",
+      "ancient"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-15",
+     "no": "1A-15",
+     "q": "Sleep is ( ア ) for students who want to remember what they studied.",
+     "choices": [
+      "elegant",
+      "essential",
+      "equal",
+      "emotional"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-16",
+     "no": "1A-16",
+     "q": "The population of the town has ( ア ) decreased over the past fifty years, from 30,000 to 18,000.",
+     "choices": [
+      "seldom",
+      "gradually",
+      "nearly",
+      "hardly"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-17",
+     "no": "1A-17",
+     "q": "The trip from Tokyo to Osaka takes ( ア ) two and a half hours by bullet train.",
+     "choices": [
+      "approximately",
+      "accidentally",
+      "absolutely",
+      "actively"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-18",
+     "no": "1A-18",
+     "q": "We have ( ア ) milk, so could you buy some on your way home?",
+     "choices": [
+      "looked forward to",
+      "taken care of",
+      "made up for",
+      "run out of"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-19",
+     "no": "1A-19",
+     "q": "The teacher asked us to ( ア ) a new idea for the school festival by Friday.",
+     "choices": [
+      "keep up with",
+      "put up with",
+      "come up with",
+      "catch up with"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1A-20",
+     "no": "1A-20",
+     "q": "Ms. Tanaka is ( ア ) the project, so please ask her if you have any questions.",
+     "choices": [
+      "in charge of",
+      "instead of",
+      "in spite of",
+      "in terms of"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "第1問B 語彙（同意語）",
+   "instructions": "下線部の意味に最も近いものを1〜4から1つ選びなさい。〔各1点〕",
+   "items": [
+    {
+     "id": "1B-01",
+     "no": "1B-01",
+     "q": "The museum will <u>display</u> some paintings that have never been shown to the public.",
+     "choices": [
+      "explain",
+      "examine",
+      "exhibit",
+      "exchange"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1B-02",
+     "no": "1B-02",
+     "q": "It took him three months to <u>recover from</u> the injury.",
+     "choices": [
+      "get over",
+      "give up",
+      "look after",
+      "turn down"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1B-03",
+     "no": "1B-03",
+     "q": "The teacher <u>encouraged</u> the students to ask questions freely.",
+     "choices": [
+      "motivated",
+      "forbade",
+      "blamed",
+      "prevented"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1B-04",
+     "no": "1B-04",
+     "q": "The factory had to <u>suspend</u> production because of a power failure.",
+     "choices": [
+      "check carefully",
+      "stop temporarily",
+      "begin again",
+      "increase quickly"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1B-05",
+     "no": "1B-05",
+     "q": "We need to <u>figure out</u> how this machine works.",
+     "choices": [
+      "sell",
+      "forget",
+      "understand",
+      "repair"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1B-06",
+     "no": "1B-06",
+     "q": "The results of the experiment were <u>obvious</u> to everyone.",
+     "choices": [
+      "secret",
+      "clear",
+      "strange",
+      "useless"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1B-07",
+     "no": "1B-07",
+     "q": "He gave a <u>vague</u> answer, so nobody understood what he really meant.",
+     "choices": [
+      "honest",
+      "detailed",
+      "unclear",
+      "rude"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1B-08",
+     "no": "1B-08",
+     "q": "The new rule is <u>temporary</u>; it will end in March.",
+     "choices": [
+      "not expensive",
+      "not popular",
+      "not strict",
+      "not permanent"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1B-09",
+     "no": "1B-09",
+     "q": "One <u>advantage</u> of living in the city is that you can easily use public transportation.",
+     "choices": [
+      "rule",
+      "danger",
+      "benefit",
+      "cost"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1B-10",
+     "no": "1B-10",
+     "q": "The <u>purpose</u> of this meeting is to decide the schedule for next month.",
+     "choices": [
+      "aim",
+      "place",
+      "result",
+      "trouble"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1B-11",
+     "no": "1B-11",
+     "q": "The festival is held <u>annually</u> in August.",
+     "choices": [
+      "every year",
+      "only once",
+      "every month",
+      "for the first time"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1B-12",
+     "no": "1B-12",
+     "q": "I can't <u>put up with</u> the noise from the construction site any longer.",
+     "choices": [
+      "record",
+      "reduce",
+      "avoid",
+      "tolerate"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1B-13",
+     "no": "1B-13",
+     "q": "The meeting was <u>called off</u> because many members were sick.",
+     "choices": [
+      "started",
+      "canceled",
+      "recorded",
+      "shortened"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1B-14",
+     "no": "1B-14",
+     "q": "Please <u>look into</u> the cause of the accident.",
+     "choices": [
+      "ignore",
+      "investigate",
+      "imagine",
+      "announce"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "1B-15",
+     "no": "1B-15",
+     "q": "She <u>takes after</u> her mother; they both have a great sense of humor.",
+     "choices": [
+      "respects",
+      "follows",
+      "helps",
+      "resembles"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "第2問A 文法（空所補充）",
+   "instructions": "（ ア ）に入れるのに最も適切なものを1〜4から1つ選びなさい。〔各1点〕",
+   "items": [
+    {
+     "id": "2A-01",
+     "no": "2A-01",
+     "q": "By the time we got to the station, the train ( ア ).",
+     "choices": [
+      "is already leaving",
+      "has already left",
+      "already leaves",
+      "had already left"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-02",
+     "no": "2A-02",
+     "q": "I ( ア ) this book since this morning, but I still haven't finished it.",
+     "choices": [
+      "will read",
+      "read",
+      "have been reading",
+      "was reading"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-03",
+     "no": "2A-03",
+     "q": "The new bridge ( ア ) now, and it will be finished next spring.",
+     "choices": [
+      "is building",
+      "was built",
+      "has built",
+      "is being built"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-04",
+     "no": "2A-04",
+     "q": "I was spoken ( ア ) by a stranger at the station.",
+     "choices": [
+      "to",
+      "into",
+      "on",
+      "from"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-05",
+     "no": "2A-05",
+     "q": "You ( ア ) have seen Ken yesterday. He has been in London since last week.",
+     "choices": [
+      "can't",
+      "need",
+      "must",
+      "should"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-06",
+     "no": "2A-06",
+     "q": "I ( ア ) have studied harder. I failed the test.",
+     "choices": [
+      "can't",
+      "may",
+      "should",
+      "must"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-07",
+     "no": "2A-07",
+     "q": "You ( ア ) better leave now, or you'll miss the bus.",
+     "choices": [
+      "would",
+      "had",
+      "should",
+      "could"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-08",
+     "no": "2A-08",
+     "q": "My father told me ( ア ) late again.",
+     "choices": [
+      "to not being",
+      "don't be",
+      "not to be",
+      "not being"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-09",
+     "no": "2A-09",
+     "q": "This question is too difficult for me ( ア ).",
+     "choices": [
+      "answering",
+      "to answer",
+      "to answer it",
+      "that I answer"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-10",
+     "no": "2A-10",
+     "q": "I'm looking forward to ( ア ) you again.",
+     "choices": [
+      "seeing",
+      "see",
+      "have seen",
+      "be seen"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-11",
+     "no": "2A-11",
+     "q": "Do you mind ( ア ) the window? It's cold.",
+     "choices": [
+      "me to close",
+      "that I close",
+      "my closing",
+      "to close"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-12",
+     "no": "2A-12",
+     "q": "The man ( ア ) a red cap is my uncle.",
+     "choices": [
+      "wears",
+      "worn",
+      "to wear",
+      "wearing"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-13",
+     "no": "2A-13",
+     "q": "I had my bicycle ( ア ) at the shop.",
+     "choices": [
+      "repair",
+      "to repair",
+      "repaired",
+      "repairing"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-14",
+     "no": "2A-14",
+     "q": "( ア ) from the top of the hill, the town looks beautiful.",
+     "choices": [
+      "To see",
+      "Seeing",
+      "Having seen",
+      "Seen"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-15",
+     "no": "2A-15",
+     "q": "Take an umbrella with you ( ア ) it rains.",
+     "choices": [
+      "so that",
+      "in case",
+      "unless",
+      "even if"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-16",
+     "no": "2A-16",
+     "q": "This is the town ( ア ) I was born.",
+     "choices": [
+      "where",
+      "who",
+      "what",
+      "which"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-17",
+     "no": "2A-17",
+     "q": "( ア ) she said surprised everyone in the room.",
+     "choices": [
+      "That",
+      "Who",
+      "Which",
+      "What"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-18",
+     "no": "2A-18",
+     "q": "This bag is ( ア ) that one.",
+     "choices": [
+      "as three times heavy as",
+      "three times as heavy as",
+      "heavier three times than",
+      "three times heavy than"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-19",
+     "no": "2A-19",
+     "q": "If I ( ア ) you, I would accept the offer.",
+     "choices": [
+      "am",
+      "were",
+      "have been",
+      "will be"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2A-20",
+     "no": "2A-20",
+     "q": "If he had left home earlier yesterday, he ( ア ) the last train.",
+     "choices": [
+      "would have caught",
+      "had caught",
+      "would catch",
+      "will catch"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "第2問B 文法（並べ替え）",
+   "instructions": "日本文に合うように［ ］内の語句を並べ替え、1番目から順に、その位置に入る語句の番号を選びなさい。文頭に来る語も小文字で示してある。〔各2点・完答〕",
+   "items": [
+    {
+     "id": "2B-01",
+     "no": "2B-01",
+     "q": "彼がいつ駅に着くか教えてくれませんか。\nCould you tell me ［ 1 will　2 the station　3 when　4 at　5 arrive　6 he ］?",
+     "blanks": [
+      {
+       "label": "1番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "2番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "3番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "4番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "5番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "6番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2B-02",
+     "no": "2B-02",
+     "q": "もしあなたの助けがなかったら、私はその仕事を終えられなかっただろう。\n［ 1 been　2 had　3 your help　4 not　5 it　6 for ］, I couldn't have finished the work.",
+     "blanks": [
+      {
+       "label": "1番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "2番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "3番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "4番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "5番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "6番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2B-03",
+     "no": "2B-03",
+     "q": "こんなに美しい夕日は一度も見たことがない。\nNever ［ 1 beautiful　2 such　3 have　4 seen　5 a　6 I ］ sunset.",
+     "blanks": [
+      {
+       "label": "1番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "2番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "3番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "4番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "5番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "6番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2B-04",
+     "no": "2B-04",
+     "q": "その窓を割ったのはトムだった。\nIt ［ 1 the window　2 was　3 who　4 Tom　5 broke ］.",
+     "blanks": [
+      {
+       "label": "1番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "2番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "3番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "4番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "5番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2B-05",
+     "no": "2B-05",
+     "q": "彼は昔の彼ではない。\nHe is not ［ 1 to　2 used　3 be　4 he　5 what ］.",
+     "blanks": [
+      {
+       "label": "1番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "2番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "3番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "4番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "5番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2B-06",
+     "no": "2B-06",
+     "q": "彼女は親切にも駅までの道を教えてくれた。\nShe was ［ 1 the way　2 enough　3 show　4 kind　5 to　6 me ］ to the station.",
+     "blanks": [
+      {
+       "label": "1番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "2番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "3番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "4番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "5番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "6番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2B-07",
+     "no": "2B-07",
+     "q": "これは日本で2番目に深い湖です。\nThis is ［ 1 in　2 second　3 lake　4 Japan　5 deepest　6 the ］.",
+     "blanks": [
+      {
+       "label": "1番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "2番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "3番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "4番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "5番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "6番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2B-08",
+     "no": "2B-08",
+     "q": "彼は1時間待たされた。\nHe ［ 1 for　2 to　3 an hour　4 was　5 wait　6 made ］.",
+     "blanks": [
+      {
+       "label": "1番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "2番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "3番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "4番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "5番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      },
+      {
+       "label": "6番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2B-09",
+     "no": "2B-09",
+     "q": "彼は約束を破ったことを恥じている。\nHe is ashamed ［ 1 having　2 promise　3 of　4 his　5 broken ］.",
+     "blanks": [
+      {
+       "label": "1番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "2番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "3番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "4番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "5番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2B-10",
+     "no": "2B-10",
+     "q": "これは約300年前に建てられた寺です。\nThis is ［ 1 a temple　2 about　3 ago　4 built　5 300 years ］.",
+     "blanks": [
+      {
+       "label": "1番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "2番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "3番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "4番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      },
+      {
+       "label": "5番目",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "第2問C 文法（正誤）",
+   "instructions": "下線部(A)〜(D)には誤りが1つある。誤りの箇所とその正しい直し方の組み合わせとして最も適切なものを1〜4から1つ選びなさい。〔各2点〕",
+   "items": [
+    {
+     "id": "2C-01",
+     "no": "2C-01",
+     "q": "I (A)<u>will call</u> you (B)<u>as soon as</u> I (C)<u>will arrive</u> (D)<u>at the airport</u>.",
+     "choices": [
+      "(C) will arrive → arrive",
+      "(B) as soon as → as long as",
+      "(C) will arrive → arrived",
+      "(A) will call → call"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2C-02",
+     "no": "2C-02",
+     "q": "The accident (A)<u>happened</u> on a rainy night, and many people (B)<u>were injuring</u> (C)<u>because</u> the road (D)<u>was icy</u>.",
+     "choices": [
+      "(A) happened → was happened",
+      "(B) were injuring → were injured",
+      "(C) because → because of",
+      "(B) were injuring → injured"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2C-03",
+     "no": "2C-03",
+     "q": "The woman (A)<u>I met</u> at the party (B)<u>last night</u> (C)<u>works</u> at a bank (D)<u>where is</u> near the station.",
+     "choices": [
+      "(D) where is → which is",
+      "(C) works → work",
+      "(D) where is → where",
+      "(A) I met → I met her"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2C-04",
+     "no": "2C-04",
+     "q": "Mt. Fuji is (A)<u>higher than</u> (B)<u>any other</u> (C)<u>mountains</u> (D)<u>in Japan</u>.",
+     "choices": [
+      "(D) in Japan → of Japan",
+      "(B) any other → any",
+      "(A) higher than → highest than",
+      "(C) mountains → mountain"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2C-05",
+     "no": "2C-05",
+     "q": "I wish I (A)<u>can</u> speak English (B)<u>as well as</u> (C)<u>my sister</u> (D)<u>does</u>.",
+     "choices": [
+      "(A) can → will",
+      "(D) does → do",
+      "(A) can → could",
+      "(B) as well as → as good as"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2C-06",
+     "no": "2C-06",
+     "q": "The game (A)<u>continued</u> (B)<u>until</u> the end (C)<u>of the day</u> (D)<u>despite</u> it was raining.",
+     "choices": [
+      "(A) continued → was continued",
+      "(D) despite → in spite of",
+      "(D) despite → although",
+      "(B) until → by"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2C-07",
+     "no": "2C-07",
+     "q": "(A)<u>Not only</u> (B)<u>she can</u> play the piano, but she (C)<u>can also</u> play (D)<u>the violin</u>.",
+     "choices": [
+      "(B) she can → she could",
+      "(A) Not only → Not",
+      "(C) can also → also can",
+      "(B) she can → can she"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2C-08",
+     "no": "2C-08",
+     "q": "I (A)<u>wonder</u> (B)<u>if</u> (C)<u>will it</u> rain (D)<u>tomorrow</u>.",
+     "choices": [
+      "(C) will it → does it",
+      "(C) will it → it will",
+      "(A) wonder → am wondering",
+      "(B) if → that"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "第2問D 文法（書き換え）",
+   "instructions": "2つの文がほぼ同じ意味になるように、(1)(2)に入る語の組み合わせとして最も適切なものを1〜4から1つ選びなさい。〔各2点〕",
+   "items": [
+    {
+     "id": "2D-01",
+     "no": "2D-01",
+     "q": "As I don't have a car, I can't drive you home.\n＝ If I (  1  ) a car, I (  2  ) drive you home.",
+     "choices": [
+      "had / could",
+      "have / could",
+      "had / can",
+      "have / can"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2D-02",
+     "no": "2D-02",
+     "q": "People say that he is a genius.\n＝ He (  1  ) (  2  ) to be a genius.",
+     "choices": [
+      "is / saying",
+      "is / said",
+      "says / that",
+      "was / said"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2D-03",
+     "no": "2D-03",
+     "q": "Time is the most important thing.\n＝ Nothing is (  1  ) important (  2  ) time.",
+     "choices": [
+      "much / than",
+      "more / than",
+      "so / that",
+      "most / of"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2D-04",
+     "no": "2D-04",
+     "q": "He was so tired that he couldn't walk any more.\n＝ He was (  1  ) tired (  2  ) walk any more.",
+     "choices": [
+      "so / that",
+      "enough / to",
+      "too / to",
+      "very / to"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2D-05",
+     "no": "2D-05",
+     "q": "Because she didn't know what to say, she kept silent.\n＝ (  1  ) (  2  ) what to say, she kept silent.",
+     "choices": [
+      "Knowing / not",
+      "Not / known",
+      "Don't / know",
+      "Not / knowing"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2D-06",
+     "no": "2D-06",
+     "q": "My father went to Canada, and he is still there.\n＝ My father (  1  ) (  2  ) to Canada.",
+     "choices": [
+      "has / gone",
+      "has / been",
+      "had / gone",
+      "was / going"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "第3問 長文読解",
+   "instructions": "英文を読んで、各問いに最も適切なものを1〜4から1つ選びなさい。",
+   "passage": [
+    "The Repair Café",
+    "[1] Last spring, Yuna, a first-year student at a high school in Shizuoka, noticed something strange. Many students threw away umbrellas, bags, and headphones when they were only a little broken. “Most of these things could be used again if someone fixed them,” she thought.",
+    "[2] She talked to her science teacher, Mr. Ono, about her idea. He told her about “repair cafés,” events where people bring broken things and volunteers help them repair the items for free. The first repair café was held in the Netherlands in 2009, and now there are thousands of them around the world. Yuna decided to start one at her school.",
+    "[3] At first, it was not easy. Only three students came to the first meeting, and none of them knew much about repairing things. So Yuna asked some local people for help. Mr. Kato, a retired engineer, and a woman who runs a small sewing shop agreed to teach the students once a month.",
+    "[4] Six months later, the repair café had become popular. Now, every Friday after school, students line up in the science room with their broken things. The members do not simply fix the items for them. Instead, they show the owners how to repair the items by themselves. “If you learn how to fix something, you will take better care of it,” Yuna says.",
+    "[5] The club has repaired more than 200 items so far. However, Yuna believes that the most important thing is not the number of items but the change in people’s thinking. “Before, we thought new things were always better. Now many of us <u>think twice</u> before we throw something away.”"
+   ],
+   "items": [
+    {
+     "id": "3-1",
+     "no": "3-1",
+     "q": "問1　Why did Yuna start thinking about repairing things?〔3点〕",
+     "choices": [
+      "Because she visited a repair café in the Netherlands.",
+      "Because she saw many students throw away things that were only slightly broken.",
+      "Because her own umbrella broke on a rainy day.",
+      "Because her teacher asked her to make a new club."
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "3-2",
+     "no": "3-2",
+     "q": "問2　What problem did Yuna have at first?〔3点〕",
+     "choices": [
+      "The teachers did not allow her to use the science room.",
+      "Local people complained about the noise.",
+      "Few students joined, and they did not know much about repairing things.",
+      "The club did not have enough money to buy tools."
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "3-3",
+     "no": "3-3",
+     "q": "問3　下線部 think twice の意味に最も近いものを選びなさい。〔3点〕",
+     "choices": [
+      "forget quickly",
+      "decide immediately",
+      "talk loudly",
+      "consider carefully"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "3-4",
+     "no": "3-4",
+     "q": "問4　What do the members of the repair café do instead of simply fixing the items?〔3点〕",
+     "choices": [
+      "They sell new items to the owners at a low price.",
+      "They show the owners how to repair the items by themselves.",
+      "They send the broken items to Mr. Kato's company.",
+      "They throw the items away and recycle them."
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "3-5",
+     "no": "3-5",
+     "q": "問5　Why do the members do so?〔3点〕",
+     "choices": [
+      "Because people who learn how to fix something will take better care of it.",
+      "Because the teachers do not allow students to touch other people's things.",
+      "Because the members do not know how to repair things well.",
+      "Because the club does not have enough tools."
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "3-6",
+     "no": "3-6",
+     "q": "問6　本文の内容と合うものを1つ選びなさい。〔5点〕",
+     "choices": [
+      "Yuna thinks a change in people’s way of thinking is more important than the number of repaired items.",
+      "The club has repaired fewer than 100 items so far.",
+      "The first repair café in the world was started by Mr. Ono.",
+      "Mr. Kato and the owner of a sewing shop teach the students every week."
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "第4問 長文読解",
+   "instructions": "英文を読んで、各問いに最も適切なものを1〜4から1つ選びなさい。",
+   "passage": [
+    "Losing the Dark",
+    "[1] For most of human history, people could look up at night and see thousands of stars. Today, however, about 80 percent of the world’s population lives under skies that are polluted by light, and more than one-third of all people can no longer see the Milky Way from where they live. Scientists call this problem “light pollution.” It is caused by artificial light from streetlights, buildings, and advertising signs that shines up into the sky instead of onto the ground, where it is actually needed.",
+    "[2] Light pollution may seem like a minor issue compared with air or water pollution, but researchers have found that it can have serious effects on wildlife. Many animals depend on natural patterns of light and darkness. For example, young sea turtles hatch on beaches at night and find their way to the ocean by moving toward the brightest horizon, which is usually the sea reflecting the light of the moon. Near brightly lit hotels and roads, however, many of them crawl in the wrong direction and die before they reach the water. Similarly, every year, large numbers of birds that travel at night are confused by city lights and crash into tall buildings.",
+    "[3] Humans are affected, too. Our bodies produce a hormone called melatonin when it is dark, and this hormone helps us sleep. Studies suggest that being exposed to bright light at night, especially the blue light from screens and some LED lamps, can reduce the amount of melatonin we produce. As a result, people may have trouble falling asleep, and in the long run, their health may suffer.",
+    "[4] The good news is that light pollution is one of the easiest kinds of pollution to reduce. Unlike chemicals in rivers or plastic in the ocean, light disappears the moment it is turned off. Some towns have already taken action. They have replaced old streetlights with new ones that point downward and use warmer colors, and they have asked stores to turn off their signs after closing time. In some of these towns, the changes have not only made the night sky darker but also greatly reduced the cost of electricity.",
+    "[5] Some people worry that darker streets will lead to more crime. However, the evidence for this is not clear. Several studies have suggested that well-designed lighting, which lights only the places people actually use, can keep streets safe while wasting less energy. Experts say that the goal is not to remove all lights but to use <u>“the right light, in the right place, at the right time.”</u>",
+    "[6] Some areas have even turned their dark skies into an attraction. Places that have been recognized as “dark sky parks” attract tourists who want to see the stars clearly, and this has brought new business to small towns. As more people learn about the problem, the stars may one day return to the skies above our cities.",
+    "（注）artificial 人工の　hatch ふ化する　horizon 地平線・水平線　hormone ホルモン　melatonin メラトニン　be exposed to ～ ～にさらされる"
+   ],
+   "items": [
+    {
+     "id": "4-1",
+     "no": "4-1",
+     "q": "問1　According to the passage, what causes light pollution?〔4点〕",
+     "choices": [
+      "The light of the moon reflected by the sea.",
+      "Large numbers of tourists visiting dark sky parks.",
+      "Artificial light that goes up into the sky rather than onto the ground.",
+      "Smoke from factories that blocks the light of the stars."
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "4-2",
+     "no": "4-2",
+     "q": "問2　Why do many young sea turtles die near brightly lit hotels and roads?〔4点〕",
+     "choices": [
+      "The lights wake them up too early in the day.",
+      "The heat from the lights makes the sand too hot.",
+      "The artificial lights lead them away from the sea.",
+      "The noise from cars frightens them."
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "4-3",
+     "no": "4-3",
+     "q": "問3　What does the passage say about melatonin?〔4点〕",
+     "choices": [
+      "It is produced mainly when we are exposed to blue light.",
+      "LED lamps help our bodies produce more of it.",
+      "It is a chemical that pollutes rivers and oceans.",
+      "Bright light at night may reduce the amount of it, making it harder to fall asleep."
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "4-4",
+     "no": "4-4",
+     "q": "問4　Why does the writer say light pollution is “one of the easiest kinds of pollution to reduce”?〔4点〕",
+     "choices": [
+      "Because new streetlights are cheaper than old ones.",
+      "Because the pollution stops as soon as the lights are turned off.",
+      "Because the government has banned advertising signs.",
+      "Because most people do not use lights at night."
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "4-5",
+     "no": "4-5",
+     "q": "問5　Which of the following is true according to the passage?〔4点〕",
+     "choices": [
+      "Some towns have cut their electricity costs by changing their lighting.",
+      "Experts say all streetlights should be removed to protect wildlife.",
+      "Dark sky parks have caused small towns to lose business.",
+      "Research clearly shows that darker streets always lead to more crime."
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "4-6",
+     "no": "4-6",
+     "q": "問6　Which is the best title for this passage?〔2点〕",
+     "choices": [
+      "The Hidden Costs of Bright Nights and How to Reduce Them",
+      "Why Cities Need More Light at Night",
+      "How Sea Turtles Find the Ocean",
+      "The History of Streetlights"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    },
+    {
+     "id": "4-7",
+     "no": "4-7",
+     "q": "問7　下線部 “the right light, in the right place, at the right time” が表す考え方として最も適切なものを選びなさい。〔5点〕",
+     "choices": [
+      "野生生物を守るため、夜は街の明かりをすべて消す。",
+      "明かりをすべてなくすのではなく、必要な場所に、必要な時だけ、適切な明かりを使う。",
+      "眠りをさまたげないよう、街灯をすべて青い光のLEDに取り替える。",
+      "犯罪を防ぐため、街全体をできるだけ明るく照らし続ける。"
+     ],
+     "blanks": [
+      {
+       "label": "ア",
+       "opts": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "items": [
+  {
+   "id": "1A-01",
+   "no": "1A-01",
+   "field": "語彙",
+   "tag": "語彙-動詞",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "1A-02",
+   "no": "1A-02",
+   "field": "語彙",
+   "tag": "語彙-動詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1A-03",
+   "no": "1A-03",
+   "field": "語彙",
+   "tag": "語彙-動詞",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "1A-04",
+   "no": "1A-04",
+   "field": "語彙",
+   "tag": "語彙-動詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1A-05",
+   "no": "1A-05",
+   "field": "語彙",
+   "tag": "語彙-動詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1A-06",
+   "no": "1A-06",
+   "field": "語彙",
+   "tag": "語彙-動詞",
+   "level": "応用",
+   "pts": 1
+  },
+  {
+   "id": "1A-07",
+   "no": "1A-07",
+   "field": "語彙",
+   "tag": "語彙-名詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1A-08",
+   "no": "1A-08",
+   "field": "語彙",
+   "tag": "語彙-名詞",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "1A-09",
+   "no": "1A-09",
+   "field": "語彙",
+   "tag": "語彙-名詞",
+   "level": "応用",
+   "pts": 1
+  },
+  {
+   "id": "1A-10",
+   "no": "1A-10",
+   "field": "語彙",
+   "tag": "語彙-名詞",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "1A-11",
+   "no": "1A-11",
+   "field": "語彙",
+   "tag": "語彙-名詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1A-12",
+   "no": "1A-12",
+   "field": "語彙",
+   "tag": "語彙-形容詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1A-13",
+   "no": "1A-13",
+   "field": "語彙",
+   "tag": "語彙-形容詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1A-14",
+   "no": "1A-14",
+   "field": "語彙",
+   "tag": "語彙-形容詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1A-15",
+   "no": "1A-15",
+   "field": "語彙",
+   "tag": "語彙-形容詞",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "1A-16",
+   "no": "1A-16",
+   "field": "語彙",
+   "tag": "語彙-副詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1A-17",
+   "no": "1A-17",
+   "field": "語彙",
+   "tag": "語彙-副詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1A-18",
+   "no": "1A-18",
+   "field": "語彙",
+   "tag": "語彙-イディオム",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "1A-19",
+   "no": "1A-19",
+   "field": "語彙",
+   "tag": "語彙-イディオム",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1A-20",
+   "no": "1A-20",
+   "field": "語彙",
+   "tag": "語彙-イディオム",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "1B-01",
+   "no": "1B-01",
+   "field": "語彙",
+   "tag": "語彙-動詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1B-02",
+   "no": "1B-02",
+   "field": "語彙",
+   "tag": "語彙-動詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1B-03",
+   "no": "1B-03",
+   "field": "語彙",
+   "tag": "語彙-動詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1B-04",
+   "no": "1B-04",
+   "field": "語彙",
+   "tag": "語彙-動詞",
+   "level": "応用",
+   "pts": 1
+  },
+  {
+   "id": "1B-05",
+   "no": "1B-05",
+   "field": "語彙",
+   "tag": "語彙-イディオム",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1B-06",
+   "no": "1B-06",
+   "field": "語彙",
+   "tag": "語彙-形容詞",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "1B-07",
+   "no": "1B-07",
+   "field": "語彙",
+   "tag": "語彙-形容詞",
+   "level": "応用",
+   "pts": 1
+  },
+  {
+   "id": "1B-08",
+   "no": "1B-08",
+   "field": "語彙",
+   "tag": "語彙-形容詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1B-09",
+   "no": "1B-09",
+   "field": "語彙",
+   "tag": "語彙-名詞",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "1B-10",
+   "no": "1B-10",
+   "field": "語彙",
+   "tag": "語彙-名詞",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "1B-11",
+   "no": "1B-11",
+   "field": "語彙",
+   "tag": "語彙-副詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1B-12",
+   "no": "1B-12",
+   "field": "語彙",
+   "tag": "語彙-イディオム",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1B-13",
+   "no": "1B-13",
+   "field": "語彙",
+   "tag": "語彙-イディオム",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "1B-14",
+   "no": "1B-14",
+   "field": "語彙",
+   "tag": "語彙-イディオム",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "1B-15",
+   "no": "1B-15",
+   "field": "語彙",
+   "tag": "語彙-イディオム",
+   "level": "応用",
+   "pts": 1
+  },
+  {
+   "id": "2A-01",
+   "no": "2A-01",
+   "field": "文法",
+   "tag": "時制",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "2A-02",
+   "no": "2A-02",
+   "field": "文法",
+   "tag": "時制",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "2A-03",
+   "no": "2A-03",
+   "field": "文法",
+   "tag": "受動態",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "2A-04",
+   "no": "2A-04",
+   "field": "文法",
+   "tag": "受動態",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "2A-05",
+   "no": "2A-05",
+   "field": "文法",
+   "tag": "助動詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "2A-06",
+   "no": "2A-06",
+   "field": "文法",
+   "tag": "助動詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "2A-07",
+   "no": "2A-07",
+   "field": "文法",
+   "tag": "助動詞",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "2A-08",
+   "no": "2A-08",
+   "field": "文法",
+   "tag": "不定詞",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "2A-09",
+   "no": "2A-09",
+   "field": "文法",
+   "tag": "不定詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "2A-10",
+   "no": "2A-10",
+   "field": "文法",
+   "tag": "動名詞",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "2A-11",
+   "no": "2A-11",
+   "field": "文法",
+   "tag": "動名詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "2A-12",
+   "no": "2A-12",
+   "field": "文法",
+   "tag": "分詞・分詞構文",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "2A-13",
+   "no": "2A-13",
+   "field": "文法",
+   "tag": "使役・知覚動詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "2A-14",
+   "no": "2A-14",
+   "field": "文法",
+   "tag": "分詞・分詞構文",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "2A-15",
+   "no": "2A-15",
+   "field": "文法",
+   "tag": "接続詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "2A-16",
+   "no": "2A-16",
+   "field": "文法",
+   "tag": "関係詞",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "2A-17",
+   "no": "2A-17",
+   "field": "文法",
+   "tag": "関係詞",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "2A-18",
+   "no": "2A-18",
+   "field": "文法",
+   "tag": "比較",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "2A-19",
+   "no": "2A-19",
+   "field": "文法",
+   "tag": "仮定法",
+   "level": "基本",
+   "pts": 1
+  },
+  {
+   "id": "2A-20",
+   "no": "2A-20",
+   "field": "文法",
+   "tag": "仮定法",
+   "level": "標準",
+   "pts": 1
+  },
+  {
+   "id": "2B-01",
+   "no": "2B-01",
+   "field": "文法",
+   "tag": "名詞節・間接疑問",
+   "level": "標準",
+   "pts": 2
+  },
+  {
+   "id": "2B-02",
+   "no": "2B-02",
+   "field": "文法",
+   "tag": "仮定法",
+   "level": "応用",
+   "pts": 2
+  },
+  {
+   "id": "2B-03",
+   "no": "2B-03",
+   "field": "文法",
+   "tag": "倒置・強調",
+   "level": "応用",
+   "pts": 2
+  },
+  {
+   "id": "2B-04",
+   "no": "2B-04",
+   "field": "文法",
+   "tag": "倒置・強調",
+   "level": "標準",
+   "pts": 2
+  },
+  {
+   "id": "2B-05",
+   "no": "2B-05",
+   "field": "文法",
+   "tag": "関係詞",
+   "level": "応用",
+   "pts": 2
+  },
+  {
+   "id": "2B-06",
+   "no": "2B-06",
+   "field": "文法",
+   "tag": "不定詞",
+   "level": "標準",
+   "pts": 2
+  },
+  {
+   "id": "2B-07",
+   "no": "2B-07",
+   "field": "文法",
+   "tag": "比較",
+   "level": "標準",
+   "pts": 2
+  },
+  {
+   "id": "2B-08",
+   "no": "2B-08",
+   "field": "文法",
+   "tag": "使役・知覚動詞",
+   "level": "応用",
+   "pts": 2
+  },
+  {
+   "id": "2B-09",
+   "no": "2B-09",
+   "field": "文法",
+   "tag": "動名詞",
+   "level": "応用",
+   "pts": 2
+  },
+  {
+   "id": "2B-10",
+   "no": "2B-10",
+   "field": "文法",
+   "tag": "分詞・分詞構文",
+   "level": "標準",
+   "pts": 2
+  },
+  {
+   "id": "2C-01",
+   "no": "2C-01",
+   "field": "文法",
+   "tag": "時制",
+   "level": "標準",
+   "pts": 2
+  },
+  {
+   "id": "2C-02",
+   "no": "2C-02",
+   "field": "文法",
+   "tag": "受動態",
+   "level": "標準",
+   "pts": 2
+  },
+  {
+   "id": "2C-03",
+   "no": "2C-03",
+   "field": "文法",
+   "tag": "関係詞",
+   "level": "応用",
+   "pts": 2
+  },
+  {
+   "id": "2C-04",
+   "no": "2C-04",
+   "field": "文法",
+   "tag": "比較",
+   "level": "標準",
+   "pts": 2
+  },
+  {
+   "id": "2C-05",
+   "no": "2C-05",
+   "field": "文法",
+   "tag": "仮定法",
+   "level": "基本",
+   "pts": 2
+  },
+  {
+   "id": "2C-06",
+   "no": "2C-06",
+   "field": "文法",
+   "tag": "接続詞",
+   "level": "標準",
+   "pts": 2
+  },
+  {
+   "id": "2C-07",
+   "no": "2C-07",
+   "field": "文法",
+   "tag": "倒置・強調",
+   "level": "応用",
+   "pts": 2
+  },
+  {
+   "id": "2C-08",
+   "no": "2C-08",
+   "field": "文法",
+   "tag": "名詞節・間接疑問",
+   "level": "標準",
+   "pts": 2
+  },
+  {
+   "id": "2D-01",
+   "no": "2D-01",
+   "field": "文法",
+   "tag": "仮定法",
+   "level": "標準",
+   "pts": 2
+  },
+  {
+   "id": "2D-02",
+   "no": "2D-02",
+   "field": "文法",
+   "tag": "受動態",
+   "level": "標準",
+   "pts": 2
+  },
+  {
+   "id": "2D-03",
+   "no": "2D-03",
+   "field": "文法",
+   "tag": "比較",
+   "level": "標準",
+   "pts": 2
+  },
+  {
+   "id": "2D-04",
+   "no": "2D-04",
+   "field": "文法",
+   "tag": "不定詞",
+   "level": "基本",
+   "pts": 2
+  },
+  {
+   "id": "2D-05",
+   "no": "2D-05",
+   "field": "文法",
+   "tag": "分詞・分詞構文",
+   "level": "標準",
+   "pts": 2
+  },
+  {
+   "id": "2D-06",
+   "no": "2D-06",
+   "field": "文法",
+   "tag": "時制",
+   "level": "基本",
+   "pts": 2
+  },
+  {
+   "id": "3-1",
+   "no": "3-1",
+   "field": "読解",
+   "tag": "読解-理由・根拠",
+   "level": "基本",
+   "pts": 3
+  },
+  {
+   "id": "3-2",
+   "no": "3-2",
+   "field": "読解",
+   "tag": "読解-内容理解",
+   "level": "基本",
+   "pts": 3
+  },
+  {
+   "id": "3-3",
+   "no": "3-3",
+   "field": "読解",
+   "tag": "読解-語句・指示語",
+   "level": "標準",
+   "pts": 3
+  },
+  {
+   "id": "3-4",
+   "no": "3-4",
+   "field": "読解",
+   "tag": "読解-内容理解",
+   "level": "標準",
+   "pts": 3
+  },
+  {
+   "id": "3-5",
+   "no": "3-5",
+   "field": "読解",
+   "tag": "読解-理由・根拠",
+   "level": "標準",
+   "pts": 3
+  },
+  {
+   "id": "3-6",
+   "no": "3-6",
+   "field": "読解",
+   "tag": "読解-内容一致",
+   "level": "標準",
+   "pts": 5
+  },
+  {
+   "id": "4-1",
+   "no": "4-1",
+   "field": "読解",
+   "tag": "読解-内容理解",
+   "level": "基本",
+   "pts": 4
+  },
+  {
+   "id": "4-2",
+   "no": "4-2",
+   "field": "読解",
+   "tag": "読解-理由・根拠",
+   "level": "標準",
+   "pts": 4
+  },
+  {
+   "id": "4-3",
+   "no": "4-3",
+   "field": "読解",
+   "tag": "読解-内容理解",
+   "level": "標準",
+   "pts": 4
+  },
+  {
+   "id": "4-4",
+   "no": "4-4",
+   "field": "読解",
+   "tag": "読解-理由・根拠",
+   "level": "応用",
+   "pts": 4
+  },
+  {
+   "id": "4-5",
+   "no": "4-5",
+   "field": "読解",
+   "tag": "読解-内容一致",
+   "level": "標準",
+   "pts": 4
+  },
+  {
+   "id": "4-6",
+   "no": "4-6",
+   "field": "読解",
+   "tag": "読解-要旨・主題",
+   "level": "標準",
+   "pts": 2
+  },
+  {
+   "id": "4-7",
+   "no": "4-7",
+   "field": "読解",
+   "tag": "読解-要旨・主題",
+   "level": "応用",
+   "pts": 5
+  }
+ ]
+}

@@ -4,6 +4,7 @@
 export const MOCKS = [
  {
   "id": "math1",
+  "web": "moshi/web/math1.json",
   "subject": "math",
   "title": "数学ⅠA 実力テスト 第1部",
   "scope": "数と式・集合と命題・2次関数",
@@ -344,6 +345,7 @@ export const MOCKS = [
  },
  {
   "id": "math2",
+  "web": "moshi/web/math2.json",
   "subject": "math",
   "title": "数学ⅠA 実力テスト 第2部",
   "scope": "図形と計量・データの分析・図形の性質",
@@ -644,6 +646,7 @@ export const MOCKS = [
  },
  {
   "id": "math3",
+  "web": "moshi/web/math3.json",
   "subject": "math",
   "title": "数学ⅠA 実力テスト 第3部",
   "scope": "場合の数・確率・整数の性質",

@@ -66,6 +66,13 @@
   予定・連絡が追加されるたびにも通知が届く
 
 ### 模試（実力テスト）
+**形式は2つ**。出すときに選ぶ（ウェブ用データのあるテストはウェブが既定）。
+- **ウェブ（マーク式）**：画面で問題を見てマークする。数学は共通テスト型（ア・イ…の枠に数字や符号をマーク）、
+  選択肢は ⓪①… から選ぶ。マークは自動保存（端末にも控え）され、アプリを閉じても消えない。
+  時間になるとその時点のマークで自動提出（閉じていたときは次に開いたときに提出）。提出するとすぐ自動採点し、
+  結果・答案と正解・解答解説が見られる。問題データは `moshi/web/<id>.json`（正解なし）、
+  正解はデータベースの `config/mockans-<id>`（提出後にだけ読み出す）。数式は KaTeX で表示
+- **紙に記述（写真で提出）**：以下の流れ
 先生が作った実力テスト（数学ⅠA 第1〜3部・英語）を生徒に受けさせ、分野ごとの弱点を確かめるタブ。
 - チューターが「模試を出す」でテストと期限を選ぶ
 - 受験前・受験中は、問題用紙・解答用紙のPDFをダウンロードできる（印刷して解く）
@@ -181,6 +188,7 @@ firebase deploy --only functions,firestore:indexes
 config/tutor                        { passcode }
 config/mockkey-{id}                 { chunks, size }      ← 模試の解答・解説PDF（提出後に公開）
 config/mockkey-{id}-{n}             { data }              ← PDFをbase64で分割したもの
+config/mockans-{id}                 { data }              ← ウェブ模試の正解（JSON文字列。提出後の自動採点で使う）
 students/{sid}                      { name, studentPasscode, parentPasscode,
                                        birthday, targetSchools[], goodSubjects[], weakSubjects[] }
 students/{sid}/lessons/{id}         { date, subject, range, content, notes }
@@ -190,7 +198,7 @@ students/{sid}/homework/{id}        { title, subject, type, detail, dueDate,
                                        photos[], pdfs[{ name, url }],     // 複数対応（photo/pdfは旧単数形式との互換用）
                                        done,                              // type: tf
                                        unit, countFrom, countTo, clearedCounts[] } // type: count
-students/{sid}/mocks/{id}           { mockId, dueDate, memo, status, startedAt, submittedAt, gradedAt,
+students/{sid}/mocks/{id}           { mockId, mode(web/paper), answers: { 問題id: { 枠: 記号 } }, dueDate, memo, status, startedAt, submittedAt, gradedAt,
                                        photoCount, scores: { 問題id: 得点 } }   // status: assigned→started→submitted→grading→graded
 students/{sid}/mocks/{id}/photos/{id} { src, createdAt }   ← 提出した解答用紙の写真
 students/{sid}/books, studyLogs     （旧機能。画面からは外したがデータは残っている）

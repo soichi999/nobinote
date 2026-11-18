@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ノビノート</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0b2a5b">
@@ -345,6 +347,12 @@
     <form id="mock-form">
       <label>テスト<select id="mk-test" required></select></label>
       <p class="hint left" id="mk-test-info"></p>
+      <label>形式
+        <select id="mk-mode">
+          <option value="web">ウェブでマークする（提出するとすぐ自動採点）</option>
+          <option value="paper">紙に記述して写真で提出（先生が採点）</option>
+        </select>
+      </label>
       <label>受験の期限<input type="date" id="mk-due" required></label>
       <label>メモ（任意）<input type="text" id="mk-memo" placeholder="今週末までに。時間を計って解こう"></label>
       <div id="mk-reset-wrap" class="reset-box" hidden>
@@ -395,6 +403,18 @@
     </div>
     <div id="mock-photo-body" class="mock-photos large"></div>
   </div>
+</div>
+
+<!-- ウェブ受験（マーク式）の画面 -->
+<div id="exam-view" class="exam-view" hidden>
+  <header class="exam-head">
+    <button type="button" id="exam-close" class="small ghost-dark">閉じる</button>
+    <div class="exam-title"><b id="exam-title"></b><span id="exam-progress"></span></div>
+    <span id="exam-timer" class="exam-timer"></span>
+    <button type="button" id="exam-submit" class="primary small">提出する</button>
+  </header>
+  <nav id="exam-nav" class="exam-nav"></nav>
+  <div id="exam-body" class="exam-body"></div>
 </div>
 
 <script type="module" src="app.js"></script>

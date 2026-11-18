@@ -479,3 +479,66 @@ button.big-action{padding:.85rem 1.6rem;font-size:1rem}
 .mock-banner.running{position:sticky;top:4.2rem;z-index:6;border-left-color:var(--warn);background:#fffaf0}
 .banner-timer{font-size:1.15rem;color:var(--warn);font-variant-numeric:tabular-nums;margin-left:auto}
 @media (max-width:640px){ .mock-banner.running{top:4.6rem} }
+
+/* ---- ウェブ受験（マーク式） ---- */
+body.exam-open{overflow:hidden}
+.exam-view{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column}
+.exam-head{display:flex;align-items:center;gap:.7rem;padding:.6rem 1rem;background:#fff;border-bottom:1px solid var(--line);
+  box-shadow:0 2px 10px rgba(11,42,91,.06);padding-top:calc(.6rem + env(safe-area-inset-top))}
+.exam-title{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}
+.exam-title b{color:var(--navy);font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exam-title span{font-size:.75rem;color:var(--muted);font-weight:700}
+.exam-timer{font-weight:800;color:var(--warn);font-size:1.15rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+button.ghost-dark{background:#fff;border:1px solid var(--blue-line);color:var(--navy);font-weight:700}
+.exam-nav{display:flex;gap:.4rem;overflow-x:auto;padding:.5rem 1rem;background:#fff;border-bottom:1px solid var(--line)}
+.exam-nav a{flex:none;font-size:.78rem;font-weight:700;color:var(--blue);text-decoration:none;padding:.25rem .7rem;
+  border-radius:999px;background:var(--blue-soft)}
+.exam-body{flex:1;overflow-y:auto;padding:1rem;padding-bottom:calc(2rem + env(safe-area-inset-bottom));scroll-behavior:smooth}
+.exam-body > *{max-width:760px;margin-left:auto;margin-right:auto}
+.exam-intro{font-size:.85rem;color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:12px;padding:.8rem 1rem}
+.exam-sec{margin-top:1.4rem;scroll-margin-top:.5rem}
+.exam-sec > h3{margin-bottom:.6rem}
+.exam-inst{font-size:.85rem;color:var(--muted);margin:.2rem 0 .8rem}
+.exam-passage{background:#fff;border:1px solid var(--line);border-radius:12px;padding:.9rem 1.1rem;margin-bottom:.9rem;
+  font-family:"Times New Roman","Hiragino Mincho ProN",serif;font-size:1rem;line-height:1.8}
+.exam-passage p{margin:.3rem 0;text-indent:1em}
+.exam-item{background:#fff;border:1px solid var(--line);border-radius:14px;padding:.9rem 1rem;margin-bottom:.8rem;box-shadow:var(--shadow);scroll-margin-top:.5rem}
+.exam-item.ok{border-color:#bfe6d8}.exam-item.part{border-color:#f0dcb8}.exam-item.ng{border-color:#f3ccc6}
+.exam-q{display:flex;flex-wrap:wrap;gap:.3rem .6rem;align-items:baseline;line-height:1.9}
+.exam-q > div{flex-basis:100%}
+.exam-no{font-weight:800;color:var(--blue);font-size:.85rem}
+.exam-res{font-size:.75rem;font-weight:800;padding:.05rem .6rem;border-radius:999px}
+.exam-res.ok{background:#e9f7f2;color:var(--ok)}.exam-res.part{background:#fdf4e5;color:var(--warn)}.exam-res.ng{background:#fdeeec;color:var(--err)}
+.exam-choices{list-style:none;padding:0;margin:.5rem 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.3rem .8rem}
+.exam-choices li{display:flex;gap:.4rem;align-items:baseline}
+.cnum{display:inline-flex;width:1.3rem;height:1.3rem;border-radius:999px;border:1.5px solid var(--navy);font-size:.75rem;
+  font-weight:800;align-items:center;justify-content:center;flex:none}
+.exam-notes{font-size:.88rem;background:var(--bg);border-radius:10px;padding:.4rem .8rem;margin:.5rem 0}
+.exam-notes p{margin:.25rem 0}
+.exam-t{margin:.6rem 0;padding:.6rem .8rem;border:1px dashed var(--blue-line);border-radius:10px;background:#fbfdff;overflow-x:auto;line-height:2.1}
+.exam-t .katex,.exam-q .katex{font-size:1.08em}
+.blank{display:inline-flex;align-items:center;justify-content:center;min-width:1.5em;height:1.5em;border:1.5px solid var(--navy);
+  font-size:.85em;font-weight:700;padding:0 .2em;margin:0 .1em;vertical-align:middle}
+.marks{display:flex;flex-direction:column;gap:.35rem;margin-top:.5rem}
+.mark-row{display:flex;align-items:center;gap:.5rem}
+.mark-label{flex:none;min-width:2.2rem;text-align:center;font-weight:800;color:var(--navy);font-size:.85rem;
+  border:1.5px solid var(--navy);border-radius:6px;padding:.05rem .3rem}
+.bubbles{display:flex;flex-wrap:wrap;gap:.25rem}
+.bubble{width:2.05rem;height:2.05rem;padding:0;border-radius:999px;border:1.5px solid #c9d4e6;background:#fff;color:var(--muted);
+  font-weight:800;font-size:.85rem;line-height:1;transition:background .1s,border-color .1s}
+.bubble:hover:not(:disabled){border-color:var(--blue);color:var(--blue)}
+.bubble.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.bubble.correct{box-shadow:0 0 0 3px #2f9e74}
+.bubble.wrong{background:var(--err);border-color:var(--err);color:#fff}
+.bubble:disabled{cursor:default}
+.exam-end{text-align:center;margin:1.6rem auto}
+@media (max-width:520px){
+  .exam-head{padding-left:.7rem;padding-right:.7rem;gap:.5rem}
+  .exam-body{padding:.6rem}
+  .exam-item{padding:.75rem .65rem}
+  .mark-label{min-width:1.8rem;font-size:.78rem;padding:.05rem .15rem}
+  .mark-row{gap:.35rem}
+  /* スマホでは1行に収まるように丸を縮める（4択などは大きいまま） */
+  .bubbles{flex:1;flex-wrap:nowrap;gap:2px}
+  .bubble{flex:1 1 0;width:auto;height:auto;aspect-ratio:1;max-width:2.1rem;min-width:0;font-size:.78rem}
+}

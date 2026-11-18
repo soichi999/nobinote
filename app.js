@@ -889,6 +889,11 @@ $("mk-test").innerHTML = MOCKS.map(m => `<option value="${m.id}">${esc(m.title)}
 function showMockInfo() {
   const m = mockDef($("mk-test").value);
   $("mk-test-info").textContent = m ? `${m.scope}／${m.minutes}分／${m.items.length}問・${m.total}点` : "";
+  // ウェブ（マーク）用のデータがないテストは紙だけ
+  const webOpt = $("mk-mode").querySelector('option[value="web"]');
+  webOpt.disabled = !m?.web;
+  webOpt.textContent = m?.web ? "ウェブでマークする（提出するとすぐ自動採点）" : "ウェブでマークする（このテストはまだ準備中）";
+  if (!m?.web) $("mk-mode").value = "paper";
 }
 $("mk-test").addEventListener("change", showMockInfo);
 showMockInfo();
@@ -902,6 +907,7 @@ function setMockFormMode(r) {
   $("mock-modal-title").textContent = r ? "模試を編集" : "模試を出す";
   $("mk-save-btn").textContent = r ? "更新" : "出す";
   $("mk-test").value = r?.mockId ?? MOCKS[0].id;
+  $("mk-mode").value = r?.mode ?? (mockDef($("mk-test").value)?.web ? "web" : "paper");
   $("mk-due").value = r?.dueDate ?? today();
   $("mk-memo").value = r?.memo ?? "";
   $("mk-reset").checked = false;
@@ -909,12 +915,14 @@ function setMockFormMode(r) {
   $("mk-reset-wrap").hidden = !r || st === "assigned";
   $("mk-status-text").textContent = r && st !== "assigned" ? `いまの状態：${MOCK_STATUS[st]}。テストを変えるには「受験前の状態に戻す」にチェックを入れてください。` : "";
   $("mk-test").disabled = !!r && st !== "assigned";
+  $("mk-mode").disabled = !!r && st !== "assigned";
   showMockInfo();
 }
 $("mock-add-btn")?.addEventListener("click", () => setMockFormMode(null));
 $("mk-reset")?.addEventListener("change", () => {
   const r = mocks.find(m => m.id === editingMockId);
   $("mk-test").disabled = !$("mk-reset").checked && (r?.status ?? "assigned") !== "assigned";
+  $("mk-mode").disabled = $("mk-test").disabled;
 });
 function startEditMock(r) {
   setMockFormMode(r);
@@ -927,17 +935,18 @@ async function deleteMockPhotos(id) {
 $("mock-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!currentSid) return alert("先に生徒を選んでください。");
-  const base = { mockId: $("mk-test").value, dueDate: $("mk-due").value, memo: $("mk-memo").value.trim() };
+  const base = { mockId: $("mk-test").value, mode: $("mk-mode").value, dueDate: $("mk-due").value, memo: $("mk-memo").value.trim() };
   try {
     if (editingMockId) {
       const r = mocks.find(m => m.id === editingMockId);
       const reset = $("mk-reset").checked;
       if (reset && !confirm("タイマー・提出写真・採点を消して、受験前の状態に戻します。よろしいですか？")) return;
       const data = { dueDate: base.dueDate, memo: base.memo };
-      if (reset || (r?.status ?? "assigned") === "assigned") data.mockId = base.mockId;
+      if (reset || (r?.status ?? "assigned") === "assigned") { data.mockId = base.mockId; data.mode = base.mode; }
       if (reset) {
         await deleteMockPhotos(editingMockId);
-        Object.assign(data, { status: "assigned", scores: {}, photoCount: 0, startedAt: null, submittedAt: null, gradedAt: null });
+        Object.assign(data, { status: "assigned", scores: {}, answers: {}, photoCount: 0, startedAt: null, submittedAt: null, gradedAt: null });
+        try { localStorage.removeItem("tnote.examAns." + editingMockId); } catch {}
         try { sessionStorage.removeItem("tnote.mockTimeUp." + editingMockId); } catch {}
       }
       await updateDoc(mockRef(editingMockId), data);
@@ -1013,14 +1022,17 @@ function mockCardHTML(r) {
   const late = st === "assigned" && r.dueDate && r.dueDate < today();
   const afterSubmit = ["submitted", "grading", "graded"].includes(st);
   const canKey = role === "tutor" || afterSubmit;
+  const web = isWeb(r);
   const pdfs = `<div class="mock-pdfs">
       <a class="pdf-btn" href="${def.q}" download="${esc(def.title)}_問題用紙.pdf">問題用紙</a>
-      <a class="pdf-btn" href="${def.a}" download="${esc(def.title)}_解答用紙.pdf">解答用紙</a>
+      ${web ? "" : `<a class="pdf-btn" href="${def.a}" download="${esc(def.title)}_解答用紙.pdf">解答用紙</a>`}
       ${canKey ? `<button type="button" class="pdf-btn key" data-mock-key="${esc(def.id)}">解答・解説</button>`
         : `<span class="pdf-btn locked" title="提出すると見られます">解答・解説（提出後）</span>`}
     </div>`;
   let body = "";
-  if (st === "assigned") {
+  if (web) {
+    body = webCardBody(r, def, st, stats, pdfs);
+  } else if (st === "assigned") {
     body = `${pdfs}
       <p class="mock-note">① 問題用紙と解答用紙をダウンロードして印刷します（印刷できないときはノートに解答してOK）。<br>
         ② 準備ができたら「解き始める」を押します。途中の式や考え方も書きましょう。</p>
@@ -1050,7 +1062,8 @@ function mockCardHTML(r) {
   }
   const tutorActions = role === "tutor" ? `<div class="actions tutor-actions">
       ${(r.photoCount ?? 0) > 0 ? `<button class="small outline" data-mock-photos="${esc(r.id)}">提出写真を見る</button>` : ""}
-      ${st !== "assigned" ? `<button class="small outline" data-mock-grade="${esc(r.id)}">${st === "graded" ? "採点を直す" : "採点する"}</button>` : ""}
+      ${web && ["submitted", "grading"].includes(st) ? `<button class="small outline" data-exam-review="${esc(r.id)}">答案を見る</button>` : ""}
+      ${st !== "assigned" && !(web && st === "started") ? `<button class="small outline" data-mock-grade="${esc(r.id)}">${st === "graded" ? "採点を直す" : "採点する"}</button>` : ""}
       <button class="small outline" data-mock-edit="${esc(r.id)}">編集</button>
       <button class="small outline danger" data-mock-del="${esc(r.id)}">削除</button>
     </div>` : "";
@@ -1063,15 +1076,17 @@ function mockCardHTML(r) {
       <span class="status-chip ${st}${late ? " late" : ""}">${late ? "期限切れ" : MOCK_STATUS[st]}</span>
     </div>
     <p class="mock-due">期限 ${fmtDate(r.dueDate)}${r.memo ? `　<span class="mock-memo">${esc(r.memo)}</span>` : ""}</p>
-    ${role !== "tutor" ? stepperHTML(st) : ""}
+    ${role !== "tutor" ? stepperHTML(st, web) : ""}
     ${body}
     ${tutorActions}
   </article>`;
 }
 const STEPS = ["印刷", "解く", "写真で提出", "結果"];
-function stepperHTML(st) {
-  const cur = { assigned: 0, started: 1, submitted: 3, grading: 3, graded: 4 }[st] ?? 0;
-  return `<ol class="stepper">${STEPS.map((t, i) => `<li class="${i < cur ? "done" : i === cur ? "now" : ""}"><span>${i + 1}</span>${t}</li>`).join("")}</ol>`;
+const WEB_STEPS = ["解き始める", "マークする", "提出", "結果"];
+function stepperHTML(st, web) {
+  const cur = web ? ({ assigned: 0, started: 1, submitted: 3, grading: 3, graded: 4 }[st] ?? 0)
+    : ({ assigned: 0, started: 1, submitted: 3, grading: 3, graded: 4 }[st] ?? 0);
+  return `<ol class="stepper">${(web ? WEB_STEPS : STEPS).map((t, i) => `<li class="${i < cur ? "done" : i === cur ? "now" : ""}"><span>${i + 1}</span>${t}</li>`).join("")}</ol>`;
 }
 // 生徒：撮った写真を確かめてから提出する
 const photoCache = {};   // 模試id → [{ id, src }]
@@ -1112,7 +1127,7 @@ function renderMockBanner() {
     const def = mockDef(running.mockId);
     bar.className = "mock-banner running";
     bar.innerHTML = `<span>受験中：${esc(def?.title ?? "")}</span><span class="banner-timer" data-mock-timer="${esc(running.id)}"></span>
-      <button type="button" class="small" data-go-mock>開く</button>`;
+      <button type="button" class="small" ${isWeb(running) ? `data-exam-open="${esc(running.id)}"` : "data-go-mock"}>開く</button>`;
     bar.hidden = false;
   } else if (pending.length) {
     const def = mockDef(pending[0].mockId);
@@ -1124,6 +1139,8 @@ function renderMockBanner() {
 }
 $("mock-banner").addEventListener("click", (e) => {
   if (e.target.closest("[data-go-mock]")) document.querySelector('.tabs [data-tab="mock"]').click();
+  const o = e.target.closest("[data-exam-open]");
+  if (o) openExam(o.dataset.examOpen);
 });
 
 function renderMocks() {
@@ -1137,7 +1154,8 @@ function renderMocks() {
   if (running) { tickMockTimers(); mockTimer = setInterval(tickMockTimers, 1000); }
   updateWakeLock(running && role === "student");
   renderMockBanner();
-  if (role === "student") list.filter(m => ["started", "submitted", "grading"].includes(m.status)).forEach(m => loadPhotoThumbs(m.id));
+  if (role === "student") list.filter(m => !isWeb(m) && ["started", "submitted", "grading"].includes(m.status)).forEach(m => loadPhotoThumbs(m.id));
+  if (examMockId) refreshExamHead();
 }
 // 残り時間は「開始した時刻」からの経過で毎回計算する（タイマーを数えるのではない）ので、
 // アプリが裏に回っても、閉じて開き直しても、時間は途切れずに正しく進む
@@ -1151,13 +1169,24 @@ function tickMockTimers() {
     const key = "tnote.mockTimeUp." + r.id;
     let told = false;
     try { told = sessionStorage.getItem(key) === "1"; } catch {}
-    if (over && role === "student" && !told && document.visibilityState === "visible" && r.status === "started") {
+    if (over && role === "student" && !told && document.visibilityState === "visible" && r.status === "started" && !isWeb(r)) {
       try { sessionStorage.setItem(key, "1"); } catch {}
       navigator.vibrate?.([300, 150, 300]);
       setTimeout(() => alert(`${def.title}の制限時間（${def.minutes}分）になりました。解答用紙の写真を撮って提出しましょう。`), 50);
     }
   });
+  // ウェブ形式は、時間になったらその時点のマークで自動提出（アプリを閉じていたときは、次に開いたときに提出）
+  if (role === "student") mocks.forEach(r => {
+    const def = mockDef(r.mockId);
+    if (!def || r.status !== "started" || !isWeb(r) || Date.now() < r.startedAt + def.minutes * 60000) return;
+    if (autoSubmitting.has(r.id)) return;
+    autoSubmitting.add(r.id);
+    navigator.vibrate?.([300, 150, 300]);
+    submitWeb(r.id, true).finally(() => autoSubmitting.delete(r.id));
+  });
+  if (examMockId) refreshExamHead();
 }
+const autoSubmitting = new Set();
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") { tickMockTimers(); updateWakeLock(mocks.some(m => m.status === "started") && role === "student"); }
 });
@@ -1202,13 +1231,21 @@ $("mock-list").addEventListener("click", async (e) => {
   let x;
   if ((x = b("mock-key"))) {
     downloadMockKey(x.dataset.mockKey, x);
+  } else if ((x = b("exam-open"))) {
+    openExam(x.dataset.examOpen);
+  } else if ((x = b("exam-review"))) {
+    openExam(x.dataset.examReview, true);
+  } else if ((x = b("exam-grade"))) {
+    x.disabled = true; await autoGrade(x.dataset.examGrade, true); x.disabled = false;
   } else if ((x = b("mock-edit"))) {
     const r = mocks.find(m => m.id === x.dataset.mockEdit);
     if (r) startEditMock(r);
   } else if ((x = b("mock-start"))) {
     const r = mocks.find(m => m.id === x.dataset.mockStart), def = mockDef(r?.mockId);
-    if (def && confirm(`${def.title}を始めます。制限時間は${def.minutes}分です。\n始めると、アプリを閉じても時間は止まりません。準備はいいですか？`))
+    if (def && confirm(`${def.title}を始めます。制限時間は${def.minutes}分です。\n始めると、アプリを閉じても時間は止まりません。${isWeb(r) ? "時間になると、その時点のマークで自動的に提出されます。" : ""}準備はいいですか？`)) {
       await updateDoc(mockRef(r.id), { status: "started", startedAt: Date.now() });
+      if (isWeb(r)) openExam(r.id);
+    }
   } else if ((x = b("mock-submit"))) {
     document.querySelector(`[data-mock-photo-input="${x.dataset.mockSubmit}"]`)?.click();
   } else if ((x = b("mock-finish"))) {
@@ -1375,6 +1412,248 @@ function openResult(id) {
         return `<div class="item-cell ${cls}"><span>${esc(it.no)}</span><small>${esc(it.tag)}</small><b>${v ?? "－"}/${it.pts}</b></div>`;
       }).join("")}</div></details>`).join("")}`;
   $("mock-result-modal").hidden = false;
+}
+
+/* ---------- ウェブ受験（マーク式）：画面でマーク → 自動保存 → 提出 → 自動採点 ---------- */
+const isWeb = (r) => r?.mode === "web" && !!mockDef(r?.mockId)?.web;
+const webCache = {};
+const loadWeb = (def) => (webCache[def.id] ??= fetch(def.web).then(res => { if (!res.ok) throw new Error("問題データを読み込めませんでした"); return res.json(); }));
+const KATEX_MACROS = { "\\le": "\\leqq", "\\ge": "\\geqq", "\\paren": "\\left(#1\\right)", "\\nCr": "{}_{#1}\\mathrm{C}_{#2}" };
+function renderTex(tex) {
+  if (!window.katex) return esc(tex);
+  try { return window.katex.renderToString(tex, { throwOnError: false, strict: false, macros: { ...KATEX_MACROS } }); }
+  catch { return esc(tex); }
+}
+// 問題文・答えの型：$…$ は数式、[ア] はマーク欄の枠、<br> と <u>…</u> は使ってよい
+function richText(src, labels = []) {
+  const blank = /\[([^\]\s]{1,4})\]/g;
+  return String(src ?? "").split("$").map((seg, i) => {
+    if (i % 2) return renderTex(seg.replace(blank, (m, l) => labels.includes(l) ? `\\boxed{\\text{${l}}}` : m));
+    return esc(seg).replace(/&lt;br&gt;/g, "<br>").replace(/&lt;(\/?)u&gt;/g, "<$1u>")
+      .replace(blank, (m, l) => labels.includes(l) ? `<span class="blank">${esc(l)}</span>` : m);
+  }).join("");
+}
+function scoreWebItem(item, pts, keyStr, ans) {
+  const keyChars = Array.from(keyStr ?? "");
+  const labels = item.blanks.map(b => b.label);
+  const ok = {};
+  labels.forEach((l, i) => { ok[l] = (ans?.[l] ?? "") === keyChars[i]; });
+  const groups = item.parts?.length ? item.parts : [labels];
+  const good = groups.filter(g => g.every(l => ok[l])).length;
+  return { score: Math.round(pts * good / groups.length * 2) / 2, ok };
+}
+async function loadAnswerKey(mockId) {
+  const k = await getDoc(doc(db, "config", "mockans-" + mockId));
+  if (!k.exists()) throw new Error("自動採点のデータがまだ登録されていません");
+  return JSON.parse(k.data().data);
+}
+
+let examMockId = null, examData = null, examAnswers = {}, examKey = null, examReview = false, examSaveTimer = null;
+const backupKey = (id) => "tnote.examAns." + id;
+function readBackup(id) { try { return JSON.parse(localStorage.getItem(backupKey(id)) || "{}"); } catch { return {}; } }
+function writeBackup(id, ans) { try { localStorage.setItem(backupKey(id), JSON.stringify(ans)); } catch {} }
+// その端末に残っている最新のマークを優先して合わせる
+function mergedAnswers(r) {
+  const out = JSON.parse(JSON.stringify(r?.answers ?? {}));
+  const b = readBackup(r.id);
+  Object.entries(b).forEach(([iid, m]) => { out[iid] = { ...(out[iid] ?? {}), ...m }; });
+  return out;
+}
+
+async function openExam(id, review = false) {
+  const r = mocks.find(m => m.id === id), def = mockDef(r?.mockId);
+  if (!def?.web) return;
+  examMockId = id; examReview = review; examKey = null;
+  $("exam-view").hidden = false;
+  document.body.classList.add("exam-open");
+  $("exam-title").textContent = def.title;
+  $("exam-body").innerHTML = `<p class="hint">読み込み中…</p>`;
+  $("exam-nav").innerHTML = "";
+  try {
+    examData = await loadWeb(def);
+    examAnswers = review ? JSON.parse(JSON.stringify(r.answers ?? {})) : mergedAnswers(r);
+    if (review) examKey = await loadAnswerKey(def.id).catch(() => null);
+  } catch (err) {
+    $("exam-body").innerHTML = `<p class="error">${esc(err?.message ?? err)}</p>`;
+    return;
+  }
+  renderExam();
+}
+function closeExam() {
+  flushExamSave();
+  examMockId = null; examData = null; examKey = null;
+  $("exam-view").hidden = true;
+  document.body.classList.remove("exam-open");
+}
+$("exam-close").addEventListener("click", closeExam);
+
+function examCounts() {
+  let done = 0, total = 0;
+  examData.sections.forEach(sec => sec.items.forEach(it => it.blanks.forEach(b => {
+    total++; if ((examAnswers[it.id]?.[b.label] ?? "") !== "") done++;
+  })));
+  return { done, total };
+}
+function refreshExamHead() {
+  if (!examMockId || !examData) return;
+  const r = mocks.find(m => m.id === examMockId), def = mockDef(r?.mockId);
+  if (!r || !def) return;
+  const { done, total } = examCounts();
+  if (examReview || r.status !== "started") {
+    $("exam-timer").textContent = "";
+    $("exam-submit").hidden = true;
+    const s = mockStats(def, r.scores);
+    $("exam-progress").textContent = r.status === "graded" ? `${s.got} / ${s.max}点` : "提出済み";
+  } else {
+    $("exam-timer").innerHTML = mockTimeLeft(r, def).replace(/<[^>]+>/g, "");
+    $("exam-submit").hidden = role !== "student";
+    $("exam-progress").textContent = `マーク ${done}/${total}`;
+  }
+}
+function itemHTML(it, metaById) {
+  const labels = it.blanks.map(b => b.label);
+  const ans = examAnswers[it.id] ?? {};
+  const key = examKey?.[it.id];
+  const keyChars = Array.from(key ?? "");
+  const res = examReview && key ? scoreWebItem(it, metaById[it.id]?.pts ?? 0, key, ans) : null;
+  const pts = metaById[it.id]?.pts ?? 0;
+  const mark = res ? (res.score >= pts ? "ok" : res.score > 0 ? "part" : "ng") : "";
+  const choices = it.choices ? `<ol class="exam-choices">${it.choices.map((c, i) => `<li><span class="cnum">${i + 1}</span>${richText(c)}</li>`).join("")}</ol>` : "";
+  const notes = it.notes ? `<div class="exam-notes">${it.notes.map(n => `<p>${richText(n)}</p>`).join("")}</div>` : "";
+  // 枠だけの型（選択問題）は、マーク欄と同じなので表示しない
+  const onlyBlanks = !String(it.t ?? "").replace(/\[[^\]\s]{1,4}\]|[\s　]/g, "");
+  const t = it.t && !onlyBlanks ? `<div class="exam-t">${richText(it.t, labels)}</div>` : "";
+  const rows = it.blanks.map((b, bi) => {
+    const v = ans[b.label] ?? "";
+    return `<div class="mark-row">
+      <span class="mark-label">${esc(b.label)}</span>
+      <div class="bubbles">${b.opts.map(o => {
+        const cls = ["bubble", v === o ? "on" : "", res && keyChars[bi] === o ? "correct" : "", res && v === o && keyChars[bi] !== o ? "wrong" : ""].filter(Boolean).join(" ");
+        return `<button type="button" class="${cls}" ${examReview ? "disabled" : ""} data-ex-item="${esc(it.id)}" data-ex-label="${esc(b.label)}" data-ex-opt="${esc(o)}">${esc(o)}</button>`;
+      }).join("")}</div>
+    </div>`;
+  }).join("");
+  return `<article class="exam-item ${mark}" id="ex-${esc(it.id)}">
+    <div class="exam-q"><span class="exam-no">${esc(it.no)}</span>${res ? `<span class="exam-res ${mark}">${mark === "ok" ? "正解" : mark === "part" ? "部分点" : "不正解"} ${res.score}/${pts}</span>` : ""}
+      <div>${richText(it.q, labels)}</div></div>
+    ${choices}${notes}${t}
+    <div class="marks">${rows}</div>
+  </article>`;
+}
+function renderExam() {
+  const r = mocks.find(m => m.id === examMockId), def = mockDef(r?.mockId);
+  if (!r || !def || !examData) return;
+  const metaById = Object.fromEntries(def.items.map(i => [i.id, i]));
+  $("exam-nav").innerHTML = examData.sections.map((sec, i) => `<a href="#exsec-${i}">${esc(sec.title)}</a>`).join("");
+  $("exam-body").innerHTML = `
+    ${examReview ? `<p class="exam-intro">${examKey ? "あなたのマーク（色つき）と正解（緑の枠）です。" : "正解はまだ表示できません。"}</p>`
+      : `<p class="exam-intro">${esc(examData.intro ?? "")}<br>マークは自動で保存されます。時間になると、その時点のマークで自動的に提出されます。</p>`}
+    ${examData.sections.map((sec, i) => `<section class="exam-sec" id="exsec-${i}">
+      <h3>${esc(sec.title)}</h3>
+      ${sec.instructions ? `<p class="exam-inst">${richText(sec.instructions)}</p>` : ""}
+      ${sec.passage ? `<div class="exam-passage">${sec.passage.map(pp => `<p>${richText(pp)}</p>`).join("")}</div>` : ""}
+      ${sec.items.map(it => itemHTML(it, metaById)).join("")}
+    </section>`).join("")}
+    ${!examReview && role === "student" ? `<div class="exam-end"><button type="button" class="primary big-action" data-ex-submit>提出する</button></div>` : ""}`;
+  refreshExamHead();
+}
+$("exam-body").addEventListener("click", (e) => {
+  if (e.target.closest("[data-ex-submit]")) return confirmSubmitWeb();
+  const bt = e.target.closest("[data-ex-opt]");
+  if (!bt || examReview || role !== "student") return;
+  const r = mocks.find(m => m.id === examMockId);
+  if (r?.status !== "started") return;
+  const { exItem: iid, exLabel: lab, exOpt: opt } = bt.dataset;
+  const cur = examAnswers[iid]?.[lab] ?? "";
+  (examAnswers[iid] ??= {})[lab] = cur === opt ? "" : opt;   // もう一度押すと取り消し
+  bt.parentElement.querySelectorAll(".bubble").forEach(x => x.classList.toggle("on", x.dataset.exOpt === examAnswers[iid][lab]));
+  writeBackup(examMockId, examAnswers);
+  refreshExamHead();
+  clearTimeout(examSaveTimer);
+  examSaveTimer = setTimeout(flushExamSave, 1200);
+});
+async function flushExamSave() {
+  clearTimeout(examSaveTimer);
+  const id = examMockId;
+  const r = mocks.find(m => m.id === id);
+  if (!id || examReview || r?.status !== "started" || role !== "student") return;
+  try { await updateDoc(mockRef(id), { answers: examAnswers, answeredAt: Date.now() }); } catch {}
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushExamSave(); });
+$("exam-submit").addEventListener("click", confirmSubmitWeb);
+function confirmSubmitWeb() {
+  const { done, total } = examCounts();
+  const msg = done < total ? `まだマークしていない欄が ${total - done} か所あります。\nこのまま提出しますか？` : "提出しますか？";
+  if (confirm(msg + "\n提出すると答えは変えられません。すぐに採点結果と解答・解説が見られます。")) submitWeb(examMockId, false);
+}
+async function submitWeb(id, auto) {
+  const r = mocks.find(m => m.id === id);
+  if (!r || r.status !== "started") return;
+  const answers = id === examMockId ? examAnswers : mergedAnswers(r);
+  try {
+    await updateDoc(mockRef(id), { answers, status: "submitted", submittedAt: Date.now(), autoSubmitted: !!auto });
+    try { localStorage.removeItem(backupKey(id)); } catch {}
+  } catch (err) {
+    alert("提出できませんでした（" + (err?.message ?? err) + "）。電波のよい場所でもう一度提出してください。");
+    return;
+  }
+  if (id === examMockId) closeExam();
+  if (auto) alert(`${mockDef(r.mockId)?.title ?? "模試"}の時間になったので、自動で提出しました。`);
+  await autoGrade(id, false, answers);
+  document.querySelector('.tabs [data-tab="mock"]')?.click();
+}
+// 自動採点：正解は提出後にだけデータベースから読み出す
+async function autoGrade(id, showError, answersOverride) {
+  const r = mocks.find(m => m.id === id), def = mockDef(r?.mockId);
+  if (!def?.web) return;
+  try {
+    const [data, key] = await Promise.all([loadWeb(def), loadAnswerKey(def.id)]);
+    const answers = answersOverride ?? r.answers ?? {};
+    const metaById = Object.fromEntries(def.items.map(i => [i.id, i]));
+    const scores = {};
+    data.sections.forEach(sec => sec.items.forEach(it => {
+      if (!metaById[it.id] || key[it.id] === undefined) return;
+      scores[it.id] = scoreWebItem(it, metaById[it.id].pts, key[it.id], answers[it.id]).score;
+    }));
+    await updateDoc(mockRef(id), { scores, status: "graded", gradedAt: Date.now(), autoGraded: true });
+  } catch (err) {
+    if (showError) alert("自動採点できませんでした（" + (err?.message ?? err) + "）");
+  }
+}
+function webCardBody(r, def, st, stats, pdfs) {
+  const answers = r.answers ?? {};
+  const answered = Object.values(answers).reduce((n, m) => n + Object.values(m ?? {}).filter(v => v !== "").length, 0);
+  if (st === "assigned") {
+    return `<p class="mock-note">画面でマークして解くテストです（${def.items.length}問・${def.minutes}分）。提出するとすぐに採点され、解答・解説も見られます。<br>
+      紙で問題を見たいときは、問題用紙をダウンロードして印刷できます（答えは画面でマーク）。</p>
+      ${pdfs}
+      ${role === "student" ? `<div class="actions"><button class="primary big-action" data-mock-start="${esc(r.id)}">解き始める（${def.minutes}分）</button></div>` : ""}`;
+  }
+  if (st === "started") {
+    const end = new Date(r.startedAt + def.minutes * 60000);
+    return `<p class="mock-timer-line" data-mock-timer="${esc(r.id)}">${mockTimeLeft(r, def)}</p>
+      <p class="mock-note">終了予定 ${end.getHours()}:${String(end.getMinutes()).padStart(2, "0")}。アプリを閉じても時間は進み、時間になるとその時点のマークで自動提出されます。</p>
+      ${pdfs}
+      ${role === "student" ? `<div class="actions"><button class="primary big-action" data-exam-open="${esc(r.id)}">解答画面を開く</button></div>`
+        : `<p class="mock-note">生徒が受験中です（マーク済み ${answered}か所）。</p>`}`;
+  }
+  if (st === "submitted" || st === "grading") {
+    return `${pdfs}<p class="mock-note">提出済み。自動採点をしています…</p>
+      <div class="actions"><button class="small outline" data-exam-grade="${esc(r.id)}">採点をやり直す</button></div>`;
+  }
+  const fieldOrder = [...new Set(def.items.map(i => i.field))];
+  return `${pdfs}<div class="mock-score">
+      <span class="score">${stats.got}<small> / ${stats.max}点</small></span>
+      <span class="mock-rate ${rateClass(stats.got / (stats.max || 1))}">${pct(stats.got, stats.max)}%</span>
+    </div>
+    ${r.startedAt && r.submittedAt ? `<p class="mock-note">かかった時間 ${fmtElapsed(r.submittedAt - r.startedAt)}${r.autoSubmitted ? "（時間切れで自動提出）" : ""}</p>` : ""}
+    ${rateBars(stats.fields, fieldOrder)}
+    ${stats.weak.length ? `<p class="label" style="margin-top:.9rem">復習したい内容</p>
+      <div class="weak-chips">${stats.weak.slice(0, 6).map(w => `<span class="weak-chip">${esc(w.field)}：${esc(w.tag)}</span>`).join("")}</div>` : `<p class="mock-note">弱点として目立つ内容はありません。</p>`}
+    <div class="actions">
+      <button class="small filled" data-exam-review="${esc(r.id)}">答案と正解を見る</button>
+      <button class="small outline" data-mock-result="${esc(r.id)}">くわしい分析</button>
+    </div>`;
 }
 
 /* ---------- 成績（外部の模試・テスト） ---------- */
