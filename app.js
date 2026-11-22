@@ -65,9 +65,15 @@ $("h-subject").insertAdjacentHTML("afterbegin", `<option value="">なし</option
 $("p-good").innerHTML = subjectPickerHTML();
 $("p-weak").innerHTML = subjectPickerHTML();
 $("h-type").addEventListener("change", () => {
-  const isCount = $("h-type").value === "count";
+  const ty = $("h-type").value, isCount = ty === "count", daily = DAILY_HW[ty];
   $("h-count-range").hidden = !isCount;
   $("h-count-numbers").hidden = !isCount;
+  $("h-daily-range").hidden = !daily;
+  if (daily) {
+    if (!$("h-start").value) $("h-start").value = today();
+    $("h-subject").value = daily.subject;
+    if (!$("h-title").value.trim()) $("h-title").value = daily.title;
+  }
 });
 $("h-unit-select").addEventListener("change", () => {
   $("h-unit-custom-wrap").hidden = $("h-unit-select").value !== "custom";
@@ -215,6 +221,7 @@ function watchAll() {
     renderVocabCard();
     renderTodayCard();
     renderCalendars();
+    if (homework.some(r => r.type === "daily-vocab")) { renderHomework(); renderCalendarFeed(); }
   }));
   unsubs.push(onSnapshot(doc(db, "students", currentSid, "math", "state"), snap => {
     const d = snap.exists() ? snap.data() : {};
@@ -226,6 +233,7 @@ function watchAll() {
     renderMathCard();
     renderTodayCard();
     renderCalendars();
+    if (homework.some(r => r.type === "daily-math")) { renderHomework(); renderCalendarFeed(); }
   }));
   sub("mocks", "dueDate", "desc", rows => { mocks = rows; renderMocks(); renderCalendars(); renderCalendarFeed(); renderTests(); });
   sub("schedule", "date", "asc", rows => { schedule = rows; renderHomework(); renderCalendarFeed(); renderCalendars(); });
@@ -238,12 +246,25 @@ function watchAll() {
   loadProfile();
 }
 
-/* ---------- 宿題（単位ごとにチェック / 完了・未完了） ---------- */
+/* ---------- 宿題（単位ごとにチェック / 完了・未完了 / 毎日の英単語・数学） ---------- */
+// 毎日の英単語・数学ⅠA を宿題として出す：開始日〜期限の毎日、その日の分をやり切ったら1日分（記録は vocab.days / math.days から自動）
+const DAILY_HW = {
+  "daily-vocab": { subject: "english", title: "毎日の英単語", name: "今日の英単語", days: () => vocab.days, open: () => openVocab() },
+  "daily-math": { subject: "math", title: "毎日の数学ⅠA", name: "今日の数学ⅠA", days: () => math.days, open: () => openMath() },
+};
+function hwDays(r) {
+  const from = r.startDate || r.dueDate, to = r.dueDate || from, out = [];
+  if (!from) return out;
+  for (let d = from; d <= to && out.length < 120; d = addDays(d, 1)) out.push(d);
+  return out;
+}
+const hwDailyDone = (r) => { const days = DAILY_HW[r.type].days() ?? {}; return hwDays(r).filter(d => days[d]?.done); };
 function hwCounts(r) {
   const from = Number(r.countFrom) || 1, to = Number(r.countTo) || from;
   return Array.from({ length: Math.max(1, to - from + 1) }, (_, i) => from + i);
 }
 function hwProgress(r) {
+  if (DAILY_HW[r.type]) { const n = hwDays(r).length; return n ? Math.round(hwDailyDone(r).length / n * 100) : 0; }
   if (r.type === "count") {
     const counts = hwCounts(r);
     const cleared = (r.clearedCounts ?? []).length;
@@ -255,6 +276,9 @@ function hwBadge(r) {
   const pct = hwProgress(r);
   const left = (new Date(r.dueDate) - new Date(today())) / 86400000;
   const soonTag = left < 0 ? `<span class="badge late">期限切れ</span>` : left <= 2 ? `<span class="badge soon">まもなく期限</span>` : "";
+  if (DAILY_HW[r.type]) {
+    return `<span class="badge${pct >= 100 ? " done" : ""}">${hwDailyDone(r).length}/${hwDays(r).length}日</span>${pct >= 100 ? "" : soonTag}`;
+  }
   if (r.type === "count") {
     const cleared = (r.clearedCounts ?? []).length, total = hwCounts(r).length;
     return `<span class="badge${pct >= 100 ? " done" : ""}">${cleared}/${total}${esc(r.unit ?? "")}</span>${pct >= 100 ? "" : soonTag}`;
@@ -401,7 +425,7 @@ function homeworkItemHTML(r) {
       <h4>${subjectChip(r.subject)} ${esc(r.title)}</h4>
       ${r.detail ? `<p>${esc(r.detail)}</p>` : ""}
       ${r.question ? `<p class="label">生徒からの質問</p><p>${esc(r.question)}</p>` : ""}
-      ${r.type === "count" ? `
+      ${DAILY_HW[r.type] ? hwDailyHTML(r) : r.type === "count" ? `
         <div class="page-grid">${hwCounts(r).map(p => {
           const on = (r.clearedCounts ?? []).includes(p);
           return role === "parent" || role === "tutor"
@@ -430,6 +454,16 @@ function homeworkItemHTML(r) {
       <input type="file" accept="image/*" multiple class="hidden-file" data-photo-input="${esc(r.id)}">
     </article>`;
 }
+function hwDailyHTML(r) {
+  const dh = DAILY_HW[r.type], days = dh.days() ?? {}, t = today(), wk = ["日", "月", "火", "水", "木", "金", "土"];
+  const todayIn = hwDays(r).includes(t), todayDone = !!days[t]?.done;
+  return `<div class="hw-days">${hwDays(r).map(d => {
+      const [y, m, dd] = d.split("-").map(Number), done = !!days[d]?.done;
+      const cls = done ? "done" : d < t ? "miss" : d === t ? "today" : "";
+      return `<span class="hw-day ${cls}" title="${d}${done ? " できた" : ""}"><small>${m}/${dd}(${wk[new Date(y, m - 1, dd).getDay()]})</small>${done ? ICON_CHECK : d < t ? ICON_CROSS : ""}</span>`;
+    }).join("")}</div>
+    ${role === "student" && todayIn ? `<div class="actions"><button type="button" class="${todayDone ? "small outline" : "primary"}" data-hw-daily="${esc(r.type)}">${todayDone ? `${dh.name}を見直す` : `${dh.name}をはじめる`}</button></div>` : ""}`;
+}
 let editingHwId = null;
 function startEditHomework(r) {
   editingHwId = r.id;
@@ -444,6 +478,7 @@ function startEditHomework(r) {
     $("h-count-from").value = r.countFrom ?? 1;
     $("h-count-to").value = r.countTo ?? 10;
   }
+  $("h-start").value = r.startDate ?? "";
   $("h-detail").value = r.detail ?? "";
   $("h-due").value = r.dueDate ?? "";
   const existingPdfs = hwPdfList(r);
@@ -478,6 +513,10 @@ $("hw-form").addEventListener("submit", async (e) => {
     title: $("h-title").value.trim(), subject: $("h-subject").value, type,
     detail: $("h-detail").value.trim(), dueDate: $("h-due").value
   };
+  if (DAILY_HW[type]) {
+    base.startDate = $("h-start").value || today();
+    if (base.startDate > base.dueDate) { alert("開始日は提出期限より前にしてください。"); return; }
+  }
   if (type === "count") {
     const unit = $("h-unit-select").value === "custom" ? $("h-unit-custom").value.trim() : $("h-unit-select").value;
     base.unit = unit || "回";
@@ -818,6 +857,8 @@ async function handleHomeworkFeedClick(e) {
   }
   const ple = e.target.closest("[data-plan-edit]");
   if (ple) { const p = plans.find(x => x.id === ple.dataset.planEdit); if (p) startEditPlan(p); }
+  const hwd = e.target.closest("[data-hw-daily]");
+  if (hwd) { DAILY_HW[hwd.dataset.hwDaily]?.open(); return; }
   const hwe = e.target.closest("[data-hw-edit]");
   if (hwe) { const h = homework.find(x => x.id === hwe.dataset.hwEdit); if (h) startEditHomework(h); }
   const le = e.target.closest("[data-lesson-edit]");
@@ -2332,6 +2373,7 @@ function openVocab() {
 }
 function closeVocab() {
   stopSpeak();
+  setTimeout(() => { renderHomework(); renderCalendarFeed(); }, 0);
   setTimeout(renderCalendars, 0);
   if (vocabTrial) { vocab = vocabReal ?? { words: {}, days: {}, today: null }; vocabTrial = false; }
   $("vocab-view").hidden = true;
@@ -2801,6 +2843,7 @@ function closeMath() {
   $("math-view").hidden = true;
   document.body.classList.remove("exam-open");
   renderMathCard(); renderTodayCard();
+  renderHomework(); renderCalendarFeed();
 }
 $("math-close").addEventListener("click", closeMath);
 

@@ -280,6 +280,8 @@
           <select id="h-type">
             <option value="tf">完了・未完了</option>
             <option value="count">単位ごとにチェック</option>
+            <option value="daily-vocab">毎日の英単語（期間中、毎日）</option>
+            <option value="daily-math">毎日の数学ⅠA（期間中、毎日）</option>
           </select>
         </label>
       </div>
@@ -297,6 +299,10 @@
       <div class="grid" id="h-count-numbers" hidden>
         <label>開始<input type="number" id="h-count-from" min="1" value="1"></label>
         <label>終了<input type="number" id="h-count-to" min="1" value="10"></label>
+      </div>
+      <div class="grid" id="h-daily-range" hidden>
+        <label>開始日<input type="date" id="h-start"></label>
+        <p class="hint left h-daily-note">開始日から提出期限まで、毎日「今日の英単語／数学」をやり切ったら1日分。達成度は自動で記録されます</p>
       </div>
       <label>詳細<textarea id="h-detail" rows="3"></textarea></label>
       <label>提出期限<input type="date" id="h-due" required></label>
