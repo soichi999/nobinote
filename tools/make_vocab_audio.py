@@ -1,6 +1,7 @@
 # 今日の英単語の読み上げ音声を作る（単語・例文＝Kokoro の英語、意味＝VOICEVOX の日本語）
 # 使い方: VOICEVOX を起動しておき、teruteru_howto の .venv_tts（kokoro 入り）の Python で実行
 #   /Users/m-sko/Japan/output/teruteru_howto/.venv_tts/bin/python tools/make_vocab_audio.py
+# 対象: レベル1〜3の全単語（vocab.js と vocab_more.js）
 # 出力: moshi/audio/<id>-w.mp3（単語）・-m.mp3（意味）・-s.mp3（例文）。あるファイルは作り直さない（--force で全部）
 import json, re, subprocess as sp, sys, urllib.request, urllib.parse
 from pathlib import Path
@@ -10,13 +11,19 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "moshi" / "audio"
 EN_VOICE = "am_michael"      # Kokoro の声（アメリカ英語・男性）
 JA_SPEAKER = 14              # VOICEVOX: 冥鳴ひまり（ノーマル）。アプリに「VOICEVOX:冥鳴ひまり」と表示する
-POS = {"動": "v", "名": "n", "形": "a", "副": "r"}
+POS = {"動": "v", "名": "n", "形": "a", "副": "r", "熟": "i"}
 FORCE = "--force" in sys.argv
 
 def vocab():
+    """レベル2（vocab.js）とレベル1・3（vocab_more.js の MORE）をまとめて [単語, 品詞, 意味, 例文] の並びにする"""
     src = (ROOT / "moshi" / "vocab.js").read_text()
     body = src[src.index("[", src.index("export const VOCAB")):src.rindex("]") + 1]
-    return json.loads(re.sub(r",\s*\]$", "]", body))
+    out = json.loads(re.sub(r",\s*\]$", "]", body))
+    more = ROOT / "moshi" / "vocab_more.js"
+    if more.exists():
+        m = more.read_text(); i = m.index("[", m.index("export const MORE")); j = m.index("\n];", i)
+        out += [[o["w"], o["pos"], o["ja"], o["ex"]] for o in json.loads(re.sub(r",\s*$", "", m[i:j]) + "]")]
+    return out
 
 def audio_id(w, pos):
     return re.sub(r"[^a-z0-9]+", "-", w.lower()).strip("-") + "-" + POS[pos]

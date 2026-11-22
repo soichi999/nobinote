@@ -957,6 +957,16 @@ details.form-details[open] > summary::before{transform:rotate(45deg)}
 #tab-homework .vocab-card{margin-bottom:.8rem}
 .legend-both{display:inline-flex;align-items:center;gap:.35rem;font-size:.75rem;font-weight:700;color:var(--muted)}
 .legend-both::before{content:"";width:.95rem;height:.95rem;border-radius:var(--r-sm);background:linear-gradient(to bottom right,var(--vocab-day) 50%,var(--math-day) 50%);border:1px solid var(--line)}
+/* 英単語：レベルの切りかえ（L1 準2級・L2 2級・L3 2級上位・熟語）と英検の空所 */
+.vc-levels{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin:.9rem 0 .2rem}
+.vc-level{display:flex;flex-direction:column;align-items:center;gap:.05rem;min-height:64px;padding:.45rem .2rem;border-radius:var(--r-md);border:1.5px solid var(--line);background:#fff;color:var(--fg)}
+.vc-level b{font-size:.9rem}
+.vc-level small{font-size:.75rem;color:var(--muted);font-weight:700;line-height:1.2;text-align:center}
+.vc-level span{font-size:.75rem;font-weight:800;color:var(--ok)}
+.vc-level.active{border-color:var(--c-vocab);background:var(--c-vocab-soft);box-shadow:var(--shadow)}
+.vc-level.active b{color:var(--c-vocab)}
+.vc-level:disabled{opacity:1;cursor:default}
+.vq-blank{display:inline-block;font-weight:800;color:var(--blue);letter-spacing:.05em;white-space:nowrap}
 /* 数学カード：レベル切りかえ（L1・L2・L3、それぞれの定着％） */
 .mc-levels{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin:.9rem 0 .3rem}
 .mc-lv{min-height:48px;padding:.4rem .3rem;border:1.5px solid var(--line);border-radius:var(--r-md);background:var(--card);color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:.05rem;line-height:1.3}

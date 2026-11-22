@@ -10,9 +10,16 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { SUBJECTS, SUBJECT_GROUPS, subjectLabel, subjectColor, subjectOptionsHTML, subjectPickerHTML } from "./subjects.js";
 import { MOCKS } from "./moshi/catalog.js";
-import { VOCAB } from "./moshi/vocab.js";
-import { SYN } from "./moshi/vocab_syn.js";
+import { VOCAB as VOCAB_BASE } from "./moshi/vocab.js";
+import { SYN as SYN_BASE } from "./moshi/vocab_syn.js";
+import { MORE, EX as EX_BASE } from "./moshi/vocab_more.js";
 import { MATH_TYPES, MATH_BY_ID, MATH_FIELDS, MATH_LEVELS, MARK_OPTS, makeProblem } from "./moshi/math_daily.js";
+// 英単語：レベル2＝vocab.js（英検2級の中心）、レベル1・3＝vocab_more.js（MORE）。ひとつの並びにまとめて使う
+// EX：英検の空所補充用（例文中の形 form と、まちがいの選択肢 d）
+const VOCAB = [...VOCAB_BASE, ...MORE.map(o => [o.w, o.pos, o.ja, o.ex, o.exj, o.grp, o.tip])];
+const SYN = { ...SYN_BASE, ...Object.fromEntries(MORE.map(o => [`${o.w}:${o.pos}`, [o.syn, o.synj]])) };
+const EX = { ...EX_BASE, ...Object.fromEntries(MORE.map(o => [`${o.w}:${o.pos}`, { form: o.form, d: o.d }])) };
+const LEVEL_OF = Object.fromEntries([...VOCAB_BASE.map(v => [`${v[0]}:${v[1]}`, 2]), ...MORE.map(o => [`${o.w}:${o.pos}`, o.lv])]);
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -213,7 +220,7 @@ function watchAll() {
   sub("messages", "createdAt", "asc", renderMessages);
   unsubs.push(onSnapshot(doc(db, "students", currentSid, "vocab", "state"), snap => {
     const d = snap.exists() ? snap.data() : {};
-    const data = { words: d.words ?? {}, days: d.days ?? {}, today: d.today ?? null };
+    const data = { words: d.words ?? {}, days: d.days ?? {}, today: d.today ?? null, level: d.level ?? null };
     if (vocabTrial) { vocabReal = data; return; }
     // 自分が答えている最中は、画面の内容を上書きしない
     if (role === "student" && !$("vocab-view").hidden) return;
@@ -2213,6 +2220,10 @@ function webCardBody(r, def, st, stats, pdfs) {
 const VOCAB_BY_ID = Object.fromEntries(VOCAB.map(v => [`${v[0]}:${v[1]}`, v]));
 const VOCAB_IDS = VOCAB.map(v => `${v[0]}:${v[1]}`);
 const DAILY_N = 20;
+const VOCAB_LEVELS = [{ lv: 1, name: "レベル1", sub: "英検準2級" }, { lv: 2, name: "レベル2", sub: "英検2級" }, { lv: 3, name: "レベル3", sub: "2級上位・熟語" }];
+const idsOfLevel = (lv) => VOCAB_IDS.filter(id => LEVEL_OF[id] === lv);
+// いま選んでいるレベル（決めていなければ、これまで解いた記録があれば2、なければ1）
+const vocabLevel = () => vocab.level ?? (Object.keys(vocab.words ?? {}).length ? 2 : 1);
 const BOX_DAYS = [1, 2, 4, 7, 15, 30];   // 正解するたびに次の出題までの日数をのばす（まちがえたら翌日）
 const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const addDays = (iso, n) => { const [y, m, d] = iso.split("-").map(Number); const t = new Date(y, m - 1, d + n); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`; };
@@ -2229,7 +2240,9 @@ function pickDaily() {
   const t = localToday();
   const due = Object.entries(vocab.words).filter(([id, w]) => VOCAB_BY_ID[id] && w.due <= t)
     .sort((a, b) => a[1].due.localeCompare(b[1].due) || (a[1].box ?? 0) - (b[1].box ?? 0)).map(([id]) => id);
-  const fresh = VOCAB_IDS.filter(id => !vocab.words[id]);
+  // 新しい単語は選んだレベルから（使い切ったら次のレベル→ほかのレベル）。復習は全レベルから
+  const lv = vocabLevel(), order = [lv, ...[1, 2, 3].filter(x => x > lv), ...[1, 2, 3].filter(x => x < lv)];
+  const fresh = order.flatMap(x => idsOfLevel(x).filter(id => !vocab.words[id]));
   const reviewN = Math.min(due.length, fresh.length ? Math.round(DAILY_N * 0.6) : DAILY_N);
   let ids = [...due.slice(0, reviewN), ...fresh.slice(0, DAILY_N - reviewN)];
   if (ids.length < DAILY_N) {
@@ -2281,8 +2294,8 @@ function vocabStreak() {
   return n;
 }
 // 習得の円グラフ：全単語のうち 定着（3回つづけて正解）・学習中（出たがまだ定着していない）・未学習
-function vocabProgressHTML(learned, mastered) {
-  const total = VOCAB_IDS.length, doing = learned - mastered, rest = total - learned;
+function vocabProgressHTML(learned, mastered, total = VOCAB_IDS.length) {
+  const doing = learned - mastered, rest = total - learned;
   const pct = Math.round(mastered / total * 100);
   const C = 2 * Math.PI * 40, seg = (n) => n / total * C;
   const arc = (cls, len, off) => len > 0 ? `<circle class="${cls}" cx="50" cy="50" r="40" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}"/>` : "";
@@ -2308,8 +2321,13 @@ function renderVocabCard() {
   if (!currentSid) { card.hidden = true; return; }
   card.hidden = false;
   const t = localToday(), td = vocab.today?.date === t ? vocab.today : null, day = vocab.days?.[t];
-  const learned = Object.keys(vocab.words ?? {}).length;
-  const mastered = Object.values(vocab.words ?? {}).filter(w => (w.box ?? 0) >= 3).length;
+  // 円グラフは選んでいるレベルの単語で数える。レベルのボタンにも各レベルの定着％
+  const lv = vocabLevel(), statOf = (x) => { const ids = idsOfLevel(x); return { total: ids.length, learned: ids.filter(id => vocab.words?.[id]).length, mastered: ids.filter(id => (vocab.words?.[id]?.box ?? 0) >= 3).length }; };
+  const cur = statOf(lv);
+  const levelRow = `<div class="vc-levels" role="tablist" aria-label="レベル">${VOCAB_LEVELS.map(L => {
+    const st = statOf(L.lv);
+    return `<button type="button" class="vc-level${L.lv === lv ? " active" : ""}" data-vocab-level="${L.lv}" ${role === "parent" ? "disabled" : ""} aria-pressed="${L.lv === lv}"><b>${L.name}</b><small>${L.sub}</small><span>${st.total ? Math.round(st.mastered / st.total * 100) : 0}%</span></button>`;
+  }).join("")}</div>`;
   const week = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
   const wk = ["日", "月", "火", "水", "木", "金", "土"];
   const weekRow = `<div class="vc-week">${week.map(d => {
@@ -2321,15 +2339,15 @@ function renderVocabCard() {
   if (day?.done) { state = "done"; title = "今日は完了"; note = `1回目で ${day.first}/${day.total}問 正解`; prog = 100; }
   else if (td?.phase === "review") { state = "review"; title = "復習が残っています"; note = `まちがえた単語 あと${td.queue.length}語`; prog = 100; }
   else if (td && (td.idx > 0 || td.answered)) { const k = td.idx + (td.answered ? 1 : 0); state = "doing"; title = "とちゅうです"; note = `${k} / ${td.ids.length}問`; prog = Math.round(k / td.ids.length * 100); }
-  else { state = "todo"; title = `今日の${DAILY_N}問`; note = "例文の下線の語に近い意味の語を4つから選びます"; }
+  else { state = "todo"; title = `今日の${DAILY_N}問`; note = "英検の形式：（　）に入る語を4つから選びます"; }
   let btn = "";
   if (role === "student") {
     btn = day?.done ? `<button type="button" class="outline vc-btn" data-vocab-open>今日の単語を見直す</button>`
-      : state === "todo" ? "" : `<button type="button" class="primary vc-btn" data-vocab-open>${state === "review" ? "復習を続ける" : "続きから"}</button>`;
+      : `<button type="button" class="primary vc-btn" data-vocab-open>${state === "review" ? "復習を続ける" : state === "doing" ? "続きから" : `今日の${DAILY_N}問をはじめる`}</button>`;
   } else if (role === "tutor") btn = `<button type="button" class="outline vc-btn" data-vocab-trial>お試しで解く（記録されません）</button>`;
   card.innerHTML = `
     <div class="vc-top">
-      <div><p class="vc-kicker">今日の英単語</p><p class="vc-sub">英検2級レベル・1日${DAILY_N}問</p></div>
+      <div><p class="vc-kicker">今日の英単語</p><p class="vc-sub">${VOCAB_LEVELS[lv - 1].name}（${VOCAB_LEVELS[lv - 1].sub}）・1日${DAILY_N}問</p></div>
       <span class="vc-badge ${state}">${state === "done" ? "完了" : state === "review" ? "復習中" : state === "doing" ? "とちゅう" : "未実施"}</span>
     </div>
     <div class="vc-today ${state}">
@@ -2338,7 +2356,8 @@ function renderVocabCard() {
       <div class="vc-bar"><div style="width:${prog}%"></div></div>
     </div>
     ${btn}
-    ${vocabProgressHTML(learned, mastered)}
+    ${levelRow}
+    ${vocabProgressHTML(cur.learned, cur.mastered, cur.total)}
     <div class="vc-stats two">
       <div><b>${vocabStreak()}</b><span>日連続</span></div>
       <div><b>${week.filter(d => vocab.days?.[d]?.done).length}<small> / 7日</small></b><span>この1週間</span></div>
@@ -2348,12 +2367,25 @@ function renderVocabCard() {
 }
 $("vocab-card")?.addEventListener("click", (e) => {
   if (e.target.closest("[data-vocab-open]")) openVocab();
+  const lvb = e.target.closest("[data-vocab-level]");
+  if (lvb && role !== "parent") setVocabLevel(Number(lvb.dataset.vocabLevel));
   if (e.target.closest("[data-vocab-trial]")) startVocabTrial();
 });
+// レベルを変える：今日の分をまだ始めていなければ、新しいレベルで作り直す。先生も生徒のレベルを決められる
+async function setVocabLevel(lv) {
+  if (!VOCAB_LEVELS.some(L => L.lv === lv) || lv === vocabLevel()) return;
+  vocab.level = lv;
+  const td = vocab.today;
+  if (td && td.date === localToday() && td.phase === "main" && td.idx === 0 && !td.answered) vocab.today = null;
+  renderVocabCard();
+  if (role === "student") return saveVocab();
+  if (role === "tutor") { try { await setDoc(vocabRef(), { level: lv, ...(vocab.today ? {} : { today: null }) }, { merge: true }); } catch {} }
+}
 function startVocabTrial() {
   if (!vocabTrial) vocabReal = vocab;
   vocabTrial = true;
-  vocab = { words: {}, days: {}, today: { date: localToday(), ids: shuffle(VOCAB_IDS).slice(0, DAILY_N), idx: 0, results: {}, phase: "main", queue: [], answered: null } };
+  const lv = vocabLevel();
+  vocab = { level: lv, words: {}, days: {}, today: { date: localToday(), ids: shuffle(idsOfLevel(lv)).slice(0, DAILY_N), idx: 0, results: {}, phase: "main", queue: [], answered: null } };
   vocabChoices = null;
   $("vocab-view").hidden = false;
   document.body.classList.add("exam-open");
@@ -2383,6 +2415,18 @@ function closeVocab() {
 $("vocab-close").addEventListener("click", closeVocab);
 
 // 例文の中のその単語（活用形も）を目立たせる
+// 例文の中のその単語の形（EX の form。なければ活用形を推測）
+function formOf(id) {
+  if (EX[id]?.form) return EX[id].form;
+  const v = VOCAB_BY_ID[id], word = v[0], stem = word.length >= 4 ? word.replace(/(e|y)$/, "") : word;
+  return v[3].match(new RegExp(`\\b(${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[a-z]*)`, "i"))?.[1] ?? word;
+}
+// 例文の form の部分（1か所）を html に置きかえる
+function markForm(sentence, form, html) {
+  const e = esc(sentence), f = esc(form);
+  const re = new RegExp(`(^|[^A-Za-z])(${f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})(?=[^A-Za-z]|$)`);
+  return re.test(e) ? e.replace(re, (m, a, b) => a + html(b)) : e;
+}
 function highlightWord(sentence, word) {
   const stem = word.length >= 4 ? word.replace(/(e|y)$/, "") : word;
   const re = new RegExp(`\\b(${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[a-z]*)`, "gi");
@@ -2442,7 +2486,7 @@ function speakSeq(parts) {
 }
 // 自然な声の音声ファイル（tools/make_vocab_audio.py で作成）：単語・例文＝Kokoro（英語）、意味＝VOICEVOX:冥鳴ひまり（日本語）
 // ファイルが読めないときだけ端末の読み上げに切り替える
-const POS_ABBR = { 動: "v", 名: "n", 形: "a", 副: "r" };
+const POS_ABBR = { 動: "v", 名: "n", 形: "a", 副: "r", 熟: "i" };
 const audioUrl = (v, k) => `./moshi/audio/${v[0].toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${POS_ABBR[v[1]]}-${k}.mp3`;
 const AUDIO_BY_TEXT = new Map();
 VOCAB.forEach(v => { AUDIO_BY_TEXT.set(v[0], audioUrl(v, "w")); AUDIO_BY_TEXT.set(v[3], audioUrl(v, "s")); });
@@ -2490,18 +2534,43 @@ function speak(text) {
 const ICON_SPEAK = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>`;
 const ICON_CHECK = `<svg viewBox="0 0 24 24" class="ic-check" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
 const ICON_CROSS = `<svg viewBox="0 0 24 24" class="ic-check" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>`;
-const POS_NAME = { 動: "動詞", 名: "名詞", 形: "形容詞", 副: "副詞" };
+const POS_NAME = { 動: "動詞", 名: "名詞", 形: "形容詞", 副: "副詞", 熟: "熟語" };
 const speakBtn = (text, label) => canSpeak || AUDIO_BY_TEXT.has(text) ? `<button type="button" class="speak-btn" data-speak="${esc(text)}">${ICON_SPEAK}<span>${label}</span></button>` : "";
 // 豆知識は「。」ごとに区切って箇条書きにする
 const tipList = (tip) => String(tip).split("。").map(x => x.trim()).filter(Boolean).map(x => `<li>${esc(x)}</li>`).join("");
+// 出題の形式：英検の「空所補充」（blank）と「下線の語に近い意味」（syn）。
+// 初めては空所補充。そのあとは前回とちがう形式にし、同じ日のまちがい直しでは空所補充を2回出さない（同じ問題にしない）
+function vocabFmt(id) {
+  if (!EX[id]?.d?.length) return "syn";
+  const td = vocab.today, w = vocab.words?.[id];
+  if (td?.phase === "review") return (td.blankSeen ?? []).includes(id) ? "syn" : "blank";
+  return w?.lastFmt === "blank" ? "syn" : "blank";
+}
+function makeBlankChoices(id, prevPos) {
+  const v = VOCAB_BY_ID[id];
+  const list = shuffle([{ t: formOf(id), ja: v[2] }, ...EX[id].d.map(([t, ja]) => ({ t, ja }))]);
+  const at = list.findIndex(c => c.t === formOf(id));
+  if (prevPos != null && at === prevPos) { const j = (at + 1 + Math.floor(Math.random() * 3)) % 4; [list[at], list[j]] = [list[j], list[at]]; }
+  return list;
+}
+const rightOf = (id, fmt) => fmt === "blank" ? { t: formOf(id), ja: VOCAB_BY_ID[id][2] } : synOf(id);
 function vocabQuestionHTML(id, answered) {
   const v = VOCAB_BY_ID[id];
-  if (!vocabChoices || vocabChoices.id !== id) vocabChoices = { id, list: makeChoices(id, vocab.words?.[id]?.prev) };
+  if (!vocabChoices || vocabChoices.id !== id) {
+    const fmt = vocabFmt(id), w = vocab.words?.[id];
+    vocabChoices = { id, fmt, list: fmt === "blank" ? makeBlankChoices(id, w?.bpos) : makeChoices(id, w?.prev) };
+  }
   const list = vocabChoices.list;
   if (answered) return vocabAnswerHTML(v, answered, answered.list ?? list);
+  if (vocabChoices.fmt === "blank") return `<div class="vq">
+      <p class="vq-ask">次の英文の（　　）に入れるのに最も適切なものを、1から4の中から一つ選びなさい。</p>
+      <div class="vq-sentence"><p class="vq-stem">${markForm(v[3], formOf(id), () => `<span class="vq-blank">(　　　　)</span>`)}</p></div>
+      <div class="vq-choices">${list.map((c, i) =>
+        `<button type="button" class="vq-choice en" data-vq-pick="${i}"><span class="cnum">${i + 1}</span>${esc(c.t)}</button>`).join("")}</div>
+    </div>`;
   return `<div class="vq">
       <p class="vq-ask">次の英文の下線部の語に最も意味が近いものを、1から4の中から一つ選びなさい。</p>
-      <div class="vq-sentence"><p class="vq-stem">${underlineWord(v[3], v[0])}</p>${speakBtn(v[3], "例文を聞く")}</div>
+      <div class="vq-sentence"><p class="vq-stem">${markForm(v[3], formOf(id), (b) => `<u class="vq-ul">${b}</u>`)}</p>${speakBtn(v[3], "例文を聞く")}</div>
       <div class="vq-choices">${list.map((c, i) =>
         `<button type="button" class="vq-choice en" data-vq-pick="${i}"><span class="cnum">${i + 1}</span>${esc(c.t)}</button>`).join("")}</div>
     </div>`;
@@ -2509,7 +2578,7 @@ function vocabQuestionHTML(id, answered) {
 // 解答・解説の画面（問題とは別の画面）
 // 上から「結果 → 覚える1枚（単語 ≒ 類義語・意味）→ 例文 → 選択肢のふり返り → 覚え方」の順
 function vocabAnswerHTML(v, answered, list) {
-  const right = synOf(`${v[0]}:${v[1]}`);
+  const right = rightOf(`${v[0]}:${v[1]}`, answered.fmt ?? "syn");
   const rightNo = list.findIndex(c => c.t === right.t) + 1;
   return `<div class="vq vx-page">
       ${player || canSpeak ? `<button type="button" class="vx-auto${autoSpeakOn() ? " on" : ""}" data-auto-speak aria-pressed="${autoSpeakOn()}">${ICON_SPEAK}<span>自動読み上げ ${autoSpeakOn() ? "オン" : "オフ"}</span></button>` : ""}
@@ -2520,13 +2589,13 @@ function vocabAnswerHTML(v, answered, list) {
         <div class="vx-pair">
           <div><p class="vx-w">${esc(v[0])}</p><p class="vx-wj">${esc(v[2])}</p></div>
           <span class="vx-eq">≒</span>
-          <div><p class="vx-w syn">${esc(right.t)}</p><p class="vx-wj">${esc(right.ja)}</p></div>
+          <div><p class="vx-w syn">${esc(synOf(`${v[0]}:${v[1]}`).t)}</p><p class="vx-wj">${esc(synOf(`${v[0]}:${v[1]}`).ja)}</p></div>
         </div>
         <div class="vx-card-foot"><span class="vx-pos">${esc(POS_NAME[v[1]] ?? v[1])}</span>${speakBtn(v[0], "発音")}</div>
       </div>
       <section class="vx-sec">
         <div class="vx-h"><span>例文</span>${speakBtn(v[3], "例文を聞く")}</div>
-        <p class="vq-ex">${highlightWord(v[3], v[0])}</p>
+        <p class="vq-ex">${markForm(v[3], formOf(`${v[0]}:${v[1]}`), (b) => `<mark>${b}</mark>`)}</p>
         <p class="vq-exj">${esc(v[4])}</p>
       </section>
       <section class="vx-sec plain">
@@ -2619,10 +2688,12 @@ $("vocab-body").addEventListener("click", async (e) => {
   if (pick && !td.answered) {
     const id = td.phase === "main" ? td.ids[td.idx] : td.queue[0];
     const v = VOCAB_BY_ID[id];
-    const right = synOf(id).t;
+    const fmt = vocabChoices.fmt ?? "syn";
+    const right = rightOf(id, fmt).t;
     const choice = vocabChoices.list[Number(pick.dataset.vqPick)].t;
     const ok = choice === right;
-    td.answered = { id, pick: choice, ok, list: vocabChoices.list };
+    td.answered = { id, pick: choice, ok, list: vocabChoices.list, fmt };
+    if (fmt === "blank") td.blankSeen = [...new Set([...(td.blankSeen ?? []), id])];
     if (td.phase === "main") {
       td.results[id] = ok;
       // 次に出す日：正解なら間をあけ、まちがえたら翌日
@@ -2634,7 +2705,12 @@ $("vocab-body").addEventListener("click", async (e) => {
       vocab.words[id] = w;
     }
     // 今回の選択肢を覚えておき、次に出すとき（復習・後日）は別の選択肢にする
-    if (vocab.words[id]) vocab.words[id].prev = { ch: vocabChoices.list.filter(c => c.t !== right).map(c => c.t), pos: vocabChoices.list.findIndex(c => c.t === right) };
+    const ww = vocab.words[id];
+    if (ww) {
+      ww.lastFmt = fmt;
+      if (fmt === "blank") ww.bpos = vocabChoices.list.findIndex(c => c.t === right);
+      else ww.prev = { ch: vocabChoices.list.filter(c => c.t !== right).map(c => c.t), pos: vocabChoices.list.findIndex(c => c.t === right) };
+    }
     navigator.vibrate?.(ok ? 30 : [60, 40, 60]);
     $("vocab-body").querySelectorAll("[data-vq-pick]").forEach(b => {
       b.disabled = true;
