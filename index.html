@@ -75,6 +75,7 @@
     </div>
     <div id="mock-pending" class="mock-banner pending" hidden></div>
     <div id="vocab-card" class="card vocab-card" hidden></div>
+    <div id="math-card" class="card vocab-card math-card" hidden></div>
     <div class="card">
       <div class="cal-head">
         <button type="button" class="small outline" data-cal="main" data-nav="-1">‹</button>
@@ -82,7 +83,7 @@
         <button type="button" class="small outline" data-cal="main" data-nav="1">›</button>
       </div>
       <div id="calendar" class="calendar"></div>
-      <p class="hint left cal-legend"><span class="pill lesson">指導日</span><span class="pill due">宿題期限</span><span class="pill tuition tutor-only" hidden>月謝</span><span class="pill plan">予定</span><span class="pill mock">模試</span><span class="legend-vocab">英単語を完了した日</span></p>
+      <p class="hint left cal-legend"><span class="pill lesson">指導日</span><span class="pill due">宿題期限</span><span class="pill tuition tutor-only" hidden>月謝</span><span class="pill plan">予定</span><span class="pill mock">模試</span><span class="legend-vocab">英単語を完了した日</span><span class="legend-math">数学を完了した日</span></p>
     </div>
     <div class="calendar-action-grid">
       <button type="button" class="cal-action-btn tutor-only" hidden data-open-modal="hw-modal">宿題を出す</button>
@@ -453,6 +454,15 @@
     <div class="exam-title"><b id="vocab-title">今日の英単語</b><span id="vocab-progress"></span></div>
   </header>
   <div id="vocab-body" class="exam-body"></div>
+</div>
+
+<!-- 今日の数学ⅠA -->
+<div id="math-view" class="exam-view" hidden>
+  <header class="exam-head">
+    <button type="button" id="math-close" class="small ghost-dark">閉じる</button>
+    <div class="exam-title"><b id="math-title">今日の数学ⅠA</b><span id="math-progress"></span></div>
+  </header>
+  <div id="math-body" class="exam-body"></div>
 </div>
 
 <script type="module" src="app.js"></script>

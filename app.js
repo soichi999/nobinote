@@ -12,6 +12,7 @@ import { SUBJECTS, SUBJECT_GROUPS, subjectLabel, subjectColor, subjectOptionsHTM
 import { MOCKS } from "./moshi/catalog.js";
 import { VOCAB } from "./moshi/vocab.js";
 import { SYN } from "./moshi/vocab_syn.js";
+import { MATH_TYPES, MATH_BY_ID, MATH_FIELDS, MARK_OPTS, makeProblem } from "./moshi/math_daily.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -194,6 +195,7 @@ function watchAll() {
   // 生徒切り替え時に前の生徒のデータが一瞬でも表示され続けないよう、即座に状態をリセットしてから再描画する
   lessons = []; homework = []; tests = []; schedule = []; examMeta = {}; tuition = []; plans = []; mocks = [];
   vocab = { words: {}, days: {}, today: null }; renderVocabCard();
+  math = { items: {}, days: {}, today: null }; renderMathCard();
   Object.keys(photoCache).forEach(k => delete photoCache[k]);
   tuitionDates = []; renderTuitionChips();
   renderHomework(); renderCalendarFeed(); renderCalendars(); renderTests(); renderMocks();
@@ -211,6 +213,17 @@ function watchAll() {
     if (role === "student" && !$("vocab-view").hidden) return;
     vocab = data;
     renderVocabCard();
+    renderTodayCard();
+    renderCalendars();
+  }));
+  unsubs.push(onSnapshot(doc(db, "students", currentSid, "math", "state"), snap => {
+    const d = snap.exists() ? snap.data() : {};
+    const data = { items: d.items ?? {}, days: d.days ?? {}, today: d.today ?? null };
+    if (mathTrial) { mathReal = data; return; }
+    // 自分が解いている最中は、画面の内容を上書きしない
+    if (role === "student" && !$("math-view").hidden) return;
+    math = data;
+    renderMathCard();
     renderTodayCard();
     renderCalendars();
   }));
@@ -685,12 +698,17 @@ function renderTodayCard() {
   if (role === "student") rows.push(`<li class="td-row vocab${vdone ? " done" : ""}"><span class="td-dot"></span>
       <div class="td-main"><b>今日の英単語</b><small>${vdone ? "完了しました" : `${DAILY_N}問`}</small></div>
       ${vdone ? "" : `<button type="button" class="small primary" data-vocab-open>はじめる</button>`}</li>`);
+  const mdone = math.days?.[localToday()]?.done;
+  if (role === "student") rows.push(`<li class="td-row math${mdone ? " done" : ""}"><span class="td-dot"></span>
+      <div class="td-main"><b>今日の数学ⅠA</b><small>${mdone ? "完了しました" : `${MATH_N}問`}</small></div>
+      ${mdone ? "" : `<button type="button" class="small primary" data-math-open>はじめる</button>`}</li>`);
   box.hidden = false;
   box.innerHTML = `<p class="td-title">今日やること<span>${fmtDateLong(t)}</span></p>
     ${rows.length ? `<ul class="td-list">${rows.join("")}</ul>` : `<p class="td-empty">今日やることはありません。</p>`}`;
 }
 $("today-card")?.addEventListener("click", (e) => {
   if (e.target.closest("[data-vocab-open]")) return openVocab();
+  if (e.target.closest("[data-math-open]")) return openMath();
   const fm = e.target.closest("[data-feed-mock]");
   if (fm) return handleHomeworkFeedClick(e);
   if (e.target.closest("[data-td-late]")) { $("hw-ring-card").click(); return; }
@@ -931,8 +949,10 @@ function buildCalendar(baseDate, marksByDate) {
     const prevMarks = weekday > 0 && d > 1 ? (marksByDate[isoOf(d - 1)] ?? []) : null;
     const nextMarks = weekday < 6 && d < daysInMonth ? (marksByDate[isoOf(d + 1)] ?? []) : null;
     // 今日の英単語を（直しまで）やり切った日は、マスを薄い黄色にする
-    const vdone = vocab.days?.[iso]?.done;
-    return `<div class="cal-cell${isToday ? " today" : ""}${vdone ? " vocab-done" : ""}" data-date="${iso}"${vdone ? ' title="今日の英単語 完了"' : ""}>
+    // 今日の数学ⅠAをやり切った日は、マスの下に線を引く（色だけに頼らず形でも分かるように）
+    const vdone = vocab.days?.[iso]?.done, mdone = math.days?.[iso]?.done;
+    const tip = [vdone ? "今日の英単語 完了" : "", mdone ? "今日の数学ⅠA 完了" : ""].filter(Boolean).join("・");
+    return `<div class="cal-cell${isToday ? " today" : ""}${vdone ? " vocab-done" : ""}${mdone ? " math-done" : ""}" data-date="${iso}"${tip ? ` title="${tip}"` : ""}>
       <span class="cal-day">${d}</span>
       <span class="cal-pills">${shown.map((k, i) => {
         const joinLeft = sameMark(k, prevMarks?.[i]);
@@ -1443,7 +1463,7 @@ function tickMockTimers() {
 }
 const autoSubmitting = new Set();
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && role) { renderCalendarFeed(); renderCalendars(); renderVocabCard(); renderHwTab(); }
+  if (document.visibilityState === "visible" && role) { renderCalendarFeed(); renderCalendars(); renderVocabCard(); renderMathCard(); renderHwTab(); }
   if (document.visibilityState === "visible") { tickMockTimers(); updateWakeLock(mocks.some(m => m.status === "started") && role === "student"); }
 });
 // 受験中は画面が自動で消えないようにする（対応している端末だけ）
@@ -2457,14 +2477,14 @@ function vocabWordRows(ids, td) {
 }
 // 正解は ○、不正解は ✕ を、線を描くアニメーションで大きく見せる
 const ICON_CIRCLE = `<svg viewBox="0 0 24 24" class="ic-check" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/></svg>`;
-function showMark(ok) {
+function showMark(ok, host = "vocab-view") {
   return new Promise(resolve => {
     const el = document.createElement("div");
     el.className = "mark-pop " + (ok ? "ok" : "ng");
     el.innerHTML = ok
       ? `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="36"/></svg><p>正解</p>`
       : `<svg viewBox="0 0 100 100"><path d="M26 26 L74 74"/><path d="M74 26 L26 74" class="second"/></svg><p>不正解</p>`;
-    $("vocab-view").appendChild(el);
+    $(host).appendChild(el);
     setTimeout(() => { el.classList.add("out"); }, 750);
     setTimeout(() => { el.remove(); resolve(); }, 1000);
   });
@@ -2593,6 +2613,321 @@ function finishVocab() {
   td.phase = "done";
   const first = td.ids.filter(id => td.results[id]).length;
   vocab.days = { ...(vocab.days ?? {}), [td.date]: { done: true, first, total: td.ids.length, finishedAt: Date.now() } };
+}
+
+/* ---------- 今日の数学ⅠA：1日5問 → 1問ずつマーク → 答え合わせ → 解答・解説 → まちがえた問題は数値を変えて全部正解するまで ---------- */
+// 問題の型と数値の作り方は moshi/math_daily.js。出題は「型 id ＋ seed（数値の種）」で記録し、同じ seed なら同じ問題になる
+const MATH_N = 5;
+// まだ出していない型は、分野が順番にまわるように並べておく
+const MATH_IDS = (() => {
+  const by = {};
+  MATH_TYPES.forEach(x => (by[x.f] ??= []).push(x.id));
+  const keys = Object.keys(by), out = [];
+  for (let i = 0; out.length < MATH_TYPES.length; i++) keys.forEach(k => { if (by[k][i]) out.push(by[k][i]); });
+  return out;
+})();
+let math = { items: {}, days: {}, today: null };
+let mathMarks = {};                       // いま解いている問題のマーク
+let mathTrial = false, mathReal = null;   // 先生のお試し（記録しない）
+const mathRef = () => doc(db, "students", currentSid, "math", "state");
+// 前に出した問題（sig）と同じにならない seed を選ぶ
+function freshSeed(id, avoid = []) {
+  let s = 0;
+  for (let k = 0; k < 40; k++) {
+    s = Math.floor(Math.random() * 2 ** 31);
+    if (!avoid.includes(makeProblem(id, s).sig)) return s;
+  }
+  return s;
+}
+const mathProb = (e) => makeProblem(e.id, e.seed);
+const mathEntry = (td) => (td.phase === "main" ? td.list[td.idx] : td.queue[0]);
+// 今日の5問：復習の時期が来た型（最大3つ）→ まだ出していない型。どちらも前回とは別の数値で出す
+function pickMathDaily() {
+  const t = localToday();
+  const due = Object.entries(math.items).filter(([id, w]) => MATH_BY_ID[id] && w.due <= t)
+    .sort((a, b) => a[1].due.localeCompare(b[1].due) || (a[1].box ?? 0) - (b[1].box ?? 0)).map(([id]) => id);
+  const fresh = MATH_IDS.filter(id => !math.items[id]);
+  const reviewN = Math.min(due.length, fresh.length ? 3 : MATH_N);
+  let ids = [...due.slice(0, reviewN), ...fresh.slice(0, MATH_N - reviewN)];
+  if (ids.length < MATH_N) {
+    const extra = Object.entries(math.items).filter(([id]) => MATH_BY_ID[id] && !ids.includes(id))
+      .sort((a, b) => (a[1].box ?? 0) - (b[1].box ?? 0) || (a[1].last ?? "").localeCompare(b[1].last ?? "")).map(([id]) => id);
+    ids = [...ids, ...extra].slice(0, MATH_N);
+  }
+  return shuffle(ids).map(id => ({ id, seed: freshSeed(id, [math.items[id]?.sig].filter(Boolean)) }));
+}
+const newMathToday = (list) => ({ date: localToday(), list, idx: 0, results: {}, phase: "main", queue: [], answered: null });
+async function saveMath() {
+  if (role !== "student" || mathTrial) return;
+  try { await setDoc(mathRef(), math); } catch {}
+}
+function mathStreak() {
+  let n = 0, d = localToday();
+  if (!math.days?.[d]?.done) d = addDays(d, -1);
+  while (math.days?.[d]?.done) { n++; d = addDays(d, -1); }
+  return n;
+}
+// 分野ごとの正答率（1回目の答え）。2回以上解いた分野のうち、いちばん低いもの
+function mathWeakField() {
+  const by = {};
+  Object.entries(math.items ?? {}).forEach(([id, w]) => {
+    const f = MATH_BY_ID[id]?.f; if (!f) return;
+    const b = (by[f] ??= { ok: 0, n: 0 }); b.ok += w.ok ?? 0; b.n += (w.ok ?? 0) + (w.ng ?? 0);
+  });
+  const list = Object.entries(by).filter(([, b]) => b.n >= 2).map(([f, b]) => ({ f, rate: b.ok / b.n }))
+    .sort((a, b) => a.rate - b.rate);
+  return list[0] && list[0].rate < .8 ? list[0] : null;
+}
+function renderMathCard() {
+  const card = $("math-card");
+  if (!card) return;
+  if (!currentSid) { card.hidden = true; return; }
+  card.hidden = false;
+  const t = localToday(), td = math.today?.date === t ? math.today : null, day = math.days?.[t];
+  const seen = Object.keys(math.items ?? {}).filter(id => MATH_BY_ID[id]).length;
+  const mastered = Object.entries(math.items ?? {}).filter(([id, w]) => MATH_BY_ID[id] && (w.box ?? 0) >= 3).length;
+  const week = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
+  const wk = ["日", "月", "火", "水", "木", "金", "土"];
+  const weekRow = `<div class="vc-week">${week.map(d => {
+    const [y, m, dd] = d.split("-").map(Number);
+    return `<span class="vc-day${math.days?.[d]?.done ? " done" : ""}${d === t ? " today" : ""}"><small>${wk[new Date(y, m - 1, dd).getDay()]}</small>${math.days?.[d]?.done ? ICON_CHECK : "・"}</span>`;
+  }).join("")}</div>`;
+  let state, title, note, prog = 0;
+  if (day?.done) { state = "done"; title = "今日は完了"; note = `1回目で ${day.first}/${day.total}問 正解`; prog = 100; }
+  else if (td?.phase === "review") { state = "review"; title = "復習が残っています"; note = `まちがえた問題 あと${td.queue.length}問（数値を変えて出ます）`; prog = 100; }
+  else if (td && (td.idx > 0 || td.answered)) { const k = td.idx + (td.answered ? 1 : 0); state = "doing"; title = "とちゅうです"; note = `${k} / ${td.list.length}問`; prog = Math.round(k / td.list.length * 100); }
+  else { state = "todo"; title = `今日の${MATH_N}問`; note = "ア・イ…の枠に、数字や符号「−」をマークして答えます"; }
+  let btn = "";
+  if (role === "student") {
+    btn = day?.done ? `<button type="button" class="outline vc-btn" data-math-open>今日の問題を見直す</button>`
+      : `<button type="button" class="primary vc-btn" data-math-open>${state === "review" ? "復習を続ける" : state === "doing" ? "続きから" : "はじめる"}</button>`;
+  } else if (role === "tutor") btn = `<button type="button" class="outline vc-btn" data-math-trial>お試しで解く（記録されません）</button>`;
+  const weak = mathWeakField();
+  card.innerHTML = `
+    <div class="vc-top">
+      <div><p class="vc-kicker">今日の数学ⅠA</p><p class="vc-sub">共通テスト形式・1日${MATH_N}問・7分野</p></div>
+      <span class="vc-badge ${state}">${state === "done" ? "完了" : state === "review" ? "復習中" : state === "doing" ? "とちゅう" : "未実施"}</span>
+    </div>
+    <div class="vc-today ${state}">
+      <p class="vc-title">${title}</p>
+      <p class="vc-note">${note}</p>
+      <div class="vc-bar"><div style="width:${prog}%"></div></div>
+    </div>
+    ${btn}
+    <div class="vc-stats">
+      <div><b>${mathStreak()}</b><span>日連続</span></div>
+      <div><b>${seen}<small>/${MATH_TYPES.length}</small></b><span>解いた型</span></div>
+      <div><b>${mastered}</b><span>定着した型</span></div>
+    </div>
+    ${weak ? `<p class="mc-weak">苦手な分野：<b>${esc(MATH_FIELDS[weak.f])}</b>（正答率 ${Math.round(weak.rate * 100)}%）</p>` : ""}
+    <p class="vc-label">この1週間</p>
+    ${weekRow}`;
+}
+$("math-card")?.addEventListener("click", (e) => {
+  if (e.target.closest("[data-math-open]")) openMath();
+  if (e.target.closest("[data-math-trial]")) startMathTrial();
+});
+function startMathTrial() {
+  if (!mathTrial) mathReal = math;
+  mathTrial = true;
+  math = { items: {}, days: {}, today: newMathToday(shuffle(MATH_IDS).slice(0, MATH_N).map(id => ({ id, seed: freshSeed(id) }))) };
+  showMathView();
+}
+function openMath() {
+  if (math.today?.date !== localToday()) { math.today = newMathToday(pickMathDaily()); saveMath(); }
+  showMathView();
+}
+function showMathView() {
+  mathMarks = {};
+  $("math-view").hidden = false;
+  document.body.classList.add("exam-open");
+  renderMath();
+}
+function closeMath() {
+  setTimeout(renderCalendars, 0);
+  if (mathTrial) { math = mathReal ?? { items: {}, days: {}, today: null }; mathTrial = false; }
+  $("math-view").hidden = true;
+  document.body.classList.remove("exam-open");
+  renderMathCard(); renderTodayCard();
+}
+$("math-close").addEventListener("click", closeMath);
+
+// 答えの形：[ア] を枠にする。マークした枠には数字を入れ、まだの枠は記号（ア・イ…）のまま
+const MQ_BLANK = /\[([^\]\s]{1,4})\]/g;
+function mathFormHTML(p, vals) {
+  // 枠の大きさをそろえる：幅は全角1文字分で中身を中央に、高さは「ア」と数字の両方が入る分（中身が ア・3・− のどれでもずれない）
+  const box = (x) => `\\boxed{\\vphantom{\\text{ア}0}\\kern0.55em\\mathclap{${x}}\\kern0.55em}`;
+  const boxTeX = (l) => { const v = vals?.[l]; return box(v ? (v === "−" ? "{-}" : `\\mathbf{${v}}`) : `\\text{${l}}`); };
+  return String(p.form).split("$").map((seg, i) => {
+    if (i % 2) return renderTex(seg.replace(MQ_BLANK, (m, l) => (p.labels.includes(l) ? boxTeX(l) : m)));
+    // 答えが2つ以上あるときは「、」「。」で行を分け、式の途中で折り返さないようにする
+    return esc(seg).replace(/[、。]\s*/g, "<br>").replace(MQ_BLANK, (m, l) => (p.labels.includes(l) ? `<span class="blank">${esc(vals?.[l] || l)}</span>` : m));
+  }).join("");
+}
+const mqHead = (p) => `<div class="mq-head"><span class="mq-field">${esc(p.field)}</span><span class="mq-title">${esc(p.title)}</span></div>`;
+function mathMarkRows(p, vals, locked) {
+  return p.labels.map(l => `<div class="mark-row">
+      <span class="mark-label">${esc(l)}</span>
+      <div class="bubbles">${MARK_OPTS.map(o => {
+        const cls = ["bubble", vals[l] === o ? "on" : "", locked && p.key[l] === o ? "correct" : "", locked && vals[l] === o && p.key[l] !== o ? "wrong" : ""].filter(Boolean).join(" ");
+        return `<button type="button" class="${cls}" ${locked ? "disabled" : ""} data-mq-label="${esc(l)}" data-mq-opt="${esc(o)}" aria-label="${esc(l)} に ${esc(o)}">${esc(o)}</button>`;
+      }).join("")}</div>
+    </div>`).join("");
+}
+const mqMissing = (p) => p.labels.filter(l => !mathMarks[l]).length;
+const mqCheckLabel = (n) => (n ? `あと${n}か所マークすると答え合わせ` : "答え合わせ");
+function mathQuestionHTML(p) {
+  const n = mqMissing(p);
+  return `<div class="vq mq">
+      ${mqHead(p)}
+      <div class="mq-text">${richText(p.q)}</div>
+      <p class="mq-label">答えの形 <small>（枠ごとにマーク・もう一度押すと取り消し）</small></p>
+      <div class="exam-t mq-form" id="mq-form">${mathFormHTML(p, mathMarks)}</div>
+      <div class="marks mq-marks">${mathMarkRows(p, mathMarks, false)}</div>
+      <button type="button" class="primary big-action mq-check" data-mq-check ${n ? "disabled" : ""}>${mqCheckLabel(n)}</button>
+    </div>`;
+}
+// 解答・解説の画面（問題とは別の画面）：結果 → 正しい答え（とあなたの答え）→ 解き方 → ポイント
+function mathAnswerHTML(p, a) {
+  const wrong = p.labels.filter(l => a.marks[l] !== p.key[l]);
+  return `<div class="vq vx-page mq-ans">
+      <div class="vx-result ${a.ok ? "ok" : "ng"}">${a.ok ? ICON_CIRCLE : ICON_CROSS}<span>${a.ok ? "正解！" : "不正解"}</span>
+        ${a.ok ? "" : `<small>まちがえた枠：${wrong.map(l => `<span class="mq-miss">${esc(l)}　<s>${esc(a.marks[l] ?? "")}</s> → <b>${esc(p.key[l])}</b></span>`).join("")}</small>`}</div>
+      <section class="mq-card">
+        ${mqHead(p)}
+        <div class="mq-text sm">${richText(p.q)}</div>
+        <p class="mq-label ok">正しい答え</p>
+        <div class="exam-t mq-form key">${mathFormHTML(p, p.key)}</div>
+        ${a.ok ? "" : `<p class="mq-label ng">あなたの答え</p><div class="exam-t mq-form mine">${mathFormHTML(p, a.marks)}</div>`}
+      </section>
+      <section class="vx-sec">
+        <div class="vx-h"><span>解き方（式の流れ）</span></div>
+        <ol class="mq-steps">${p.steps.map(s => `<li><div>${richText(s)}</div></li>`).join("")}</ol>
+      </section>
+      <section class="vx-sec tip"><div class="vx-h"><span>ポイント</span></div><p class="mq-point">${richText(p.point)}</p></section>
+    </div>`;
+}
+// 結果画面の一覧（分野・型）
+function mathRows(list, td) {
+  return `<ul class="vx-rows">${list.map(e => {
+    const p = mathProb(e), ok = td.results[e.id];
+    return `<li class="${ok ? "ok" : "ng"}">${ok ? ICON_CHECK : ICON_CROSS}<span class="vr-w mq-rw">${esc(p.title)}</span><span class="vr-j">${esc(p.field)}</span></li>`;
+  }).join("")}</ul>`;
+}
+function renderMath() {
+  const td = math.today;
+  if (!td) return;
+  $("math-title").textContent = mathTrial ? "【お試し】今日の数学ⅠA（記録されません）" : "今日の数学ⅠA";
+  const n = td.list.length, body = $("math-body");
+  if ((td.phase === "main" && td.idx < n) || (td.phase === "review" && td.queue.length)) {
+    const e = mathEntry(td), p = mathProb(e);
+    const answered = td.answered && td.answered.id === e.id && td.answered.seed === e.seed ? td.answered : null;
+    const main = td.phase === "main";
+    $("math-progress").textContent = main ? `${td.idx + 1} / ${n}問` : `復習 のこり${td.queue.length}問`;
+    const last = main ? td.idx === n - 1 : answered?.ok && td.queue.length === 1;
+    body.innerHTML = `${main ? `<div class="pr-progress"><div style="width:${Math.round(td.idx / n * 100)}%"></div></div>`
+        : `<p class="vq-review-tag">まちがえた問題の復習（数値を変えて出します。全部正解するまで続きます）</p>`}
+      ${answered ? mathAnswerHTML(p, answered) : mathQuestionHTML(p)}
+      ${answered ? `<div class="pr-nav"><button type="button" class="primary big-action" data-mq-next>${main ? (last ? "結果を見る" : "次の問題へ →") : (last ? "完了！" : "次へ →")}</button></div>` : ""}`;
+  } else if (td.phase === "main") {
+    const wrong = td.list.filter(e => td.results[e.id] === false), ok = n - wrong.length;
+    $("math-progress").textContent = `${ok} / ${n}問 正解`;
+    body.innerHTML = `<div class="pr-done">
+        <p class="pr-done-title">${wrong.length ? `${n}問おわり！` : "全問正解！"}</p>
+        <p class="pr-done-score">${ok}<small> / ${n}問 正解</small></p>
+        ${mathRows(td.list, td)}
+        ${wrong.length ? `<p class="mock-note">まちがえた ${wrong.length}問は、数値を変えた問題で全部正解するまで復習します。</p>
+          <div class="pr-done-actions"><button type="button" class="primary big-action" data-mq-review>復習をはじめる</button></div>`
+        : `<div class="pr-done-actions"><button type="button" class="primary big-action" data-mq-finish>完了にする</button></div>`}
+      </div>`;
+  } else {
+    const day = math.days?.[td.date];
+    $("math-progress").textContent = "完了";
+    body.innerHTML = `<div class="pr-done">
+        <p class="pr-done-title">${mathTrial ? "お試し 完了！" : "今日の数学ⅠA 完了！"}</p>
+        ${mathTrial ? "" : `<p class="pr-done-score">${mathStreak()}<small> 日連続</small></p>`}
+        <p class="mock-note">1回目で ${day?.first ?? td.list.filter(e => td.results[e.id]).length}/${day?.total ?? n} 問正解。また明日！</p>
+        <p class="vx-rows-h">今日の${n}問（まちがえた型は、次は別の数値で出ます）</p>
+        ${mathRows(td.list, td)}
+        <div class="pr-done-actions">
+          ${mathTrial ? `<button type="button" class="primary" data-mq-trial-again>もう一度（別の${MATH_N}問）</button>` : ""}
+          <button type="button" class="outline" data-mq-close>閉じる</button></div>
+      </div>`;
+  }
+  body.scrollTop = 0;
+}
+$("math-body").addEventListener("click", async (ev) => {
+  const td = math.today;
+  if (ev.target.closest("[data-mq-trial-again]")) return startMathTrial();
+  if (ev.target.closest("[data-mq-close]")) return closeMath();
+  if (!td || (role !== "student" && !mathTrial)) return;
+  const bt = ev.target.closest("[data-mq-opt]");
+  if (bt && !bt.disabled && !td.answered) {
+    const { mqLabel: l, mqOpt: o } = bt.dataset;
+    mathMarks[l] = mathMarks[l] === o ? "" : o;   // もう一度押すと取り消し
+    bt.parentElement.querySelectorAll(".bubble").forEach(x => x.classList.toggle("on", x.dataset.mqOpt === mathMarks[l]));
+    const p = mathProb(mathEntry(td));
+    $("mq-form").innerHTML = mathFormHTML(p, mathMarks);
+    const n = mqMissing(p), ck = $("math-body").querySelector("[data-mq-check]");
+    ck.disabled = !!n; ck.textContent = mqCheckLabel(n);
+    return;
+  }
+  if (ev.target.closest("[data-mq-check]") && !td.answered) {
+    const e = mathEntry(td), p = mathProb(e);
+    if (mqMissing(p)) return;
+    const marks = Object.fromEntries(p.labels.map(l => [l, mathMarks[l]]));
+    const ok = p.labels.every(l => marks[l] === p.key[l]);
+    td.answered = { id: e.id, seed: e.seed, marks, ok };
+    const w = math.items[e.id] ?? { box: 0, ok: 0, ng: 0 };
+    if (td.phase === "main") {
+      td.results[e.id] = ok;
+      // 次に出す日：正解なら間をあけ、まちがえたら翌日（1→2→4→7→15→30日）
+      w.box = ok ? Math.min((w.box ?? 0) + 1, BOX_DAYS.length - 1) : 0;
+      w.due = addDays(td.date, ok ? BOX_DAYS[w.box] : 1);
+      w[ok ? "ok" : "ng"] = (w[ok ? "ok" : "ng"] ?? 0) + 1;
+      w.last = td.date;
+    }
+    w.sig = p.sig;   // 次に出すときは、これと違う数値にする
+    math.items[e.id] = w;
+    navigator.vibrate?.(ok ? 30 : [60, 40, 60]);
+    $("math-body").querySelectorAll("[data-mq-opt]").forEach(b => {
+      b.disabled = true;
+      const { mqLabel: l, mqOpt: o } = b.dataset;
+      if (p.key[l] === o) b.classList.add("correct"); else if (marks[l] === o) b.classList.add("wrong");
+    });
+    ev.target.closest("[data-mq-check]").disabled = true;
+    saveMath();
+    await showMark(ok, "math-view");
+    renderMath();
+    return;
+  }
+  if (ev.target.closest("[data-mq-next]") && td.answered) {
+    if (td.phase === "main") td.idx++;
+    else {
+      // 復習：正解ならその問題は終わり。まちがえたら数値を変えて列の最後へ
+      const e = td.queue.shift();
+      if (!td.answered.ok) td.queue.push({ id: e.id, seed: freshSeed(e.id, [mathProb(e).sig]) });
+      if (!td.queue.length) finishMath();
+    }
+    td.answered = null; mathMarks = {};
+    renderMath(); saveMath();
+    return;
+  }
+  if (ev.target.closest("[data-mq-review]")) {
+    td.phase = "review";
+    // その日に出した問題とは別の数値で出す
+    td.queue = shuffle(td.list.filter(e => td.results[e.id] === false)).map(e => ({ id: e.id, seed: freshSeed(e.id, [mathProb(e).sig]) }));
+    td.answered = null; mathMarks = {};
+    renderMath(); saveMath();
+    return;
+  }
+  if (ev.target.closest("[data-mq-finish]")) { finishMath(); renderMath(); saveMath(); }
+});
+function finishMath() {
+  const td = math.today;
+  td.phase = "done";
+  const first = td.list.filter(e => td.results[e.id]).length;
+  math.days = { ...(math.days ?? {}), [td.date]: { done: true, first, total: td.list.length, finishedAt: Date.now() } };
 }
 
 /* ---------- 成績（外部の模試・テスト） ---------- */

@@ -10,6 +10,7 @@
   --input-bg:var(--input-bg); --accent-w:4px;
   --r-sm:6px; --r-md:10px; --r-lg:16px; --r-pill:999px;
   --vocab-day:#fff4bf; --vocab-day-line:#f1d36b;
+  --c-math:#4338ca; --c-math-mid:#6366f1; --c-math-soft:#eef2ff; --c-math-line:#c7d2fe;
   --shadow-pop:0 12px 32px rgba(11,42,91,.25);
   --shadow:0 1px 2px rgba(11,42,91,.06),0 4px 14px rgba(11,42,91,.06);
   --shadow-hover:0 2px 4px rgba(11,42,91,.08),0 10px 24px rgba(11,42,91,.10);
@@ -585,7 +586,6 @@ button.ghost-dark{background:#fff;border:1px solid var(--blue-line);color:var(--
 
 /* ---- カレンダー下の一覧：模試 ---- */
 .item .date.mock{background:var(--c-mock-soft);color:var(--c-mock)}
-.feed-mock{border-left:var(--accent-w) solid var(--c-mock)}
 .feed-mock-meta{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin:.2rem 0 !important}
 .feed-mock-score{color:var(--navy);font-size:.9rem}
 .mock-card.flash{animation:flash 1.6s ease}
@@ -774,7 +774,6 @@ button.ghost-dark{background:#fff;border:1px solid var(--blue-line);color:var(--
 .h3-plain{border:none !important;padding:0 !important}
 
 /* ---- ホーム：今日やること ---- */
-.today-card{border-top:var(--accent-w) solid var(--blue)}
 .td-title{margin:0 0 .6rem;font-size:1.1rem;font-weight:800;color:var(--navy);display:flex;align-items:baseline;justify-content:space-between;gap:.5rem}
 .td-title span{font-size:.75rem;color:var(--muted);font-weight:700}
 .td-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.45rem}
@@ -885,3 +884,56 @@ details.form-details[open] > summary::before{transform:rotate(45deg)}
 .vx-auto{align-self:flex-end;display:inline-flex;align-items:center;gap:.35rem;min-height:44px;padding:0 .9rem;border-radius:var(--r-pill);border:1px solid var(--line);background:#fff;color:var(--muted);font-weight:800;font-size:.8rem}
 .vx-auto svg{width:1.1rem;height:1.1rem;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .vx-auto.on{border-color:var(--blue-line);background:var(--blue-soft);color:var(--blue)}
+
+/* ---- 今日の数学ⅠA（カード・出題・解答解説） ---- */
+.math-card{border-top:var(--accent-w) solid var(--c-math-mid)}
+.math-card .vc-badge.todo{background:var(--c-math-soft);color:var(--c-math)}
+.math-card .vc-today{background:var(--c-math-soft)}
+.math-card .vc-today.done{background:var(--ok-soft)}.math-card .vc-today.review{background:var(--err-soft)}.math-card .vc-today.doing{background:var(--warn-soft)}
+.math-card .vc-bar{background:var(--c-math-line)}
+.math-card .vc-bar div{background:var(--c-math-mid)}
+.math-card .vc-today.done .vc-bar div{background:var(--ok)}.math-card .vc-today.review .vc-bar div{background:var(--err)}.math-card .vc-today.doing .vc-bar div{background:var(--warn)}
+.math-card .vc-day.done{background:var(--c-math-soft);color:var(--c-math)}
+.math-card .vc-day.today{outline:2px solid var(--c-math-mid)}
+.math-card .vc-stats b small{font-size:.75rem;color:var(--muted);font-weight:700}
+.mc-weak{margin:0 0 .7rem;font-size:.85rem;color:var(--fg);background:var(--warn-soft);border-left:var(--accent-w) solid var(--warn-mid);border-radius:0 var(--r-md) var(--r-md) 0;padding:.45rem .7rem}
+.mc-weak b{color:var(--warn)}
+.td-row.math .td-dot{background:var(--c-math);border-radius:0;clip-path:polygon(50% 0,100% 100%,0 100%)}
+.cal-cell.math-done{box-shadow:inset 0 -4px 0 var(--c-math-mid)}
+.legend-math{display:inline-flex;align-items:center;gap:.35rem;font-size:.75rem;font-weight:700;color:var(--muted)}
+.legend-math::before{content:"";width:.95rem;height:.95rem;border-radius:var(--r-sm);background:var(--bg);box-shadow:inset 0 -4px 0 var(--c-math-mid);border:1px solid var(--line)}
+
+.mq-head{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem}
+.mq-field{font-size:.75rem;font-weight:800;color:var(--c-math);background:var(--c-math-soft);border:1px solid var(--c-math-line);border-radius:var(--r-pill);padding:.1rem .65rem}
+.mq-title{font-size:.85rem;font-weight:800;color:var(--navy)}
+.mq-text{font-size:1rem;line-height:2;color:var(--fg)}
+.mq-text.sm{font-size:.9rem}
+.mq-text .katex{font-size:1.08em}
+.mq-label{margin:.8rem 0 .3rem;font-size:.75rem;font-weight:800;color:var(--muted)}
+.mq-label small{font-weight:700;font-size:.75rem}
+.mq-label.ok{color:var(--ok)}.mq-label.ng{color:var(--err)}
+.mq-form{text-align:center;font-size:1.1rem;margin:0}
+.mq-form.key{border:1.5px solid var(--ok-line);background:var(--ok-soft)}
+.mq-form.mine{border:1.5px dashed var(--err-line);background:var(--err-soft)}
+.mq-marks{margin-top:.8rem;gap:.55rem}
+.mq-marks .mark-row{align-items:flex-start}
+.mq-marks .mark-label{min-width:2.2rem;height:44px;display:flex;align-items:center;justify-content:center;font-size:.95rem;padding:0 .2rem}
+.mq-marks .bubbles{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px}
+.mq-marks .bubble{width:auto;height:44px;max-width:none;aspect-ratio:auto;min-width:0;border-radius:var(--r-md);font-size:1.05rem}
+.mq-check{display:block;width:100%;margin-top:1rem;min-height:48px}
+.mq-check:disabled{background:var(--blue-line);color:var(--muted);box-shadow:none;cursor:default;filter:none}
+.mq-card{border:1px solid var(--line);border-radius:var(--r-lg);padding:.8rem .9rem}
+.mq-miss{display:inline-flex;gap:.3rem;align-items:baseline;margin-right:.9rem;white-space:nowrap}
+.mq-miss s{color:var(--err)}.mq-miss b{color:var(--ok)}
+.mq-steps{list-style:none;margin:0;padding:0;counter-reset:st;display:flex;flex-direction:column;gap:.45rem}
+.mq-steps li{counter-increment:st;display:flex;gap:.55rem;align-items:baseline;font-size:.95rem;line-height:2}
+.mq-steps li::before{content:counter(st);flex:none;width:1.4rem;height:1.4rem;border-radius:var(--r-pill);background:var(--blue);color:#fff;font-size:.75rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;transform:translateY(-.1rem)}
+.mq-point{margin:0;font-size:.92rem;line-height:1.95}
+.mq-rw{font-family:inherit;font-size:.92rem}
+@media (max-width:520px){
+  .vq.mq,.vq.mq-ans{padding:.9rem .7rem}
+  .mq-marks .mark-label{min-width:1.9rem;font-size:.85rem}
+  .mq-marks .bubbles{grid-template-columns:repeat(6,minmax(0,1fr))}
+}
+/* マークしながら答えの形が見えるように、出題中は上に固定する */
+.mq #mq-form{position:sticky;top:0;z-index:3;background:var(--card);border-style:solid;box-shadow:var(--shadow)}
