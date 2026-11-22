@@ -709,7 +709,6 @@ button.ghost-dark{background:#fff;border:1px solid var(--blue-line);color:var(--
 .vx-tips li{margin:.1rem 0}
 
 /* ---- 単語帳カード（カレンダー） ---- */
-.vocab-card{border-top:var(--accent-w) solid var(--c-vocab-mid)}
 .vc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:.6rem}
 .vc-kicker{margin:0;font-size:1.05rem;font-weight:800;color:var(--navy)}
 .vc-badge{flex:none;font-size:.75rem;font-weight:800;padding:.2rem .7rem;border-radius:var(--r-pill);background:var(--bg);color:var(--muted)}
@@ -886,7 +885,6 @@ details.form-details[open] > summary::before{transform:rotate(45deg)}
 .vx-auto.on{border-color:var(--blue-line);background:var(--blue-soft);color:var(--blue)}
 
 /* ---- 今日の数学ⅠA（カード・出題・解答解説） ---- */
-.math-card{border-top:var(--accent-w) solid var(--c-math-mid)}
 .math-card .vc-badge.todo{background:var(--c-math-soft);color:var(--c-math)}
 .math-card .vc-today{background:var(--c-math-soft)}
 .math-card .vc-today.done{background:var(--ok-soft)}.math-card .vc-today.review{background:var(--err-soft)}.math-card .vc-today.doing{background:var(--warn-soft)}
