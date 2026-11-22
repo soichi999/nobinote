@@ -2398,15 +2398,44 @@ function speakSeq(parts) {
     speechSynthesis.speak(u);
   }
 }
+// 自然な声の音声ファイル（tools/make_vocab_audio.py で作成）：単語・例文＝Kokoro（英語）、意味＝VOICEVOX:冥鳴ひまり（日本語）
+// ファイルが読めないときだけ端末の読み上げに切り替える
+const POS_ABBR = { 動: "v", 名: "n", 形: "a", 副: "r" };
+const audioUrl = (v, k) => `./moshi/audio/${v[0].toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${POS_ABBR[v[1]]}-${k}.mp3`;
+const AUDIO_BY_TEXT = new Map();
+VOCAB.forEach(v => { AUDIO_BY_TEXT.set(v[0], audioUrl(v, "w")); AUDIO_BY_TEXT.set(v[3], audioUrl(v, "s")); });
+const player = typeof Audio === "function" ? new Audio() : null;
+let playQueue = [], playTimer = null;
+function playClips(items) {   // items: [{ url, text, lang }]
+  stopSpeak();
+  if (!player) return speakSeq(items.map(it => [it.text, it.lang]));
+  playQueue = items.slice();
+  playNext();
+}
+function playNext() {
+  const it = playQueue.shift();
+  if (!it) return;
+  const fallback = () => { const rest = [it, ...playQueue]; playQueue = []; speakSeq(rest.map(x => [x.text, x.lang])); };
+  player.onended = () => { playTimer = setTimeout(playNext, 250); };
+  player.onerror = fallback;
+  player.src = it.url;
+  player.play()?.catch?.(e => { if (e?.name !== "AbortError") fallback(); });
+}
 // 解説に入ったら「単語 → 意味 → 例文」を自動で読み上げる（オフにもできる。端末に記憶）
 const autoSpeakOn = () => { try { return localStorage.getItem("vocabAutoSpeak") !== "0"; } catch { return true; } };
 const jaRead = (m) => String(m).replace(/[（）()～〜]/g, "");
 function autoSpeakVocab(v) {
-  if (!canSpeak || !autoSpeakOn()) return;
-  speakSeq([[v[0], "en"], [jaRead(v[2]), "ja"], [v[3], "en"]]);
+  if (!autoSpeakOn()) return;
+  playClips([{ url: audioUrl(v, "w"), text: v[0], lang: "en" }, { url: audioUrl(v, "m"), text: jaRead(v[2]), lang: "ja" }, { url: audioUrl(v, "s"), text: v[3], lang: "en" }]);
 }
-const stopSpeak = () => { if (canSpeak) speechSynthesis.cancel(); };
+function stopSpeak() {
+  if (canSpeak) speechSynthesis.cancel();
+  playQueue = []; clearTimeout(playTimer);
+  if (player) { player.onended = player.onerror = null; player.pause(); }
+}
 function speak(text) {
+  const url = AUDIO_BY_TEXT.get(text);
+  if (url) return playClips([{ url, text, lang: "en" }]);
   if (!canSpeak) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
@@ -2420,7 +2449,7 @@ const ICON_SPEAK = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h
 const ICON_CHECK = `<svg viewBox="0 0 24 24" class="ic-check" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
 const ICON_CROSS = `<svg viewBox="0 0 24 24" class="ic-check" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>`;
 const POS_NAME = { 動: "動詞", 名: "名詞", 形: "形容詞", 副: "副詞" };
-const speakBtn = (text, label) => canSpeak ? `<button type="button" class="speak-btn" data-speak="${esc(text)}">${ICON_SPEAK}<span>${label}</span></button>` : "";
+const speakBtn = (text, label) => canSpeak || AUDIO_BY_TEXT.has(text) ? `<button type="button" class="speak-btn" data-speak="${esc(text)}">${ICON_SPEAK}<span>${label}</span></button>` : "";
 // 豆知識は「。」ごとに区切って箇条書きにする
 const tipList = (tip) => String(tip).split("。").map(x => x.trim()).filter(Boolean).map(x => `<li>${esc(x)}</li>`).join("");
 function vocabQuestionHTML(id, answered) {
@@ -2441,7 +2470,7 @@ function vocabAnswerHTML(v, answered, list) {
   const right = synOf(`${v[0]}:${v[1]}`);
   const rightNo = list.findIndex(c => c.t === right.t) + 1;
   return `<div class="vq vx-page">
-      ${canSpeak ? `<button type="button" class="vx-auto${autoSpeakOn() ? " on" : ""}" data-auto-speak aria-pressed="${autoSpeakOn()}">${ICON_SPEAK}<span>自動読み上げ ${autoSpeakOn() ? "オン" : "オフ"}</span></button>` : ""}
+      ${player || canSpeak ? `<button type="button" class="vx-auto${autoSpeakOn() ? " on" : ""}" data-auto-speak aria-pressed="${autoSpeakOn()}">${ICON_SPEAK}<span>自動読み上げ ${autoSpeakOn() ? "オン" : "オフ"}</span></button>` : ""}
       <div class="vx-result ${answered.ok ? "ok" : "ng"}">${answered.ok ? ICON_CIRCLE : ICON_CROSS}<span>${answered.ok ? "正解！" : "不正解"}</span>
         ${answered.ok ? "" : `<small>あなたの答え <s>${esc(answered.pick)}</s>　→　正解は <b>${rightNo} ${esc(right.t)}</b></small>`}</div>
       <div class="vx-card">
@@ -2466,6 +2495,7 @@ function vocabAnswerHTML(v, answered, list) {
         }).join("")}</ul>
       </section>
       ${v[6] ? `<section class="vx-sec tip"><div class="vx-h"><span>覚え方のポイント</span></div><ul class="vx-tips">${tipList(v[6])}</ul></section>` : ""}
+      <p class="vx-credit">音声：Kokoro（英語）／VOICEVOX:冥鳴ひまり（日本語）</p>
     </div>`;
 }
 // 結果画面の単語リスト（単語 ≒ 類義語・意味）

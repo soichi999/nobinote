@@ -940,3 +940,4 @@ details.form-details[open] > summary::before{transform:rotate(45deg)}
 /* 数学カードの円グラフ：学習中は数学の色 */
 .math-card .vc-donut .l{stroke:var(--c-math-mid)}
 .math-card .vc-legend i.l{background:var(--c-math-mid)}
+.vx-credit{margin:0;font-size:.75rem;color:var(--muted);text-align:right}
