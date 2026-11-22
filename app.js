@@ -2918,7 +2918,7 @@ function renderMathCard() {
   if (day?.done) { state = "done"; title = "今日は完了"; note = `1回目で ${day.first}/${day.total}問 正解`; prog = 100; }
   else if (td?.phase === "review") { state = "review"; title = "復習が残っています"; note = `まちがえた問題 あと${td.queue.length}問（数値を変えて出ます）`; prog = 100; }
   else if (td && (td.idx > 0 || td.answered)) { const k = td.idx + (td.answered ? 1 : 0); state = "doing"; title = "とちゅうです"; note = `${k} / ${td.list.length}問`; prog = Math.round(k / td.list.length * 100); }
-  else { state = "todo"; title = `今日の${td?.list.length ?? mathN()}問`; note = "ア・イ…の枠に、数字や符号「−」をマークして答えます"; }
+  else { state = "todo"; title = `今日の${(td && !mathUntouched(td) ? td.list.length : mathN())}問`; note = "ア・イ…の枠に、数字や符号「−」をマークして答えます"; }
   let btn = "";
   if (role === "student") {
     btn = day?.done ? `<button type="button" class="outline vc-btn" data-math-open>今日の問題を見直す</button>`
@@ -2927,7 +2927,7 @@ function renderMathCard() {
   const weak = mathWeakField();
   card.innerHTML = `
     <div class="vc-top">
-      <div><p class="vc-kicker">今日の数学ⅠA</p><p class="vc-sub">共通テスト形式・1日${td?.list.length ?? mathN()}問・7分野・レベル${lv}</p></div>
+      <div><p class="vc-kicker">今日の数学ⅠA</p><p class="vc-sub">共通テスト形式・1日${(td && !mathUntouched(td) ? td.list.length : mathN())}問・7分野・レベル${lv}</p></div>
       <span class="vc-badge ${state}">${state === "done" ? "完了" : state === "review" ? "復習中" : state === "doing" ? "とちゅう" : "未実施"}</span>
     </div>
     <div class="vc-today ${state}">
