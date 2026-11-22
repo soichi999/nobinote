@@ -2807,8 +2807,9 @@ $("math-close").addEventListener("click", closeMath);
 // 答えの形：[ア] を枠にする。マークした枠には数字を入れ、まだの枠は記号（ア・イ…）のまま
 const MQ_BLANK = /\[([^\]\s]{1,4})\]/g;
 function mathFormHTML(p, vals) {
-  // 枠の大きさをそろえる：幅は全角1文字分で中身を中央に、高さは「ア」と数字の両方が入る分（中身が ア・3・− のどれでもずれない）
-  const box = (x) => `\\boxed{\\vphantom{\\text{ア}0}\\kern0.55em\\mathclap{${x}}\\kern0.55em}`;
+  // 枠の大きさをそろえる：幅は全角1文字分で中身を中央に、高さは「ア」と数字の両方が入る分。中身は \smash で高さを0にして、
+  // − のように上下の出っ張りがちがう文字でも枠が伸びないようにする（ア・3・− のどれでも同じ大きさ）
+  const box = (x) => `\\boxed{\\vphantom{\\text{ア}0}\\kern0.55em\\mathclap{\\smash{${x}}}\\kern0.55em}`;
   const boxTeX = (l) => { const v = vals?.[l]; return box(v ? (v === "−" ? "{-}" : `\\mathbf{${v}}`) : `\\text{${l}}`); };
   return String(p.form).split("$").map((seg, i) => {
     if (i % 2) return renderTex(seg.replace(MQ_BLANK, (m, l) => (p.labels.includes(l) ? boxTeX(l) : m)));
