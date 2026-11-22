@@ -68,14 +68,15 @@
 
   <!-- カレンダー（宿題・指導記録・指導予定を統合） -->
   <section id="tab-calendar" class="tab">
-    <div id="today-card" class="card today-card" hidden></div>
-    <div class="card ring-card" id="hw-ring-card" role="button" tabindex="0">
+    <!-- 「今日やること」と「宿題の達成度」はカレンダーに出さない（プログラムから参照するので、見えない入れ物にしまう） -->
+    <div hidden>
+      <div id="today-card" class="card today-card" hidden></div>
+      <div class="card ring-card" id="hw-ring-card" role="button" tabindex="0">
       <div class="ring-wrap"><svg id="hw-ring" viewBox="0 0 120 120"></svg><div class="ring-label" id="hw-ring-label">0%</div></div>
       <div><h3 class="h3-plain">宿題の達成度</h3><p class="hint left" id="hw-ring-sub">まだ宿題がありません。</p></div>
+      </div>
     </div>
     <div id="mock-pending" class="mock-banner pending" hidden></div>
-    <div id="vocab-card" class="card vocab-card" hidden></div>
-    <div id="math-card" class="card vocab-card math-card" hidden></div>
     <div class="card">
       <div class="cal-head">
         <button type="button" class="small outline" data-cal="main" data-nav="-1">‹</button>
@@ -102,6 +103,10 @@
       <div><h2 class="section-title">宿題</h2></div>
       <button type="button" class="primary tutor-only" hidden data-open-modal="hw-modal">宿題を出す</button>
     </div>
+    <p class="hw-section-label">毎日の学習</p>
+    <div id="vocab-card" class="card vocab-card" hidden></div>
+    <div id="math-card" class="card vocab-card math-card" hidden></div>
+    <p class="hw-section-label">宿題</p>
     <div id="hw-summary" class="hw-summary"></div>
     <div class="hw-view" role="tablist" aria-label="並べ方">
       <button type="button" data-hw-view="due" class="active">締め切り別</button>

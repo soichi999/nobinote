@@ -951,3 +951,5 @@ details.form-details[open] > summary::before{transform:rotate(45deg)}
 .hw-day.miss{background:var(--err-soft);border-color:var(--err-line);color:var(--err)}
 .hw-day.today{border:2px solid var(--blue);color:var(--blue)}
 .h-daily-note{grid-column:1/-1;margin:0}
+.hw-section-label{margin:.4rem 0 .5rem;font-size:.8rem;font-weight:800;color:var(--muted);letter-spacing:.05em}
+#tab-homework .vocab-card{margin-bottom:.8rem}
