@@ -2926,8 +2926,8 @@ function renderMathCard() {
   const weak = mathWeakField();
   card.innerHTML = `
     ${cardHead("今日の数学ⅠA", state, prog, gtext)}
-    ${btn}
     ${levelButtons("math", lv, [1, 2, 3].map(l => mathLvStats(l).pct), false)}
+    ${btn}
     ${mathProgressHTML(lv)}
     ${moreDetails("math", `${mathStreak()}日連続・この1週間 ${week.filter(d => math.days?.[d]?.done).length}/7日`, `
     <div class="vc-stats two">
