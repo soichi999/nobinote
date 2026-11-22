@@ -2933,19 +2933,26 @@ function mathWeakHTML() {
     const b = byF[f], r = Math.round(b.ok / b.n * 100);
     return `<li class="${r < 60 ? "low" : ""}"><span class="mw-f">${esc(MATH_FIELDS[f])}</span><span class="mw-bar"><i style="width:${r}%"></i></span><b>${r}%</b><small>${b.n}回${b.tn ? `・平均${fmtSec(Math.round(b.t / b.tn))}` : ""}</small></li>`;
   }).join("");
-  const item = (id, cls, meta) => `<li class="mw-item ${cls}"><p><b>${esc(MATH_BY_ID[id].title)}</b><span class="mq-lv">レベル${MATH_BY_ID[id].lv}</span></p><small>${esc(MATH_FIELDS[MATH_BY_ID[id].f])}・${meta}</small></li>`;
+  // 一覧の1行（英単語の苦手まとめと同じ .wk-list の形）：問題名・分野とレベル・回数や時間
+  const item = (id, tag, extra = "") => `<li><span class="wk-w mw-t">${esc(MATH_BY_ID[id].title)}</span><span class="wk-j">${esc(MATH_FIELDS[MATH_BY_ID[id].f])}・レベル${MATH_BY_ID[id].lv}${extra}</span>${tag}</li>`;
+  const tot = its.reduce((a, [, w]) => ({ ok: a.ok + (w.ok ?? 0), n: a.n + (w.ok ?? 0) + (w.ng ?? 0), t: a.t + (w.tsum ?? 0), tn: a.tn + (w.tn ?? 0) }), { ok: 0, n: 0, t: 0, tn: 0 });
   const miss = its.filter(([, w]) => (w.ng ?? 0) >= 2 || ((w.ng ?? 0) >= 1 && (w.box ?? 0) === 0))
     .sort((a, b) => (b[1].ng ?? 0) - (a[1].ng ?? 0) || (a[1].ok ?? 0) - (b[1].ok ?? 0)).slice(0, 8);
   const slow = its.filter(([id, w]) => w.tn && w.tsum / w.tn > mathTargetOf(id) * 1.3)
     .sort((a, b) => b[1].tsum / b[1].tn / mathTargetOf(b[0]) - a[1].tsum / a[1].tn / mathTargetOf(a[0])).slice(0, 5);
   return `<div class="mw">
-      <p class="vc-label">数学ⅠA：分野ごとの正答率（1回目の答え）</p>
+      <div class="wk-stats">
+        <div><b>${its.length}<small>/${MATH_TYPES.length}</small></b><span>解いた問題</span></div>
+        <div><b>${Math.round(tot.ok / tot.n * 100)}<small>%</small></b><span>1回目の正答率</span></div>
+        ${tot.tn ? `<div><b>${fmtSec(Math.round(tot.t / tot.tn))}</b><span>1問の平均時間</span></div>` : ""}
+      </div>
+      <p class="wk-sub">分野ごとの正答率（1回目の答え）</p>
       <ul class="mw-list">${rows}</ul>
-      <p class="vc-label">何回もまちがえている問題</p>
-      ${miss.length ? `<ul class="mw-items">${miss.map(([id, w]) => item(id, "ng", `まちがい${w.ng ?? 0}回・正解${w.ok ?? 0}回`)).join("")}</ul>`
+      <p class="wk-sub">何回もまちがえている問題</p>
+      ${miss.length ? `<ul class="wk-list">${miss.map(([id, w]) => item(id, `<span class="wk-n">まちがい${w.ng ?? 0}回</span>`)).join("")}</ul>`
         : `<p class="mock-note">今のところありません。</p>`}
-      ${slow.length ? `<p class="vc-label">時間がかかっている問題（目安の1.3倍より長い）</p>
-      <ul class="mw-items">${slow.map(([id, w]) => item(id, "slow", `平均${fmtSec(Math.round(w.tsum / w.tn))}（目安${fmtSec(mathTargetOf(id))}）`)).join("")}</ul>` : ""}
+      ${slow.length ? `<p class="wk-sub">時間がかかっている問題（平均が目安の1.3倍より長い）</p>
+      <ul class="wk-list">${slow.map(([id, w]) => item(id, `<span class="wk-s">平均${fmtSec(Math.round(w.tsum / w.tn))}</span>`, `・目安${fmtSec(mathTargetOf(id))}`)).join("")}</ul>` : ""}
     </div>`;
 }
 // 分野ごとの正答率（1回目の答え）。2回以上解いた分野のうち、いちばん低いもの
