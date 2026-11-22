@@ -639,13 +639,37 @@ button.ghost-dark{background:#fff;border:1px solid var(--blue-line);color:var(--
 .vq-stem{margin:0;font-family:"Times New Roman",Georgia,serif;font-size:1.25rem;line-height:1.6;color:var(--navy)}
 .vq-ul{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:.2em;font-weight:800}
 .vq-choice.en{font-family:"Times New Roman",Georgia,serif;font-size:1.1rem}
-.vx-syn{margin:.3rem 0 0;font-size:.9rem;color:var(--muted)}
-.vx-syn b{font-family:"Times New Roman",Georgia,serif;font-size:1.05rem;color:var(--ok)}
-.vx-choices{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.35rem}
-.vx-choices li{display:flex;align-items:baseline;gap:.5rem;font-size:.9rem}
-.vx-choices li b{font-family:"Times New Roman",Georgia,serif;font-size:1rem;min-width:6.5em}
-.vx-choices li.ok b{color:var(--ok)}.vx-choices li.ng b{color:var(--err);text-decoration:line-through}
+.vx-result small{font-weight:700}
+.vx-result small s{color:var(--err)}.vx-result small b{white-space:nowrap}.vx-result small b{color:var(--ok);font-family:"Times New Roman",Georgia,serif;font-size:1rem}
+.vx-card{border:1.5px solid var(--ok-line);background:var(--ok-soft);border-radius:var(--r-lg);padding:.8rem .9rem}
+.vx-label{margin:0 0 .4rem;font-size:.75rem;font-weight:800;color:var(--ok)}
+.vx-pair{display:grid;grid-template-columns:1fr auto 1fr;align-items:start;gap:.5rem}
+.vx-w{margin:0;font-family:"Times New Roman",Georgia,serif;font-size:1.5rem;font-weight:800;color:var(--navy);overflow-wrap:anywhere;line-height:1.2}
+.vx-w.syn{color:var(--ok)}
+.vx-wj{margin:.2rem 0 0;font-size:.85rem;font-weight:700;line-height:1.5}
+.vx-eq{font-size:1.5rem;font-weight:800;color:var(--muted);padding-top:.1rem}
+.vx-card-foot{display:flex;align-items:center;gap:.5rem;margin-top:.6rem}
+.vx-card-foot .speak-btn{margin-left:auto}
+.vx-sec.plain{border-left-color:var(--line)}
+.vx-sec.plain .vx-h > span{color:var(--muted)}
+.vx-choices{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.3rem}
+.vx-choices li{display:flex;align-items:center;gap:.5rem;font-size:.85rem;padding:.4rem .5rem;border-radius:var(--r-sm)}
+.vx-choices li b{font-family:"Times New Roman",Georgia,serif;font-size:1.02rem;min-width:6.5em}
+.vx-choices .vx-cj{flex:1;color:var(--muted)}
+.vx-choices li.ok{background:var(--ok-soft)}.vx-choices li.ok b{color:var(--ok)}
+.vx-choices li.ng{background:var(--err-soft)}.vx-choices li.ng b{color:var(--err)}
+.vx-choices li .ic-check{width:1.1rem;height:1.1rem;flex:none}
+.vx-choices li.ok .ic-check{stroke:var(--ok)}.vx-choices li.ng .ic-check{stroke:var(--err)}
 .vx-choices .cnum{flex:none}
+.vx-rows-h{margin:.8rem 0 .3rem;font-size:.75rem;font-weight:800;color:var(--muted);text-align:left}
+.vx-rows{list-style:none;margin:.5rem 0 1rem;padding:0;display:flex;flex-direction:column;gap:.3rem;text-align:left}
+.vx-rows li{display:flex;align-items:center;gap:.5rem;padding:.45rem .6rem;border-radius:var(--r-md);background:#fff;border:1px solid var(--line)}
+.vx-rows li.ng{background:var(--err-soft);border-color:var(--err-line)}
+.vx-rows .ic-check{width:1rem;height:1rem;flex:none}
+.vx-rows li.ok .ic-check{stroke:var(--ok)}.vx-rows li.ng .ic-check{stroke:var(--err)}
+.vr-w{font-family:"Times New Roman",Georgia,serif;font-weight:800;font-size:1rem;color:var(--navy)}
+.vr-w small{font-weight:700;color:var(--ok);font-size:.9rem}
+.vr-j{margin-left:auto;font-size:.8rem;color:var(--muted);text-align:right}
 .vq-review-tag{margin:.4rem 0 0;font-size:.75rem;font-weight:800;color:var(--err)}
 
 /* ---- 単語の解説：例文の強調・豆知識・読み上げ ---- */

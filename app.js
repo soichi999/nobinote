@@ -2115,7 +2115,9 @@ const VOCAB_CANDS = VOCAB.flatMap(c => {
   return [{ t: c[0], ja: c[2], pos: c[1], grp: c[5], src: id }, ...(s ? [{ t: s[0], ja: s[1], pos: c[1], grp: c[5], src: id }] : [])];
 });
 const synOf = (id) => { const s = SYN[id]; return s ? { t: s[0], ja: s[1] } : { t: VOCAB_BY_ID[id][0], ja: VOCAB_BY_ID[id][2] }; };
-function makeChoices(id) {
+// prev：前に出したときの選択肢（{ ch: まちがいの3語, pos: 正解の位置 }）。
+// まちがえた単語をもう一度出すときに同じ問題にならないよう、まちがいの語をすべて入れかえ、正解の位置も変える
+function makeChoices(id, prev) {
   const v = VOCAB_BY_ID[id], right = synOf(id);
   const mine = new Set([...senses(v[2]), ...senses(right.ja)]);
   const bad = new Set([v[0], right.t].map(x => x.toLowerCase()));
@@ -2124,13 +2126,18 @@ function makeChoices(id) {
   const ok = (c) => c.src !== id && !near.has(c.src) && !bad.has(c.t.toLowerCase()) && !(v[5] && c.grp === v[5]) && !senses(c.ja).some(s => mine.has(s));
   let pool = shuffle(VOCAB_CANDS.filter(c => c.pos === v[1] && ok(c)));
   if (pool.length < 3) pool = pool.concat(shuffle(VOCAB_CANDS.filter(c => c.pos !== v[1] && ok(c))));
+  const used = new Set(prev?.ch ?? []);
+  pool = [...pool.filter(c => !used.has(c.t)), ...pool.filter(c => used.has(c.t))];
   const picked = [];
   for (const c of pool) {
     if (picked.length === 3) break;
     // 同じ単語から2つ出したり、同じ語を2回出したりしない
     if (!picked.some(p => p.t === c.t || p.src === c.src || p.ja === c.ja)) picked.push(c);
   }
-  return shuffle([right, ...picked.map(c => ({ t: c.t, ja: c.ja }))]);
+  const list = shuffle([right, ...picked.map(c => ({ t: c.t, ja: c.ja }))]);
+  const at = list.indexOf(right);
+  if (prev && at === prev.pos) { const j = (at + 1 + Math.floor(Math.random() * 3)) % 4; [list[at], list[j]] = [list[j], list[at]]; }
+  return list;
 }
 async function saveVocab() {
   if (role !== "student" || vocabTrial) return;
@@ -2275,9 +2282,9 @@ const speakBtn = (text, label) => canSpeak ? `<button type="button" class="speak
 const tipList = (tip) => String(tip).split("。").map(x => x.trim()).filter(Boolean).map(x => `<li>${esc(x)}</li>`).join("");
 function vocabQuestionHTML(id, answered) {
   const v = VOCAB_BY_ID[id];
-  if (!vocabChoices || vocabChoices.id !== id) vocabChoices = { id, list: makeChoices(id) };
+  if (!vocabChoices || vocabChoices.id !== id) vocabChoices = { id, list: makeChoices(id, vocab.words?.[id]?.prev) };
   const list = vocabChoices.list;
-  if (answered) return vocabAnswerHTML(v, answered, list);
+  if (answered) return vocabAnswerHTML(v, answered, answered.list ?? list);
   return `<div class="vq">
       <p class="vq-ask">次の英文の下線部の語に最も意味が近いものを、1から4の中から一つ選びなさい。</p>
       <div class="vq-sentence"><p class="vq-stem">${underlineWord(v[3], v[0])}</p>${speakBtn(v[3], "例文を聞く")}</div>
@@ -2286,31 +2293,43 @@ function vocabQuestionHTML(id, answered) {
     </div>`;
 }
 // 解答・解説の画面（問題とは別の画面）
+// 上から「結果 → 覚える1枚（単語 ≒ 類義語・意味）→ 例文 → 選択肢のふり返り → 覚え方」の順
 function vocabAnswerHTML(v, answered, list) {
   const right = synOf(`${v[0]}:${v[1]}`);
+  const rightNo = list.findIndex(c => c.t === right.t) + 1;
   return `<div class="vq vx-page">
-      <p class="vx-pagetitle">解答・解説</p>
-      <div class="vx-result ${answered.ok ? "ok" : "ng"}">${answered.ok ? ICON_CIRCLE : ICON_CROSS}<span>${answered.ok ? "正解" : "不正解"}</span></div>
-      <dl class="vx-answers">
-        <div><dt>あなたの答え</dt><dd class="${answered.ok ? "ok" : "ng"}">${esc(answered.pick)}</dd></div>
-        ${answered.ok ? "" : `<div><dt>正解</dt><dd class="ok">${esc(right.t)}</dd></div>`}
-      </dl>
+      <div class="vx-result ${answered.ok ? "ok" : "ng"}">${answered.ok ? ICON_CIRCLE : ICON_CROSS}<span>${answered.ok ? "正解！" : "不正解"}</span>
+        ${answered.ok ? "" : `<small>あなたの答え <s>${esc(answered.pick)}</s>　→　正解は <b>${rightNo} ${esc(right.t)}</b></small>`}</div>
+      <div class="vx-card">
+        <p class="vx-label">この組み合わせで覚えよう</p>
+        <div class="vx-pair">
+          <div><p class="vx-w">${esc(v[0])}</p><p class="vx-wj">${esc(v[2])}</p></div>
+          <span class="vx-eq">≒</span>
+          <div><p class="vx-w syn">${esc(right.t)}</p><p class="vx-wj">${esc(right.ja)}</p></div>
+        </div>
+        <div class="vx-card-foot"><span class="vx-pos">${esc(POS_NAME[v[1]] ?? v[1])}</span>${speakBtn(v[0], "発音")}</div>
+      </div>
       <section class="vx-sec">
-        <div class="vx-h"><span>問題文</span>${speakBtn(v[3], "例文を聞く")}</div>
+        <div class="vx-h"><span>例文</span>${speakBtn(v[3], "例文を聞く")}</div>
         <p class="vq-ex">${highlightWord(v[3], v[0])}</p>
         <p class="vq-exj">${esc(v[4])}</p>
       </section>
-      <div class="vx-main">
-        <p class="vx-word">${esc(v[0])}<span class="vx-pos">${esc(POS_NAME[v[1]] ?? v[1])}</span>${speakBtn(v[0], "発音")}</p>
-        <p class="vx-mean">${esc(v[2])}</p>
-        <p class="vx-syn">≒ <b>${esc(right.t)}</b>：${esc(right.ja)}</p>
-      </div>
-      <section class="vx-sec">
-        <div class="vx-h"><span>選択肢の意味</span></div>
-        <ul class="vx-choices">${list.map((c, i) => `<li class="${c.t === right.t ? "ok" : c.t === answered.pick ? "ng" : ""}"><span class="cnum">${i + 1}</span><b>${esc(c.t)}</b><span>${esc(c.ja)}</span></li>`).join("")}</ul>
+      <section class="vx-sec plain">
+        <div class="vx-h"><span>選択肢をふり返る</span></div>
+        <ul class="vx-choices">${list.map((c, i) => {
+          const cls = c.t === right.t ? "ok" : c.t === answered.pick ? "ng" : "";
+          return `<li class="${cls}"><span class="cnum">${i + 1}</span><b>${esc(c.t)}</b><span class="vx-cj">${esc(c.ja)}</span>${cls === "ok" ? ICON_CHECK : cls === "ng" ? ICON_CROSS : ""}</li>`;
+        }).join("")}</ul>
       </section>
       ${v[6] ? `<section class="vx-sec tip"><div class="vx-h"><span>覚え方のポイント</span></div><ul class="vx-tips">${tipList(v[6])}</ul></section>` : ""}
     </div>`;
+}
+// 結果画面の単語リスト（単語 ≒ 類義語・意味）
+function vocabWordRows(ids, td) {
+  return `<ul class="vx-rows">${ids.map(id => {
+    const v = VOCAB_BY_ID[id], ok = td.results[id];
+    return `<li class="${ok ? "ok" : "ng"}">${ok ? ICON_CHECK : ICON_CROSS}<span class="vr-w">${esc(v[0])}<small> ≒ ${esc(synOf(id).t)}</small></span><span class="vr-j">${esc(v[2])}</span></li>`;
+  }).join("")}</ul>`;
 }
 // 正解は ○、不正解は ✕ を、線を描くアニメーションで大きく見せる
 const ICON_CIRCLE = `<svg viewBox="0 0 24 24" class="ic-check" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/></svg>`;
@@ -2347,7 +2366,7 @@ function renderVocab() {
         <p class="pr-done-title">${wrong.length ? "10問おわり！" : "全問正解！"}</p>
         <p class="pr-done-score">${ok}<small> / ${n}問 正解</small></p>
         ${wrong.length ? `<p class="mock-note">まちがえた単語 ${wrong.length}語を、全部正解するまで復習します。</p>
-          <div class="pr-done-list">${wrong.map(id => `<span class="pr-dot ng">${esc(VOCAB_BY_ID[id][0])}</span>`).join("")}</div>
+          ${vocabWordRows(wrong, td)}
           <div class="pr-done-actions"><button type="button" class="primary big-action" data-vq-review>復習をはじめる</button></div>`
         : `<div class="pr-done-actions"><button type="button" class="primary big-action" data-vq-finish>完了にする</button></div>`}
       </div>`;
@@ -2365,7 +2384,8 @@ function renderVocab() {
         <p class="pr-done-title">${vocabTrial ? "お試し 完了！" : "今日の英単語 完了！"}</p>
         ${vocabTrial ? "" : `<p class="pr-done-score">${vocabStreak()}<small> 日連続</small></p>`}
         <p class="mock-note">1回目で ${day?.first ?? "-"}/${day?.total ?? n} 問正解。また明日！</p>
-        <div class="pr-done-list">${td.ids.map(id => `<span class="pr-dot ${td.results[id] ? "ok" : "ng"}">${esc(VOCAB_BY_ID[id][0])}　${esc(VOCAB_BY_ID[id][2])}</span>`).join("")}</div>
+        <p class="vx-rows-h">今日の${td.ids.length}語（まちがえた単語は、次は別の選択肢で出ます）</p>
+        ${vocabWordRows(td.ids, td)}
         <div class="pr-done-actions">
           ${vocabTrial ? `<button type="button" class="primary" data-vq-trial-again>もう一度（別の10問）</button>` : ""}
           <button type="button" class="outline" data-vq-close>閉じる</button></div>
@@ -2386,7 +2406,7 @@ $("vocab-body").addEventListener("click", async (e) => {
     const right = synOf(id).t;
     const choice = vocabChoices.list[Number(pick.dataset.vqPick)].t;
     const ok = choice === right;
-    td.answered = { id, pick: choice, ok };
+    td.answered = { id, pick: choice, ok, list: vocabChoices.list };
     if (td.phase === "main") {
       td.results[id] = ok;
       // 次に出す日：正解なら間をあけ、まちがえたら翌日
@@ -2397,6 +2417,8 @@ $("vocab-body").addEventListener("click", async (e) => {
       w.last = td.date;
       vocab.words[id] = w;
     }
+    // 今回の選択肢を覚えておき、次に出すとき（復習・後日）は別の選択肢にする
+    if (vocab.words[id]) vocab.words[id].prev = { ch: vocabChoices.list.filter(c => c.t !== right).map(c => c.t), pos: vocabChoices.list.findIndex(c => c.t === right) };
     navigator.vibrate?.(ok ? 30 : [60, 40, 60]);
     $("vocab-body").querySelectorAll("[data-vq-pick]").forEach(b => {
       b.disabled = true;
