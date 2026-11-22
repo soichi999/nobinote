@@ -2368,7 +2368,7 @@ function renderWeakCard() {
   if (!currentSid || role === "student") { card.hidden = true; return; }
   const v = vocabWeakHTML(), m = typeof mathWeakHTML === "function" ? mathWeakHTML() : "";
   card.hidden = false;
-  card.innerHTML = `<h3 class="h3-plain">苦手まとめ</h3>${v}${m}${v || m ? "" : `<p class="hint left">英単語・数学を解くと、ここに苦手がまとまります。</p>`}`;
+  card.innerHTML = `<h3 class="h3-plain">苦手まとめ</h3>${v}${m ? `<section class="wk-sec"><p class="wk-h wk-math">数学ⅠA</p>${m}</section>` : ""}${v || m ? "" : `<p class="hint left">英単語・数学を解くと、ここに苦手がまとまります。</p>`}`;
 }
 // 英語・数学カードの見出し：タイトルの横に今日の分の横ゲージ（未実施 0/20 → とちゅう 7/20 → 復習 あと3 → 完了）
 function cardHead(name, state, prog, text) {
