@@ -2722,13 +2722,13 @@ function mathProgressHTML(seen, mastered) {
         <text x="50" y="67" class="cap">定着</text>
       </svg>
       <div class="vc-legend">
-        <p><i class="m"></i>定着<b>${mastered}</b>型</p>
-        <p><i class="l"></i>学習中<b>${doing}</b>型</p>
-        <p><i class="u"></i>未出題<b>${rest}</b>型</p>
-        <p class="vc-total">全${total}型のうち <b>${Math.round(seen / total * 100)}%</b> が出題済み</p>
+        <p><i class="m"></i>定着<b>${mastered}</b>問</p>
+        <p><i class="l"></i>学習中<b>${doing}</b>問</p>
+        <p><i class="u"></i>未出題<b>${rest}</b>問</p>
+        <p class="vc-total">全${total}問のうち <b>${Math.round(seen / total * 100)}%</b> が出題済み</p>
       </div>
     </div>
-    <p class="vc-hint">定着＝間をあけて3回つづけて正解した問題の型（数値は毎回変わります）</p>`;
+    <p class="vc-hint">定着＝間をあけて3回つづけて正解した問題（数値は毎回変わります）</p>`;
 }
 function renderMathCard() {
   const card = $("math-card");
@@ -2900,7 +2900,7 @@ function renderMath() {
         <p class="pr-done-title">${mathTrial ? "お試し 完了！" : "今日の数学ⅠA 完了！"}</p>
         ${mathTrial ? "" : `<p class="pr-done-score">${mathStreak()}<small> 日連続</small></p>`}
         <p class="mock-note">1回目で ${day?.first ?? td.list.filter(e => td.results[e.id]).length}/${day?.total ?? n} 問正解。また明日！</p>
-        <p class="vx-rows-h">今日の${n}問（まちがえた型は、次は別の数値で出ます）</p>
+        <p class="vx-rows-h">今日の${n}問（まちがえた問題は、次は別の数値で出ます）</p>
         ${mathRows(td.list, td)}
         <div class="pr-done-actions">
           ${mathTrial ? `<button type="button" class="primary" data-mq-trial-again>もう一度（別の${MATH_N}問）</button>` : ""}

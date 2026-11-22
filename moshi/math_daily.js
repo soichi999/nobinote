@@ -711,6 +711,313 @@ add("int-mod", "int", "余りの計算", (t, F) => {
   };
 });
 
+/* ---------- 追加の問題（2026-11-23） ---------- */
+/* 数と式 */
+add("num-dblroot", "num", "二重根号", (t, F) => {
+  const p = t.ri(2, 9), q = t.ri(2, 8); need(p > q && sqf(p)[0] === 1 && sqf(q)[0] === 1 && sqf(p * q)[0] === 1);
+  return {
+    q: `$\\sqrt{${p + q}+2\\sqrt{${p * q}}}$ を簡単にせよ。`,
+    form: `$\\sqrt{${F.n(p)}}+\\sqrt{${F.n(q)}}$`,
+    steps: [
+      `足して $${p + q}$、掛けて $${p * q}$ になる2数をさがす：$${p}$ と $${q}$`,
+      `$${p + q}+2\\sqrt{${p * q}}=(\\sqrt{${p}})^2+2\\sqrt{${p}}\\sqrt{${q}}+(\\sqrt{${q}})^2=(\\sqrt{${p}}+\\sqrt{${q}})^2$`,
+      `$\\sqrt{${p}}+\\sqrt{${q}}>0$ なので、答えは $\\sqrt{${p}}+\\sqrt{${q}}$`,
+    ],
+    point: `$\\sqrt{a+b+2\\sqrt{ab}}=\\sqrt{a}+\\sqrt{b}$。「足して○、掛けて△」の2数をさがす。$2\\sqrt{\\ }$ の形になっていなければ、先に分母分子を2倍して作る。`,
+  };
+});
+
+add("num-ineq", "num", "連立1次不等式", (t, F) => {
+  const lo = t.ri(-4, 3), hi = lo + t.ri(2, 6), p = t.ri(2, 5), q = t.ri(-9, 9), r = t.ri(2, 4), s = t.ri(1, 9);
+  return {
+    q: `連立不等式 $\\begin{cases} ${poly([p, q])} > ${p * lo + q} \\\\ ${poly([r, -s])} \\le ${r * hi - s} \\end{cases}$ を解け。また、これを満たす整数 $x$ の個数を求めよ。`,
+    form: `$${F.n(lo)} < x \\le ${F.n(hi)}$、整数は $${F.n(hi - lo)}$ 個`,
+    steps: [
+      q === 0 ? `1つめ：$${p}x > ${p * lo}$ より $x > ${lo}$` : `1つめ：$${p}x > ${p * lo + q}${cfn(-q, "")} = ${p * lo}$ より $x > ${lo}$`,
+      `2つめ：$${r}x \\le ${r * hi - s}+${s} = ${r * hi}$ より $x \\le ${hi}$`,
+      `共通部分：$${lo} < x \\le ${hi}$。整数は $${lo + 1}$ から $${hi}$ までの $${hi - lo}$ 個`,
+    ],
+    point: `連立不等式は、それぞれを解いてから数直線で共通部分をとる。等号がつくか（$\\le$）つかないか（$<$）で端の整数が入るかが変わる。`,
+  };
+});
+
+add("num-frac", "num", "整数部分と小数部分", (t, F) => {
+  const n = t.ri(5, 60); const a = Math.floor(Math.sqrt(n)); need(a * a !== n);
+  return {
+    q: `$\\sqrt{${n}}$ の整数部分を $a$、小数部分を $b$ とする。$a$ の値と、$b^2+2ab$ の値を求めよ。`,
+    form: `$a=${F.n(a)}$、$b^2+2ab=${F.n(n - a * a)}$`,
+    steps: [
+      `$${a}^2=${a * a}<${n}<${(a + 1) ** 2}=${a + 1}^2$ なので $${a}<\\sqrt{${n}}<${a + 1}$、$a=${a}$`,
+      `$b=\\sqrt{${n}}-${a}$`,
+      `$b^2+2ab=(a+b)^2-a^2=(\\sqrt{${n}})^2-${a}^2=${n}-${a * a}=${n - a * a}$`,
+    ],
+    point: `整数部分は「はさむ平方数」で決める。小数部分は「もとの数 − 整数部分」。$a+b$ がもとの数になることを使うと計算が楽。`,
+  };
+});
+
+/* 2次関数 */
+add("quad-shift", "quad", "放物線の平行移動", (t, F) => {
+  const p = t.ri(-4, 4), q = t.ri(-6, 6), h = t.ri(-4, 4), k = t.ri(-5, 5); need(h !== 0 && k !== 0);
+  return {
+    q: `放物線 $y=${poly([1, -2 * p, p * p + q])}$ を $x$ 軸方向に $${h}$、$y$ 軸方向に $${k}$ だけ平行移動した放物線の頂点の座標を求めよ。`,
+    form: `$(${F.n(p + h)},\\ ${F.n(q + k)})$`,
+    steps: [
+      `平方完成：$y=${xm(p)}^2${cfn(q, "")}$。もとの頂点は $(${p},\\ ${q})$`,
+      `頂点を $x$ 方向に $${h}$、$y$ 方向に $${k}$ 動かす：$(${p}${cfn(h, "")},\\ ${q}${cfn(k, "")})=(${p + h},\\ ${q + k})$`,
+    ],
+    point: `平行移動はグラフの形を変えず、頂点だけが動く。式で考えるなら $x$ を $x-h$、$y$ を $y-k$ に置きかえる。`,
+  };
+});
+
+add("quad-find", "quad", "2次関数の決定", (t, F) => {
+  const p = t.ri(-3, 3), q = t.ri(-6, 6), a = t.pick([1, 2, 3, -1, -2]), x1 = p + t.pick([-2, -1, 1, 2]);
+  const y1 = a * (x1 - p) ** 2 + q, c = a * p * p + q;
+  return {
+    q: `頂点が $(${p},\\ ${q})$ で、点 $(${x1},\\ ${y1})$ を通る放物線を $y=ax^2+bx+c$ とする。$a$ と $c$ の値を求めよ。`,
+    form: `$a=${F.n(a)}$、$c=${F.n(c)}$`,
+    steps: [
+      `頂点が $(${p},\\ ${q})$ なので $y=a${xm(p)}^2${cfn(q, "")}$ とおける。`,
+      `点 $(${x1},\\ ${y1})$ を代入：$${y1}=a\\cdot${par(x1 - p)}^2${cfn(q, "")}$ より $${cf1((x1 - p) ** 2, "a")}=${y1 - q}$${(x1 - p) ** 2 === 1 ? "" : `、$a=${a}$`}`,
+      `展開すると定数項は $c=a\\cdot${par(p)}^2${cfn(q, "")}=${c}$`,
+    ],
+    point: `頂点がわかっているときは $y=a(x-p)^2+q$ とおくと、文字が $a$ だけになる。$c$ は $x=0$ のときの $y$（$y$ 切片）。`,
+  };
+});
+
+add("quad-area", "quad", "最大・最小の文章題", (t, F) => {
+  const L = 2 * t.ri(3, 15);
+  return {
+    q: `周の長さが $${2 * L}$ の長方形がある。縦の長さを $x$ とするとき、面積の最大値と、そのときの $x$ の値を求めよ。`,
+    form: `最大値 $${F.n((L / 2) ** 2)}$（$x=${F.n(L / 2)}$）`,
+    steps: [
+      `縦 $x$ のとき、横は $${L}-x$（縦＋横＝周の半分 $${L}$）。$0<x<${L}$`,
+      `面積 $S=x(${L}-x)=-x^2+${L}x=-(x-${L / 2})^2+${(L / 2) ** 2}$`,
+      `$x=${L / 2}$（範囲内）のとき最大値 $${(L / 2) ** 2}$。正方形のとき`,
+    ],
+    point: `文章題は「何を $x$ にするか」と「$x$ の範囲」を決めてから2次関数にする。最大・最小は平方完成で。`,
+  };
+});
+
+/* 図形と計量 */
+add("trig-cosA", "trig", "3辺から角の余弦", (t, F) => {
+  const a = t.ri(3, 9), b = t.ri(3, 9), c = t.ri(3, 9);
+  need(a < b + c && b < a + c && c < a + b && !(a === b && b === c));
+  const num = b * b + c * c - a * a, den = 2 * b * c; need(num !== 0);
+  return {
+    q: `$\\triangle ABC$ で $a=${a}$、$b=${b}$、$c=${c}$ のとき、$\\cos A$ の値を求めよ。また、$A$ は鋭角・直角・鈍角のどれか考えよ。`,
+    form: `$\\cos A=${F.fr(num, den)}$`,
+    steps: [
+      `余弦定理を変形：$\\cos A=\\dfrac{b^2+c^2-a^2}{2bc}$`,
+      `$=\\dfrac{${b * b}+${c * c}-${a * a}}{2\\cdot ${b}\\cdot ${c}}=${frEq(num, den)}$`,
+      num > 0 ? `$\\cos A>0$ なので $A$ は鋭角。` : `$\\cos A<0$ なので $A$ は鈍角。`,
+    ],
+    point: `3辺がわかれば余弦定理で角の $\\cos$ が出る。$\\cos A$ の符号で、鋭角（$>0$）・直角（$=0$）・鈍角（$<0$）がわかる。`,
+  };
+});
+
+add("trig-eq", "trig", "三角比の方程式", (t, F) => {
+  const kind = t.ri(0, 2);
+  if (kind === 0) {
+    const [, a1, tex] = t.pick([[1, 30, "\\dfrac{1}{2}"], [2, 45, "\\dfrac{1}{\\sqrt{2}}"], [3, 60, "\\dfrac{\\sqrt{3}}{2}"]]);
+    return {
+      q: `$0^\\circ\\le\\theta\\le 180^\\circ$ のとき、$\\sin\\theta=${tex}$ を満たす $\\theta$ を小さい順に求めよ。`,
+      form: `$\\theta=${F.n(a1)}^\\circ,\\ ${F.n(180 - a1)}^\\circ$`,
+      steps: [
+        `半径1の半円で、$y$ 座標が $${tex}$ になる点は左右に2つある。`,
+        `右側の点：$\\theta=${a1}^\\circ$。左右対称なので左側の点：$\\theta=180^\\circ-${a1}^\\circ=${180 - a1}^\\circ$`,
+      ],
+      point: `$\\sin\\theta=k\\ (0<k<1)$ の解は $\\theta$ と $180^\\circ-\\theta$ の2つ。半円の図をかくと見落とさない。`,
+    };
+  }
+  const [ang, tex] = kind === 1 ? t.pick([[60, "\\cos\\theta=\\dfrac{1}{2}"], [120, "\\cos\\theta=-\\dfrac{1}{2}"], [135, "\\cos\\theta=-\\dfrac{1}{\\sqrt{2}}"], [150, "\\cos\\theta=-\\dfrac{\\sqrt{3}}{2}"], [30, "\\cos\\theta=\\dfrac{\\sqrt{3}}{2}"]])
+    : t.pick([[45, "\\tan\\theta=1"], [135, "\\tan\\theta=-1"], [60, "\\tan\\theta=\\sqrt{3}"], [120, "\\tan\\theta=-\\sqrt{3}"], [150, "\\tan\\theta=-\\dfrac{1}{\\sqrt{3}}"]]);
+  return {
+    q: `$0^\\circ\\le\\theta\\le 180^\\circ$ のとき、$${tex}$ を満たす $\\theta$ を求めよ。`,
+    form: `$\\theta=${F.n(ang)}^\\circ$`,
+    steps: [
+      kind === 1 ? `半径1の半円で、$x$ 座標が右辺の値になる点は1つだけ。` : `$\\tan\\theta$ は原点と半円上の点を結ぶ直線の傾き。傾きが右辺の値になる点は1つだけ。`,
+      `${ang > 90 ? "値が負なので鈍角。" : "値が正なので鋭角。"}$\\theta=${ang}^\\circ$`,
+    ],
+    point: `$0^\\circ\\le\\theta\\le180^\\circ$ では、$\\cos\\theta$ と $\\tan\\theta$ の値が決まると $\\theta$ は1つ（$\\tan$ は $90^\\circ$ を除く）。負なら鈍角。`,
+  };
+});
+
+/* データの分析 */
+add("data-median", "data", "中央値と範囲", (t, F) => {
+  const v = [t.ri(1, 9)]; for (let i = 1; i < 8; i++) v.push(v[i - 1] + t.ri(0, 6));
+  need((v[3] + v[4]) % 2 === 0);
+  return {
+    q: `8個のデータ $${t.shuffle(v).join(",\\ ")}$ の中央値と範囲を求めよ。`,
+    form: `中央値 $${F.n((v[3] + v[4]) / 2)}$、範囲 $${F.n(v[7] - v[0])}$`,
+    steps: [
+      `小さい順に並べる：$${v.join(",\\ ")}$`,
+      `個数が偶数（8個）なので、中央値は4番目と5番目の平均：$\\dfrac{${v[3]}+${v[4]}}{2}=${(v[3] + v[4]) / 2}$`,
+      `範囲＝最大値−最小値：$${v[7]}-${v[0]}=${v[7] - v[0]}$`,
+    ],
+    point: `データが偶数個のとき、中央値は真ん中の2つの平均。範囲は最大値−最小値で、外れ値の影響を受けやすい。`,
+  };
+});
+
+add("data-corr", "data", "相関係数", (t, F) => {
+  const sx = t.ri(2, 9), sy = t.ri(2, 9), num = t.ri(-9, 9); need(num !== 0);
+  const cov = num * sx * sy / 10; need(Number.isInteger(cov));
+  return {
+    q: `2つの変量 $x, y$ の標準偏差がそれぞれ $${sx}$、$${sy}$、共分散が $${cov}$ である。相関係数 $r$ を求めよ。`,
+    form: `$r=${F.fr(num, 10)}$`,
+    steps: [
+      `相関係数：$r=\\dfrac{(x \\text{と} y \\text{の共分散})}{(x \\text{の標準偏差})\\times(y \\text{の標準偏差})}$`,
+      `$r=\\dfrac{${cov}}{${sx}\\times ${sy}}=${frEq(cov, sx * sy)}$`,
+      `${num > 0 ? "正の相関" : "負の相関"}。$|r|$ が1に近いほど相関が強い。`,
+    ],
+    point: `相関係数は共分散を2つの標準偏差の積で割る。いつも $-1\\le r\\le 1$。単位に関係しないので、ちがう種類のデータどうしでも比べられる。`,
+  };
+});
+
+/* 場合の数と確率 */
+add("prob-letters", "prob", "同じものを含む順列", (t, F) => {
+  const [w, cnt] = t.pick([["AABBC", [2, 2, 1]], ["AAABB", [3, 2]], ["AABBBC", [2, 3, 1]], ["AAABBC", [3, 2, 1]], ["AABBCC", [2, 2, 2]], ["AAAABB", [4, 2]], ["AABCDE", [2, 1, 1, 1, 1]], ["AAABBBC", [3, 3, 1]]]);
+  const n = w.length, v = fact(n) / cnt.reduce((s, c) => s * fact(c), 1);
+  return {
+    q: `${[...w].join("、")} の ${n} 文字を1列に並べる方法は何通りか。`,
+    form: `$${F.n(v)}$ 通り`,
+    steps: [
+      `${n} 文字をすべて区別すると $${n}!=${fact(n)}$ 通り。`,
+      `同じ文字どうしの入れかえ（${cnt.filter(c => c > 1).map(c => `$${c}!$`).join("、")}）では並びが変わらないので割る。`,
+      `$\\dfrac{${n}!}{${cnt.filter(c => c > 1).map(c => `${c}!`).join("\\,")}}=${v}$`,
+    ],
+    point: `同じものを含む順列：$\\dfrac{n!}{p!\\,q!\\,r!\\cdots}$。「並べる場所を選ぶ」と考えて $_n\\mathrm{C}_p\\times\\cdots$ でも同じ答え。`,
+  };
+});
+
+add("prob-path", "prob", "最短経路", (t, F) => {
+  const m = t.ri(3, 6), n = t.ri(2, 5), via = t.ri(0, 1) === 1;
+  if (!via) return {
+    q: `東西に $${m}$ 区画、南北に $${n}$ 区画の碁盤の目の道がある。南西の角 A から北東の角 B まで、遠回りせずに行く道順は何通りか。`,
+    form: `$${F.n(comb(m + n, n))}$ 通り`,
+    steps: [
+      `東へ1区画を「→」、北へ1区画を「↑」とすると、どの道順も → $${m}$ 個と ↑ $${n}$ 個の並べ方。`,
+      `$${m + n}$ 個の場所から ↑ を置く $${n}$ 個を選ぶ：$_{${m + n}}\\mathrm{C}_{${n}}=${comb(m + n, n)}$`,
+    ],
+    point: `最短経路は「→ と ↑ の並べ方」。$_{m+n}\\mathrm{C}_n$ で数えられる。`,
+  };
+  const a = t.ri(1, m - 1), b = t.ri(1, n - 1), v1 = comb(a + b, b), v2 = comb(m - a + n - b, n - b);
+  return {
+    q: `東西に $${m}$ 区画、南北に $${n}$ 区画の碁盤の目の道がある。南西の角 A から北東の角 B まで遠回りせずに行くとき、A から東へ $${a}$、北へ $${b}$ 区画の交差点 P を通る道順は何通りか。`,
+    form: `$${F.n(v1 * v2)}$ 通り`,
+    steps: [
+      `A → P：→ $${a}$ 個と ↑ $${b}$ 個の並べ方で $_{${a + b}}\\mathrm{C}_{${b}}=${v1}$ 通り`,
+      `P → B：→ $${m - a}$ 個と ↑ $${n - b}$ 個で $_{${m - a + n - b}}\\mathrm{C}_{${n - b}}=${v2}$ 通り`,
+      `積の法則：$${v1}\\times ${v2}=${v1 * v2}$`,
+    ],
+    point: `「P を通る」は、A→P と P→B に分けて掛ける。「P を通らない」なら全体から引く。`,
+  };
+});
+
+add("prob-or", "prob", "和事象の確率", (t, F) => {
+  const [a, b] = t.pick([[2, 3], [2, 5], [3, 4], [3, 5], [4, 6]]), N = 10 * t.ri(3, 10);
+  const l = a * b / gcd(a, b), na = Math.floor(N / a), nb = Math.floor(N / b), nab = Math.floor(N / l), hit = na + nb - nab;
+  return {
+    q: `1 から $${N}$ までの番号を書いたカードが1枚ずつある。1枚引くとき、番号が $${a}$ の倍数または $${b}$ の倍数である確率を求めよ。`,
+    form: `$${F.fr(hit, N)}$`,
+    steps: [
+      `$${a}$ の倍数：$${na}$ 枚、$${b}$ の倍数：$${nb}$ 枚`,
+      `両方（$${l}$ の倍数）：$${nab}$ 枚。2回数えているので引く：$${na}+${nb}-${nab}=${hit}$ 枚`,
+      `確率：$${frEq(hit, N)}$`,
+    ],
+    point: `「または」は $n(A\\cup B)=n(A)+n(B)-n(A\\cap B)$。両方にあてはまるもの（最小公倍数の倍数）を引くのを忘れない。`,
+  };
+});
+
+/* 図形の性質 */
+add("geo-centers", "geo", "外心・内心と角", (t, F) => {
+  const A = 2 * t.ri(20, 40);
+  return {
+    q: `$\\triangle ABC$ で $\\angle A=${A}^\\circ$ である。外心を O、内心を I とするとき、$\\angle BOC$ と $\\angle BIC$ を求めよ（$\\angle A$ は鋭角）。`,
+    form: `$\\angle BOC=${F.n(2 * A)}^\\circ$、$\\angle BIC=${F.n(90 + A / 2)}^\\circ$`,
+    steps: [
+      `外心 O は外接円の中心。$\\angle BOC$ は弧 BC の中心角で、円周角 $\\angle A$ の2倍：$2\\times ${A}^\\circ=${2 * A}^\\circ$`,
+      `内心 I は角の二等分線の交点。$\\angle IBC+\\angle ICB=\\dfrac{1}{2}(\\angle B+\\angle C)=\\dfrac{1}{2}(180^\\circ-${A}^\\circ)=${(180 - A) / 2}^\\circ$`,
+      `$\\angle BIC=180^\\circ-${(180 - A) / 2}^\\circ=${90 + A / 2}^\\circ$`,
+    ],
+    point: `外心：$\\angle BOC=2\\angle A$（$A$ が鋭角のとき）。内心：$\\angle BIC=90^\\circ+\\dfrac{1}{2}\\angle A$。どちらも理由から導けるようにしておく。`,
+  };
+});
+
+add("geo-incircle", "geo", "内接円と接線の長さ", (t, F) => {
+  const a = t.ri(4, 12), b = t.ri(4, 12), c = t.ri(4, 12);
+  need(a < b + c && b < a + c && c < a + b && (a + c - b) % 2 === 0);
+  const bd = (a + c - b) / 2;
+  return {
+    q: `$\\triangle ABC$ で $BC=${a}$、$CA=${b}$、$AB=${c}$ である。内接円と辺 BC の接点を D とするとき、$BD$ の長さを求めよ。`,
+    form: `$BD=${F.n(bd)}$`,
+    steps: [
+      `内接円と AB、CA の接点を F、E とする。1点から引いた2本の接線の長さは等しい：$BD=BF=x$、$CD=CE$、$AE=AF$`,
+      `$CD=${a}-x$、$AF=${c}-x$。$CA=CE+EA=(${a}-x)+(${c}-x)=${b}$`,
+      `$${a + c}-2x=${b}$ より $x=${bd}$`,
+    ],
+    point: `円の外の1点から引いた2本の接線の長さは等しい。$BD=\\dfrac{AB+BC-CA}{2}$ と覚えておくと速い。`,
+  };
+});
+
+add("geo-chord", "geo", "円の中で交わる弦", (t, F) => {
+  const pa = t.ri(2, 9), pb = t.ri(2, 9), pc = t.ri(2, 9);
+  return {
+    q: `円の2つの弦 AB、CD が円の内部の点 P で交わっている。$PA=${pa}$、$PB=${pb}$、$PC=${pc}$ のとき、$PD$ の長さを求めよ。`,
+    form: `$PD=${F.fr(pa * pb, pc)}$`,
+    steps: [
+      `方べきの定理（円の内部で交わる場合）：$PA\\cdot PB=PC\\cdot PD$`,
+      `$${pa}\\cdot ${pb}=${pc}\\cdot PD$ より $PD=${frEq(pa * pb, pc)}$`,
+    ],
+    point: `弦が円の内部で交わるときも、外部で交わるときも、方べきの定理は「P から2つの交点までの長さの積が等しい」。`,
+  };
+});
+
+/* 整数 */
+add("int-square", "int", "平方数になる条件", (t, F) => {
+  const n = t.pick([12, 18, 20, 24, 28, 40, 45, 48, 50, 54, 60, 63, 72, 75, 80, 84, 90, 98, 108, 120, 126, 135, 150, 180]);
+  let k = 1, m = n; for (let p = 2; p <= m; p++) { let e = 0; while (m % p === 0) { m /= p; e++; } if (e % 2) k *= p; }
+  return {
+    q: `$\\sqrt{${n}k}$ が自然数となるような、最小の自然数 $k$ を求めよ。また、そのときの $\\sqrt{${n}k}$ の値を求めよ。`,
+    form: `$k=${F.n(k)}$、$\\sqrt{${n}k}=${F.n(Math.sqrt(n * k))}$`,
+    steps: [
+      `素因数分解：$${n}=${factTeX(n)}$`,
+      `平方数は、どの素因数の指数も偶数。指数が奇数の素因数をもう1つずつ掛ける：$k=${k}$`,
+      `$\\sqrt{${n}\\cdot ${k}}=\\sqrt{${n * k}}=${Math.sqrt(n * k)}$`,
+    ],
+    point: `「$\\sqrt{\\ }$ が自然数」⇔「中身が平方数」⇔「素因数分解したときの指数がすべて偶数」。`,
+  };
+});
+
+add("int-zeros", "int", "階乗の末尾の0", (t, F) => {
+  const n = t.ri(20, 130), z = Math.floor(n / 5) + Math.floor(n / 25) + Math.floor(n / 125);
+  return {
+    q: `$${n}!$ を計算したとき、末尾に 0 は連続して何個並ぶか。`,
+    form: `$${F.n(z)}$ 個`,
+    steps: [
+      `末尾の0の個数＝素因数 $10=2\\times5$ の個数。2は5より多いので、素因数5の個数を数える。`,
+      `5の倍数：$${Math.floor(n / 5)}$ 個、25の倍数：$${Math.floor(n / 25)}$ 個${n >= 125 ? `、125の倍数：$${Math.floor(n / 125)}$ 個` : ""}`,
+      `合計：$${[Math.floor(n / 5), Math.floor(n / 25), ...(n >= 125 ? [Math.floor(n / 125)] : [])].join("+")}=${z}$`,
+    ],
+    point: `末尾の0は「5がいくつあるか」で決まる。25の倍数は5を2つ含むので、もう1回数える。`,
+  };
+});
+
+add("int-euclid", "int", "ユークリッドの互除法", (t, F) => {
+  const g = t.ri(3, 19), m = t.ri(5, 20), n = t.ri(5, 20); need(m > n && gcd(m, n) === 1);
+  let A = g * m, B = g * n; need(A < 400);
+  const st = []; while (B) { st.push(`${A}=${B}\\times ${Math.floor(A / B)}+${A % B}`); [A, B] = [B, A % B]; }
+  return {
+    q: `ユークリッドの互除法を用いて、$${g * m}$ と $${g * n}$ の最大公約数を求めよ。`,
+    form: `$${F.n(g)}$`,
+    steps: [
+      `大きい方を小さい方で割り、「割る数と余り」で割り算をくり返す：`,
+      ...st.map(s => `$${s}$`),
+      `余りが0になったときの割る数 $${g}$ が最大公約数。`,
+    ],
+    point: `$a=bq+r$ のとき、$a$ と $b$ の最大公約数は $b$ と $r$ の最大公約数に等しい。数が大きくて素因数分解しにくいときに便利。`,
+  };
+});
+
 /* ---------- 外から使う ---------- */
 export const MATH_TYPES = T;
 export const MATH_BY_ID = Object.fromEntries(T.map(x => [x.id, x]));
