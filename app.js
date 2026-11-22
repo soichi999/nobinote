@@ -615,7 +615,7 @@ function renderTodayCard() {
   });
   const vdone = vocab.days?.[localToday()]?.done;
   if (role === "student") rows.push(`<li class="td-row vocab${vdone ? " done" : ""}"><span class="td-dot"></span>
-      <div class="td-main"><b>今日の英単語</b><small>${vdone ? "完了しました" : "10問"}</small></div>
+      <div class="td-main"><b>今日の英単語</b><small>${vdone ? "完了しました" : `${DAILY_N}問`}</small></div>
       ${vdone ? "" : `<button type="button" class="small primary" data-vocab-open>はじめる</button>`}</li>`);
   box.hidden = false;
   box.innerHTML = `<p class="td-title">今日やること<span>${fmtDateLong(t)}</span></p>
@@ -2078,10 +2078,10 @@ function webCardBody(r, def, st, stats, pdfs) {
     ${pdfs}`;
 }
 
-/* ---------- 毎日の単語帳：1日10問 → 1問ずつ4択 → 解説 → まちがえた単語は全部正解するまで復習 ---------- */
+/* ---------- 毎日の単語帳：1日20問 → 1問ずつ4択 → 解説 → まちがえた単語は全部正解するまで復習 ---------- */
 const VOCAB_BY_ID = Object.fromEntries(VOCAB.map(v => [`${v[0]}:${v[1]}`, v]));
 const VOCAB_IDS = VOCAB.map(v => `${v[0]}:${v[1]}`);
-const DAILY_N = 10;
+const DAILY_N = 20;
 const BOX_DAYS = [1, 2, 4, 7, 15, 30];   // 正解するたびに次の出題までの日数をのばす（まちがえたら翌日）
 const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const addDays = (iso, n) => { const [y, m, d] = iso.split("-").map(Number); const t = new Date(y, m - 1, d + n); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`; };
@@ -2093,13 +2093,13 @@ const vocabRef = () => doc(db, "students", currentSid, "vocab", "state");
 const senses = (m) => String(m).replace(/（[^）]*）/g, "").split(/[、,]/).map(x => x.trim()).filter(Boolean);
 const shuffle = (a) => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
 
-// 今日の10問：復習の時期が来た単語 → まだ出していない単語 の順
+// 今日の問題：復習の時期が来た単語 → まだ出していない単語 の順
 function pickDaily() {
   const t = localToday();
   const due = Object.entries(vocab.words).filter(([id, w]) => VOCAB_BY_ID[id] && w.due <= t)
     .sort((a, b) => a[1].due.localeCompare(b[1].due) || (a[1].box ?? 0) - (b[1].box ?? 0)).map(([id]) => id);
   const fresh = VOCAB_IDS.filter(id => !vocab.words[id]);
-  const reviewN = Math.min(due.length, fresh.length ? 6 : DAILY_N);
+  const reviewN = Math.min(due.length, fresh.length ? Math.round(DAILY_N * 0.6) : DAILY_N);
   let ids = [...due.slice(0, reviewN), ...fresh.slice(0, DAILY_N - reviewN)];
   if (ids.length < DAILY_N) {
     const extra = Object.entries(vocab.words).filter(([id]) => VOCAB_BY_ID[id] && !ids.includes(id))
@@ -2149,6 +2149,28 @@ function vocabStreak() {
   while (vocab.days?.[d]?.done) { n++; d = addDays(d, -1); }
   return n;
 }
+// 習得の円グラフ：全単語のうち 定着（3回つづけて正解）・学習中（出たがまだ定着していない）・未学習
+function vocabProgressHTML(learned, mastered) {
+  const total = VOCAB_IDS.length, doing = learned - mastered, rest = total - learned;
+  const pct = Math.round(mastered / total * 100);
+  const C = 2 * Math.PI * 40, seg = (n) => n / total * C;
+  const arc = (cls, len, off) => len > 0 ? `<circle class="${cls}" cx="50" cy="50" r="40" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}"/>` : "";
+  return `<div class="vc-progress">
+      <svg viewBox="0 0 100 100" class="vc-donut" role="img" aria-label="定着 ${pct}%">
+        <circle class="bg" cx="50" cy="50" r="40"/>
+        ${arc("m", seg(mastered), 0)}${arc("l", seg(doing), seg(mastered))}
+        <text x="50" y="45" class="pct">${pct}<tspan class="unit">%</tspan></text>
+        <text x="50" y="67" class="cap">定着</text>
+      </svg>
+      <div class="vc-legend">
+        <p><i class="m"></i>定着<b>${mastered}</b>語</p>
+        <p><i class="l"></i>学習中<b>${doing}</b>語</p>
+        <p><i class="u"></i>未出題<b>${rest}</b>語</p>
+        <p class="vc-total">全${total}語のうち <b>${Math.round(learned / total * 100)}%</b> が出題済み</p>
+      </div>
+    </div>
+    <p class="vc-hint">定着＝間をあけて3回つづけて正解した単語</p>`;
+}
 function renderVocabCard() {
   const card = $("vocab-card");
   if (!card) return;
@@ -2168,7 +2190,7 @@ function renderVocabCard() {
   if (day?.done) { state = "done"; title = "今日は完了"; note = `1回目で ${day.first}/${day.total}問 正解`; prog = 100; }
   else if (td?.phase === "review") { state = "review"; title = "復習が残っています"; note = `まちがえた単語 あと${td.queue.length}語`; prog = 100; }
   else if (td && (td.idx > 0 || td.answered)) { const k = td.idx + (td.answered ? 1 : 0); state = "doing"; title = "とちゅうです"; note = `${k} / ${td.ids.length}問`; prog = Math.round(k / td.ids.length * 100); }
-  else { state = "todo"; title = "今日の10問"; note = "例文の下線の語に近い意味の語を4つから選びます"; }
+  else { state = "todo"; title = `今日の${DAILY_N}問`; note = "例文の下線の語に近い意味の語を4つから選びます"; }
   let btn = "";
   if (role === "student") {
     btn = day?.done ? `<button type="button" class="outline vc-btn" data-vocab-open>今日の単語を見直す</button>`
@@ -2185,10 +2207,10 @@ function renderVocabCard() {
       <div class="vc-bar"><div style="width:${prog}%"></div></div>
     </div>
     ${btn}
-    <div class="vc-stats">
+    ${vocabProgressHTML(learned, mastered)}
+    <div class="vc-stats two">
       <div><b>${vocabStreak()}</b><span>日連続</span></div>
-      <div><b>${learned}</b><span>出た単語</span></div>
-      <div><b>${mastered}</b><span>定着した単語</span></div>
+      <div><b>${week.filter(d => vocab.days?.[d]?.done).length}<small> / 7日</small></b><span>この1週間</span></div>
     </div>
     <p class="vc-label">この1週間</p>
     ${weekRow}`;
@@ -2363,7 +2385,7 @@ function renderVocab() {
     const ok = n - wrong.length;
     $("vocab-progress").textContent = `${ok} / ${n}問 正解`;
     body.innerHTML = `<div class="pr-done">
-        <p class="pr-done-title">${wrong.length ? "10問おわり！" : "全問正解！"}</p>
+        <p class="pr-done-title">${wrong.length ? `${n}問おわり！` : "全問正解！"}</p>
         <p class="pr-done-score">${ok}<small> / ${n}問 正解</small></p>
         ${wrong.length ? `<p class="mock-note">まちがえた単語 ${wrong.length}語を、全部正解するまで復習します。</p>
           ${vocabWordRows(wrong, td)}
@@ -2387,7 +2409,7 @@ function renderVocab() {
         <p class="vx-rows-h">今日の${td.ids.length}語（まちがえた単語は、次は別の選択肢で出ます）</p>
         ${vocabWordRows(td.ids, td)}
         <div class="pr-done-actions">
-          ${vocabTrial ? `<button type="button" class="primary" data-vq-trial-again>もう一度（別の10問）</button>` : ""}
+          ${vocabTrial ? `<button type="button" class="primary" data-vq-trial-again>もう一度（別の${DAILY_N}問）</button>` : ""}
           <button type="button" class="outline" data-vq-close>閉じる</button></div>
       </div>`;
   }

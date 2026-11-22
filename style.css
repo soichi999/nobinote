@@ -6,7 +6,7 @@
   --ok-mid:#2f9e74; --err-mid:#d9534f; --warn-mid:#e6a23c;   /* グラフ・アニメ・塗りつぶし用の明るめ */
   --c-plan:#7c4dc9; --c-plan-soft:#f3edfc; --c-plan-line:#c9b5ef;
   --c-mock:#d6336c; --c-mock-soft:var(--c-mock-soft); --c-mock-line:var(--c-mock-line);
-  --c-vocab:#0f766e; --c-vocab-mid:var(--c-vocab-mid); --c-vocab-soft:#e6fffb;
+  --c-vocab:#0f766e; --c-vocab-mid:#2bb3a3; --c-vocab-soft:#e6fffb;
   --input-bg:var(--input-bg); --accent-w:4px;
   --r-sm:6px; --r-md:10px; --r-lg:16px; --r-pill:999px;
   --vocab-day:#fff4bf; --vocab-day-line:#f1d36b;
@@ -722,6 +722,24 @@ button.ghost-dark{background:#fff;border:1px solid var(--blue-line);color:var(--
 .vc-bar{height:8px;border-radius:var(--r-pill);background:rgba(15,118,110,.12);overflow:hidden}
 .vc-bar div{height:100%;border-radius:var(--r-pill);background:var(--c-vocab-mid)}
 .vc-today.done .vc-bar div{background:var(--ok)}.vc-today.review .vc-bar div{background:var(--err)}.vc-today.doing .vc-bar div{background:var(--warn)}
+.vc-progress{display:flex;align-items:center;gap:1rem;margin:.9rem 0 .2rem}
+.vc-donut{width:112px;height:112px;flex:none;transform:rotate(-90deg)}
+.vc-donut circle{fill:none;stroke-width:13}
+.vc-donut .bg{stroke:var(--line)}.vc-donut .m{stroke:var(--ok-mid)}.vc-donut .l{stroke:var(--c-vocab-mid)}
+.vc-donut text{transform:rotate(90deg);transform-origin:50px 50px;text-anchor:middle;fill:var(--navy)}
+.vc-donut .pct{font-size:24px;font-weight:800;dominant-baseline:middle}
+.vc-donut .unit{font-size:13px}
+.vc-donut .cap{font-size:11px;font-weight:800;fill:var(--muted)}
+.vc-legend{flex:1;min-width:0}
+.vc-legend p{margin:.15rem 0;display:flex;align-items:center;gap:.4rem;font-size:.8rem;color:var(--muted);font-weight:700}
+.vc-legend p b{margin-left:auto;font-size:1.05rem;color:var(--navy)}
+.vc-legend i{width:.7rem;height:.7rem;border-radius:var(--r-pill);flex:none}
+.vc-legend i.m{background:var(--ok-mid)}.vc-legend i.l{background:var(--c-vocab-mid)}.vc-legend i.u{background:var(--line)}
+.vc-legend .vc-total{margin-top:.4rem;display:block;font-size:.75rem}
+.vc-legend .vc-total b{font-size:.85rem}
+.vc-hint{margin:0 0 .2rem;font-size:.75rem;color:var(--muted)}
+.vc-stats.two{grid-template-columns:repeat(2,1fr)}
+.vc-stats b small{font-size:.75rem;color:var(--muted)}
 .vc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:.9rem 0 .6rem}
 .vc-stats div{background:var(--bg);border-radius:var(--r-md);padding:.5rem .3rem;text-align:center;display:flex;flex-direction:column}
 .vc-stats b{font-size:1.3rem;color:var(--navy);line-height:1.2}
