@@ -2889,6 +2889,65 @@ function mathStreak() {
   while (math.days?.[d]?.done) { n++; d = addDays(d, -1); }
   return n;
 }
+// 1問ごとの時間：画面を見ている間だけ数える（アプリを裏に回すと止まる）。目安はレベルごと（共通テストの時間配分から）
+const MATH_TARGET = { 1: 90, 2: 150, 3: 240 };
+const mathTargetOf = (id) => MATH_TARGET[MATH_BY_ID[id]?.lv] ?? 150;
+const fmtSec = (sec) => (sec >= 60 ? `${Math.floor(sec / 60)}分${sec % 60 ? `${sec % 60}秒` : ""}` : `${sec}秒`);
+const fmtClock = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+let mqClock = { key: null, acc: 0, since: null }, mqTick = null;
+const mqElapsed = () => Math.round((mqClock.acc + (mqClock.since ? Date.now() - mqClock.since : 0)) / 1000);
+function mqStart(e) {
+  const key = `${e.id}:${e.seed}`;
+  if (mqClock.key !== key) mqClock = { key, acc: 0, since: null };
+  if (!mqClock.since && document.visibilityState === "visible") mqClock.since = Date.now();
+  clearInterval(mqTick); mqTick = setInterval(mqShowTime, 1000); mqShowTime();
+}
+function mqStop() {
+  if (mqClock.since) { mqClock.acc += Date.now() - mqClock.since; mqClock.since = null; }
+  clearInterval(mqTick); mqTick = null;
+}
+function mqShowTime() {
+  const el = $("mq-time");
+  if (!el) return;
+  const sec = mqElapsed();
+  el.querySelector("b").textContent = fmtClock(sec);
+  el.classList.toggle("over", sec > Number(el.dataset.target));
+}
+document.addEventListener("visibilitychange", () => {
+  if (!mqTick) return;
+  if (document.visibilityState === "hidden") { if (mqClock.since) { mqClock.acc += Date.now() - mqClock.since; mqClock.since = null; } }
+  else if (!mqClock.since) mqClock.since = Date.now();
+});
+const mqTimeHTML = (p) => { const tg = mathTargetOf(p.id); return `<p class="mq-time" id="mq-time" data-target="${tg}">経過 <b>0:00</b><span>目安 ${fmtClock(tg)}</span></p>`; };
+
+// 先生・保護者向けの苦手まとめ（数学）：分野ごとの正答率と平均時間、何回もまちがえている問題、時間がかかっている問題
+function mathWeakHTML() {
+  const its = Object.entries(math?.items ?? {}).filter(([id, w]) => MATH_BY_ID[id] && ((w.ok ?? 0) + (w.ng ?? 0)) > 0);
+  if (!its.length) return "";
+  const byF = {};
+  its.forEach(([id, w]) => {
+    const b = (byF[MATH_BY_ID[id].f] ??= { ok: 0, n: 0, t: 0, tn: 0 });
+    b.ok += w.ok ?? 0; b.n += (w.ok ?? 0) + (w.ng ?? 0); b.t += w.tsum ?? 0; b.tn += w.tn ?? 0;
+  });
+  const rows = Object.keys(MATH_FIELDS).filter(f => byF[f]).map(f => {
+    const b = byF[f], r = Math.round(b.ok / b.n * 100);
+    return `<li class="${r < 60 ? "low" : ""}"><span class="mw-f">${esc(MATH_FIELDS[f])}</span><span class="mw-bar"><i style="width:${r}%"></i></span><b>${r}%</b><small>${b.n}回${b.tn ? `・平均${fmtSec(Math.round(b.t / b.tn))}` : ""}</small></li>`;
+  }).join("");
+  const item = (id, cls, meta) => `<li class="mw-item ${cls}"><p><b>${esc(MATH_BY_ID[id].title)}</b><span class="mq-lv">レベル${MATH_BY_ID[id].lv}</span></p><small>${esc(MATH_FIELDS[MATH_BY_ID[id].f])}・${meta}</small></li>`;
+  const miss = its.filter(([, w]) => (w.ng ?? 0) >= 2 || ((w.ng ?? 0) >= 1 && (w.box ?? 0) === 0))
+    .sort((a, b) => (b[1].ng ?? 0) - (a[1].ng ?? 0) || (a[1].ok ?? 0) - (b[1].ok ?? 0)).slice(0, 8);
+  const slow = its.filter(([id, w]) => w.tn && w.tsum / w.tn > mathTargetOf(id) * 1.3)
+    .sort((a, b) => b[1].tsum / b[1].tn / mathTargetOf(b[0]) - a[1].tsum / a[1].tn / mathTargetOf(a[0])).slice(0, 5);
+  return `<div class="mw">
+      <p class="vc-label">数学ⅠA：分野ごとの正答率（1回目の答え）</p>
+      <ul class="mw-list">${rows}</ul>
+      <p class="vc-label">何回もまちがえている問題</p>
+      ${miss.length ? `<ul class="mw-items">${miss.map(([id, w]) => item(id, "ng", `まちがい${w.ng ?? 0}回・正解${w.ok ?? 0}回`)).join("")}</ul>`
+        : `<p class="mock-note">今のところありません。</p>`}
+      ${slow.length ? `<p class="vc-label">時間がかかっている問題（目安の1.3倍より長い）</p>
+      <ul class="mw-items">${slow.map(([id, w]) => item(id, "slow", `平均${fmtSec(Math.round(w.tsum / w.tn))}（目安${fmtSec(mathTargetOf(id))}）`)).join("")}</ul>` : ""}
+    </div>`;
+}
 // 分野ごとの正答率（1回目の答え）。2回以上解いた分野のうち、いちばん低いもの
 function mathWeakField() {
   const by = {};
@@ -3001,6 +3060,7 @@ function showMathView() {
   renderMath();
 }
 function closeMath() {
+  mqStop();
   setTimeout(renderCalendars, 0);
   if (mathTrial) { math = mathReal ?? { items: {}, days: {}, today: null, level: 1 }; mathTrial = false; }
   $("math-view").hidden = true;
@@ -3039,6 +3099,7 @@ function mathQuestionHTML(p) {
   const n = mqMissing(p);
   return `<div class="vq mq">
       ${mqHead(p)}
+      ${mqTimeHTML(p)}
       <div class="mq-text">${richText(p.q)}</div>
       <p class="mq-label">答えの形 <small>（枠ごとにマーク・もう一度押すと取り消し）</small></p>
       <div class="exam-t mq-form" id="mq-form">${mathFormHTML(p, mathMarks)}</div>
@@ -3052,6 +3113,7 @@ function mathAnswerHTML(p, a) {
   return `<div class="vq vx-page mq-ans">
       <div class="vx-result ${a.ok ? "ok" : "ng"}">${a.ok ? ICON_CIRCLE : ICON_CROSS}<span>${a.ok ? "正解！" : "不正解"}</span>
         ${a.ok ? "" : `<small>まちがえた枠：${wrong.map(l => `<span class="mq-miss">${esc(l)}　<s>${esc(a.marks[l] ?? "")}</s> → <b>${esc(p.key[l])}</b></span>`).join("")}</small>`}</div>
+      ${a.sec != null ? (() => { const tg = mathTargetOf(p.id), over = a.sec > tg; return `<p class="mq-took ${over ? "over" : "ok"}">かかった時間 <b>${fmtSec(a.sec)}</b>／目安 ${fmtSec(tg)}${over ? "<small>目安より長め。解き方の流れを見直して、次は速く解こう</small>" : ""}</p>`; })() : ""}
       <section class="mq-card">
         ${mqHead(p)}
         <div class="mq-text sm">${richText(p.q)}</div>
@@ -3084,11 +3146,13 @@ function renderMath() {
     const main = td.phase === "main";
     $("math-progress").textContent = main ? `${td.idx + 1} / ${n}問` : `復習 のこり${td.queue.length}問`;
     const last = main ? td.idx === n - 1 : answered?.ok && td.queue.length === 1;
+    if (answered) mqStop(); else setTimeout(() => mqStart(e), 0);
     body.innerHTML = `${main ? `<div class="pr-progress"><div style="width:${Math.round(td.idx / n * 100)}%"></div></div>`
         : `<p class="vq-review-tag">まちがえた問題の復習（数値を変えて出します。全部正解するまで続きます）</p>`}
       ${answered ? mathAnswerHTML(p, answered) : mathQuestionHTML(p)}
       ${answered ? `<div class="pr-nav"><button type="button" class="primary big-action" data-mq-next>${main ? (last ? "結果を見る" : "次の問題へ →") : (last ? "完了！" : "次へ →")}</button></div>` : ""}`;
   } else if (td.phase === "main") {
+    mqStop();
     const wrong = td.list.filter(e => td.results[e.id] === false), ok = n - wrong.length;
     $("math-progress").textContent = `${ok} / ${n}問 正解`;
     body.innerHTML = `<div class="pr-done">
@@ -3136,7 +3200,8 @@ $("math-body").addEventListener("click", async (ev) => {
     if (mqMissing(p)) return;
     const marks = Object.fromEntries(p.labels.map(l => [l, mathMarks[l]]));
     const ok = p.labels.every(l => marks[l] === p.key[l]);
-    td.answered = { id: e.id, seed: e.seed, marks, ok };
+    const sec = mqElapsed(); mqStop();
+    td.answered = { id: e.id, seed: e.seed, marks, ok, sec };
     const w = math.items[e.id] ?? { box: 0, ok: 0, ng: 0 };
     if (td.phase === "main") {
       td.results[e.id] = ok;
@@ -3145,6 +3210,9 @@ $("math-body").addEventListener("click", async (ev) => {
       w.due = addDays(td.date, ok ? BOX_DAYS[w.box] : 1);
       w[ok ? "ok" : "ng"] = (w[ok ? "ok" : "ng"] ?? 0) + 1;
       w.last = td.date;
+      // かかった時間（秒）：合計・回数・前回。先生の苦手まとめで平均を出す
+      w.tsum = (w.tsum ?? 0) + sec; w.tn = (w.tn ?? 0) + 1; w.tlast = sec;
+      td.secs = { ...(td.secs ?? {}), [e.id]: sec };
     }
     w.sig = p.sig;   // 次に出すときは、これと違う数値にする
     math.items[e.id] = w;

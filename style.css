@@ -1025,3 +1025,30 @@ details.form-details[open] > summary::before{transform:rotate(45deg)}
 .wk-n{font-size:.8rem;font-weight:800;color:var(--err);white-space:nowrap}
 .wk-s{font-size:.75rem;font-weight:800;color:var(--muted);background:var(--bg);border-radius:var(--r-pill);padding:.05rem .45rem;white-space:nowrap}
 .wk-s.ok{color:var(--ok);background:var(--ok-soft)}
+/* 数学：1問ごとの時間（経過・目安・かかった時間） */
+.mq-time{display:flex;align-items:baseline;gap:.6rem;margin:0 0 .4rem;font-size:.8rem;font-weight:700;color:var(--muted)}
+.mq-time b{font-size:1.05rem;color:var(--navy);font-variant-numeric:tabular-nums;min-width:2.6em}
+.mq-time.over b{color:var(--warn)}
+.mq-took{margin:0;padding:.5rem .8rem;border-radius:var(--r-md);font-size:.85rem;font-weight:700;background:var(--bg);color:var(--fg)}
+.mq-took b{font-size:1rem}
+.mq-took.ok b{color:var(--ok)}
+.mq-took.over{background:var(--warn-soft)}.mq-took.over b{color:var(--warn)}
+.mq-took small{display:block;font-weight:700;color:var(--warn);font-size:.75rem}
+/* 苦手まとめ（数学）：分野ごとの正答率の横棒 */
+.mw-list{list-style:none;margin:.2rem 0 .8rem;padding:0;display:flex;flex-direction:column;gap:.35rem}
+.mw-list li{display:grid;grid-template-columns:7.6em 1fr 2.8em;grid-template-rows:auto auto;column-gap:.5rem;align-items:center;font-size:.85rem}
+.mw-f{font-weight:700;color:var(--navy)}
+.mw-bar{height:8px;border-radius:var(--r-pill);background:var(--line);overflow:hidden}
+.mw-bar i{display:block;height:100%;border-radius:var(--r-pill);background:var(--ok-mid)}
+.mw-list li.low .mw-bar i{background:var(--err-mid)}
+.mw-list li > b{text-align:right;color:var(--navy)}
+.mw-list li.low > b{color:var(--err)}
+.mw-list li small{grid-column:2 / 4;font-size:.75rem;color:var(--muted)}
+.mw-f{font-size:.8rem;white-space:nowrap}
+.mw-items{list-style:none;margin:.2rem 0 .8rem;padding:0;display:flex;flex-direction:column;gap:.35rem}
+.mw-item{padding:.45rem .7rem;border-radius:var(--r-md);border:1px solid var(--line);background:var(--card);border-left:var(--accent-w) solid var(--line)}
+.mw-item.ng{border-left-color:var(--err-mid);background:var(--err-soft)}
+.mw-item.slow{border-left-color:var(--warn-mid);background:var(--warn-soft)}
+.mw-item p{margin:0;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.mw-item b{font-size:.92rem;color:var(--navy)}
+.mw-item small{font-size:.75rem;color:var(--muted);font-weight:700}
