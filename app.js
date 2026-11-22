@@ -71,17 +71,27 @@ const off = () => { unsubs.forEach(u => u()); unsubs = []; };
 $("h-subject").insertAdjacentHTML("afterbegin", `<option value="">なし</option>`);
 $("p-good").innerHTML = subjectPickerHTML();
 $("p-weak").innerHTML = subjectPickerHTML();
+// 毎日の宿題は1週間（期限の6日前から期限まで）を初期値にする
+function hwSetWeek() {
+  const due = $("h-due").value;
+  if (due) $("h-start").value = addDays(due, -6);
+  else { $("h-start").value = today(); $("h-due").value = addDays(today(), 6); }
+}
 $("h-type").addEventListener("change", () => {
   const ty = $("h-type").value, isCount = ty === "count", daily = DAILY_HW[ty];
   $("h-count-range").hidden = !isCount;
   $("h-count-numbers").hidden = !isCount;
   $("h-daily-range").hidden = !daily;
   if (daily) {
-    if (!$("h-start").value) $("h-start").value = today();
+    if (!$("h-start").value) hwSetWeek();
     $("h-subject").value = daily.subject;
-    if (!$("h-title").value.trim()) $("h-title").value = daily.title;
+    $("h-quota-unit").textContent = daily.unit;
+    if (!editingHwId) $("h-quota").value = daily.quota;
+    const tt = $("h-title").value.trim();
+    if (!tt || Object.values(DAILY_HW).some(x => tt === x.title || tt.startsWith(x.title + "（"))) $("h-title").value = daily.title;
   }
 });
+$("h-due").addEventListener("change", () => { if (DAILY_HW[$("h-type").value] && !editingHwId) hwSetWeek(); });
 $("h-unit-select").addEventListener("change", () => {
   $("h-unit-custom-wrap").hidden = $("h-unit-select").value !== "custom";
 });
@@ -215,7 +225,7 @@ function watchAll() {
   renderTuition(); $("msg-list").innerHTML = "";
   if (!currentSid) return;
   sub("lessons", "date", "desc", rows => { lessons = rows; renderCalendarFeed(); renderCalendars(); });
-  sub("homework", "dueDate", "asc", rows => { homework = rows; renderHomework(); renderCalendarFeed(); renderCalendars(); });
+  sub("homework", "dueDate", "asc", rows => { homework = rows; renderHomework(); renderCalendarFeed(); renderCalendars(); renderVocabCard(); renderMathCard(); });
   sub("tests", "date", "asc", rows => { tests = rows; renderTests(); });
   sub("messages", "createdAt", "asc", renderMessages);
   unsubs.push(onSnapshot(doc(db, "students", currentSid, "vocab", "state"), snap => {
@@ -256,8 +266,8 @@ function watchAll() {
 /* ---------- 宿題（単位ごとにチェック / 完了・未完了 / 毎日の英単語・数学） ---------- */
 // 毎日の英単語・数学ⅠA を宿題として出す：開始日〜期限の毎日、その日の分をやり切ったら1日分（記録は vocab.days / math.days から自動）
 const DAILY_HW = {
-  "daily-vocab": { subject: "english", title: "毎日の英単語", name: "今日の英単語", days: () => vocab.days, open: () => openVocab() },
-  "daily-math": { subject: "math", title: "毎日の数学ⅠA", name: "今日の数学ⅠA", days: () => math.days, open: () => openMath() },
+  "daily-vocab": { subject: "english", title: "毎日の英単語", name: "今日の英単語", unit: "語", quota: 20, days: () => vocab.days, open: () => openVocab() },
+  "daily-math": { subject: "math", title: "毎日の数学ⅠA", name: "今日の数学ⅠA", unit: "問", quota: 5, days: () => math.days, open: () => openMath() },
 };
 function hwDays(r) {
   const from = r.startDate || r.dueDate, to = r.dueDate || from, out = [];
@@ -265,7 +275,15 @@ function hwDays(r) {
   for (let d = from; d <= to && out.length < 120; d = addDays(d, 1)) out.push(d);
   return out;
 }
-const hwDailyDone = (r) => { const days = DAILY_HW[r.type].days() ?? {}; return hwDays(r).filter(d => days[d]?.done); };
+// 毎日の数（quota）：その日に終えた数（days[日付].total）が quota 以上で、直しまでやり切った日を1日分とする
+const hwQuota = (r) => Number(r.quota) || 0;
+const hwDayOk = (r, day) => !!day?.done && (day.total ?? 0) >= hwQuota(r);
+const hwDailyDone = (r) => { const days = DAILY_HW[r.type].days() ?? {}; return hwDays(r).filter(d => hwDayOk(r, days[d])); };
+// 今日が期間に入っている「毎日の○○」の宿題のうち、いちばん多い毎日の数（なければ null）。今日の問題数に使う
+function hwQuotaToday(type) {
+  const t = today(), qs = homework.filter(r => r.type === type && hwDays(r).includes(t)).map(hwQuota).filter(n => n > 0);
+  return qs.length ? Math.max(...qs) : null;
+}
 function hwCounts(r) {
   const from = Number(r.countFrom) || 1, to = Number(r.countTo) || from;
   return Array.from({ length: Math.max(1, to - from + 1) }, (_, i) => from + i);
@@ -462,14 +480,16 @@ function homeworkItemHTML(r) {
     </article>`;
 }
 function hwDailyHTML(r) {
-  const dh = DAILY_HW[r.type], days = dh.days() ?? {}, t = today(), wk = ["日", "月", "火", "水", "木", "金", "土"];
-  const todayIn = hwDays(r).includes(t), todayDone = !!days[t]?.done;
-  return `<div class="hw-days">${hwDays(r).map(d => {
-      const [y, m, dd] = d.split("-").map(Number), done = !!days[d]?.done;
-      const cls = done ? "done" : d < t ? "miss" : d === t ? "today" : "";
-      return `<span class="hw-day ${cls}" title="${d}${done ? " できた" : ""}"><small>${m}/${dd}(${wk[new Date(y, m - 1, dd).getDay()]})</small>${done ? ICON_CHECK : d < t ? ICON_CROSS : ""}</span>`;
+  const dh = DAILY_HW[r.type], days = dh.days() ?? {}, t = today(), wk = ["日", "月", "火", "水", "木", "金", "土"], q = hwQuota(r);
+  const todayIn = hwDays(r).includes(t), todayOk = hwDayOk(r, days[t]);
+  return `<p class="hw-quota">毎日 <b>${q || dh.quota}${dh.unit}</b>（${hwDays(r).length}日間）・できた日 <b>${hwDailyDone(r).length}</b> / ${hwDays(r).length}日</p>
+    <div class="hw-days">${hwDays(r).map(d => {
+      const [y, m, dd] = d.split("-").map(Number), day = days[d], ok = hwDayOk(r, day), short = !ok && day?.done;
+      const cls = ok ? "done" : short ? "short" : d < t ? "miss" : d === t ? "today" : "";
+      const mark = ok ? ICON_CHECK : short ? `<b>${day.total ?? 0}/${q}</b>` : d < t ? ICON_CROSS : "";
+      return `<span class="hw-day ${cls}" title="${d}${ok ? " できた" : short ? ` ${day.total ?? 0}${dh.unit}（${q}${dh.unit}に足りない）` : ""}"><small>${m}/${dd}(${wk[new Date(y, m - 1, dd).getDay()]})</small>${mark}</span>`;
     }).join("")}</div>
-    ${role === "student" && todayIn ? `<div class="actions"><button type="button" class="${todayDone ? "small outline" : "primary"}" data-hw-daily="${esc(r.type)}">${todayDone ? `${dh.name}を見直す` : `${dh.name}をはじめる`}</button></div>` : ""}`;
+    ${role === "student" && todayIn ? `<div class="actions"><button type="button" class="${todayOk ? "small outline" : "primary"}" data-hw-daily="${esc(r.type)}">${todayOk ? `${dh.name}を見直す` : `${dh.name}をはじめる（${q || dh.quota}${dh.unit}）`}</button></div>` : ""}`;
 }
 let editingHwId = null;
 function startEditHomework(r) {
@@ -486,6 +506,7 @@ function startEditHomework(r) {
     $("h-count-to").value = r.countTo ?? 10;
   }
   $("h-start").value = r.startDate ?? "";
+  if (DAILY_HW[r.type]) { $("h-quota").value = r.quota ?? DAILY_HW[r.type].quota; $("h-quota-unit").textContent = DAILY_HW[r.type].unit; }
   $("h-detail").value = r.detail ?? "";
   $("h-due").value = r.dueDate ?? "";
   const existingPdfs = hwPdfList(r);
@@ -523,6 +544,9 @@ $("hw-form").addEventListener("submit", async (e) => {
   if (DAILY_HW[type]) {
     base.startDate = $("h-start").value || today();
     if (base.startDate > base.dueDate) { alert("開始日は提出期限より前にしてください。"); return; }
+    base.quota = Math.max(1, Math.min(100, Math.round(Number($("h-quota").value) || DAILY_HW[type].quota)));
+    // タイトルが初期値のままなら「毎日の英単語（毎日20語）」のように数を入れる
+    if (base.title === DAILY_HW[type].title || base.title.startsWith(DAILY_HW[type].title + "（")) base.title = `${DAILY_HW[type].title}（毎日${base.quota}${DAILY_HW[type].unit}）`;
   }
   if (type === "count") {
     const unit = $("h-unit-select").value === "custom" ? $("h-unit-custom").value.trim() : $("h-unit-select").value;
@@ -742,7 +766,7 @@ function renderTodayCard() {
   });
   const vdone = vocab.days?.[localToday()]?.done;
   if (role === "student") rows.push(`<li class="td-row vocab${vdone ? " done" : ""}"><span class="td-dot"></span>
-      <div class="td-main"><b>今日の英単語</b><small>${vdone ? "完了しました" : `${DAILY_N}問`}</small></div>
+      <div class="td-main"><b>今日の英単語</b><small>${vdone ? "完了しました" : `${vocabN()}問`}</small></div>
       ${vdone ? "" : `<button type="button" class="small primary" data-vocab-open>はじめる</button>`}</li>`);
   const mdone = math.days?.[localToday()]?.done;
   if (role === "student") rows.push(`<li class="td-row math${mdone ? " done" : ""}"><span class="td-dot"></span>
@@ -2220,6 +2244,8 @@ function webCardBody(r, def, st, stats, pdfs) {
 const VOCAB_BY_ID = Object.fromEntries(VOCAB.map(v => [`${v[0]}:${v[1]}`, v]));
 const VOCAB_IDS = VOCAB.map(v => `${v[0]}:${v[1]}`);
 const DAILY_N = 20;
+// 今日の問題数：「毎日の英単語」の宿題の期間中は、その毎日の数（いちばん多いもの）。なければ20問
+const vocabN = () => hwQuotaToday("daily-vocab") ?? DAILY_N;
 const VOCAB_LEVELS = [{ lv: 1, name: "レベル1", sub: "英検準2級" }, { lv: 2, name: "レベル2", sub: "英検2級" }, { lv: 3, name: "レベル3", sub: "2級上位・熟語" }];
 const idsOfLevel = (lv) => VOCAB_IDS.filter(id => LEVEL_OF[id] === lv);
 // いま選んでいるレベル（決めていなければ、これまで解いた記録があれば2、なければ1）
@@ -2236,19 +2262,19 @@ const senses = (m) => String(m).replace(/（[^）]*）/g, "").split(/[、,]/).ma
 const shuffle = (a) => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
 
 // 今日の問題：復習の時期が来た単語 → まだ出していない単語 の順
-function pickDaily() {
+function pickDaily(n = vocabN()) {
   const t = localToday();
   const due = Object.entries(vocab.words).filter(([id, w]) => VOCAB_BY_ID[id] && w.due <= t)
     .sort((a, b) => a[1].due.localeCompare(b[1].due) || (a[1].box ?? 0) - (b[1].box ?? 0)).map(([id]) => id);
   // 新しい単語は選んだレベルから（使い切ったら次のレベル→ほかのレベル）。復習は全レベルから
   const lv = vocabLevel(), order = [lv, ...[1, 2, 3].filter(x => x > lv), ...[1, 2, 3].filter(x => x < lv)];
   const fresh = order.flatMap(x => idsOfLevel(x).filter(id => !vocab.words[id]));
-  const reviewN = Math.min(due.length, fresh.length ? Math.round(DAILY_N * 0.6) : DAILY_N);
-  let ids = [...due.slice(0, reviewN), ...fresh.slice(0, DAILY_N - reviewN)];
-  if (ids.length < DAILY_N) {
+  const reviewN = Math.min(due.length, fresh.length ? Math.round(n * 0.6) : n);
+  let ids = [...due.slice(0, reviewN), ...fresh.slice(0, n - reviewN)];
+  if (ids.length < n) {
     const extra = Object.entries(vocab.words).filter(([id]) => VOCAB_BY_ID[id] && !ids.includes(id))
       .sort((a, b) => (a[1].box ?? 0) - (b[1].box ?? 0)).map(([id]) => id);
-    ids = [...ids, ...extra].slice(0, DAILY_N);
+    ids = [...ids, ...extra].slice(0, n);
   }
   return shuffle(ids);
 }
@@ -2344,15 +2370,15 @@ function renderVocabCard() {
   if (day?.done) { state = "done"; title = "今日は完了"; note = `1回目で ${day.first}/${day.total}問 正解`; prog = 100; }
   else if (td?.phase === "review") { state = "review"; title = "復習が残っています"; note = `まちがえた単語 あと${td.queue.length}語`; prog = 100; }
   else if (td && (td.idx > 0 || td.answered)) { const k = td.idx + (td.answered ? 1 : 0); state = "doing"; title = "とちゅうです"; note = `${k} / ${td.ids.length}問`; prog = Math.round(k / td.ids.length * 100); }
-  else { state = "todo"; title = `今日の${DAILY_N}問`; note = "英検の形式：（　）に入る語を4つから選びます"; }
+  else { state = "todo"; title = `今日の${vocabN()}問`; note = "英検の形式：（　）に入る語を4つから選びます"; }
   let btn = "";
   if (role === "student") {
     btn = day?.done ? `<button type="button" class="outline vc-btn" data-vocab-open>今日の単語を見直す</button>`
-      : `<button type="button" class="primary vc-btn" data-vocab-open>${state === "review" ? "復習を続ける" : state === "doing" ? "続きから" : `今日の${DAILY_N}問をはじめる`}</button>`;
+      : `<button type="button" class="primary vc-btn" data-vocab-open>${state === "review" ? "復習を続ける" : state === "doing" ? "続きから" : `今日の${vocabN()}問をはじめる`}</button>`;
   } else if (role === "tutor") btn = `<button type="button" class="outline vc-btn" data-vocab-trial>お試しで解く（記録されません）</button>`;
   card.innerHTML = `
     <div class="vc-top">
-      <div><p class="vc-kicker">今日の英単語</p><p class="vc-sub">${VOCAB_LEVELS[lv - 1].name}（${VOCAB_LEVELS[lv - 1].sub}）・1日${DAILY_N}問</p></div>
+      <div><p class="vc-kicker">今日の英単語</p><p class="vc-sub">${VOCAB_LEVELS[lv - 1].name}（${VOCAB_LEVELS[lv - 1].sub}）・今日${td?.ids.length ?? vocabN()}問${hwQuotaToday("daily-vocab") ? "（宿題）" : ""}</p></div>
       <span class="vc-badge ${state}">${state === "done" ? "完了" : state === "review" ? "復習中" : state === "doing" ? "とちゅう" : "未実施"}</span>
     </div>
     <div class="vc-today ${state}">
@@ -2772,6 +2798,11 @@ function finishVocab() {
 /* ---------- 今日の数学ⅠA：1日5問 → 1問ずつマーク → 答え合わせ → 解答・解説 → まちがえた問題は数値を変えて全部正解するまで ---------- */
 // 問題の型と数値の作り方は moshi/math_daily.js。出題は「型 id ＋ seed（数値の種）」で記録し、同じ seed なら同じ問題になる
 const MATH_N = 5;
+// 1日の問題数：宿題「毎日の数学ⅠA」の期間中は、その宿題の数（毎日○問）。なければ5問
+const mathN = () => {
+  const q = typeof hwQuotaToday === "function" ? hwQuotaToday("daily-math") : null;
+  return Number.isInteger(q) && q > 0 ? Math.min(q, 30) : MATH_N;
+};
 // まだ出していない型は、分野が順番にまわるように並べておく
 const MATH_IDS = (() => {
   const by = {};
@@ -2802,20 +2833,20 @@ const mathProb = (e) => makeProblem(e.id, e.seed);
 const mathEntry = (td) => (td.phase === "main" ? td.list[td.idx] : td.queue[0]);
 // 今日の5問：復習の時期が来た問題（全レベルから最大3つ）→ 選んだレベルのまだ出していない問題。どちらも前回とは別の数値で出す
 // 選んだレベルを出しつくしたら、そのレベルの定着していない問題 → ほかのレベルのまだの問題 の順で補う
-function pickMathDaily(lv = mathLevel()) {
+function pickMathDaily(lv = mathLevel(), n = mathN()) {
   const t = localToday();
   const due = Object.entries(math.items).filter(([id, w]) => MATH_BY_ID[id] && w.due <= t)
     .sort((a, b) => a[1].due.localeCompare(b[1].due) || (a[1].box ?? 0) - (b[1].box ?? 0)).map(([id]) => id);
   const fresh = mathIdsOf(lv).filter(id => !math.items[id]);
-  const reviewN = Math.min(due.length, fresh.length ? 3 : MATH_N);
-  let ids = [...due.slice(0, reviewN), ...fresh.slice(0, MATH_N - reviewN)];
-  if (ids.length < MATH_N) {
+  const reviewN = Math.min(due.length, fresh.length ? Math.max(3, Math.round(n * .4)) : n);
+  let ids = [...due.slice(0, reviewN), ...fresh.slice(0, n - reviewN)];
+  if (ids.length < n) {
     const byBox = (a, b) => (math.items[a].box ?? 0) - (math.items[b].box ?? 0) || (math.items[a].last ?? "").localeCompare(math.items[b].last ?? "");
     const sameLv = mathIdsOf(lv).filter(id => math.items[id] && !ids.includes(id)).sort(byBox);
     const otherFresh = [1, 2, 3].filter(l => l !== lv).sort((a, b) => Math.abs(a - lv) - Math.abs(b - lv) || a - b)
       .flatMap(l => mathIdsOf(l).filter(id => !math.items[id]));
     const rest = Object.keys(math.items).filter(id => MATH_BY_ID[id] && !ids.includes(id)).sort(byBox);
-    ids = [...new Set([...ids, ...sameLv, ...otherFresh, ...rest])].slice(0, MATH_N);
+    ids = [...new Set([...ids, ...sameLv, ...otherFresh, ...rest])].slice(0, n);
   }
   return shuffle(ids).map(id => ({ id, seed: freshSeed(id, [math.items[id]?.sig].filter(Boolean)) }));
 }
@@ -2887,7 +2918,7 @@ function renderMathCard() {
   if (day?.done) { state = "done"; title = "今日は完了"; note = `1回目で ${day.first}/${day.total}問 正解`; prog = 100; }
   else if (td?.phase === "review") { state = "review"; title = "復習が残っています"; note = `まちがえた問題 あと${td.queue.length}問（数値を変えて出ます）`; prog = 100; }
   else if (td && (td.idx > 0 || td.answered)) { const k = td.idx + (td.answered ? 1 : 0); state = "doing"; title = "とちゅうです"; note = `${k} / ${td.list.length}問`; prog = Math.round(k / td.list.length * 100); }
-  else { state = "todo"; title = `今日の${MATH_N}問`; note = "ア・イ…の枠に、数字や符号「−」をマークして答えます"; }
+  else { state = "todo"; title = `今日の${td?.list.length ?? mathN()}問`; note = "ア・イ…の枠に、数字や符号「−」をマークして答えます"; }
   let btn = "";
   if (role === "student") {
     btn = day?.done ? `<button type="button" class="outline vc-btn" data-math-open>今日の問題を見直す</button>`
@@ -2896,7 +2927,7 @@ function renderMathCard() {
   const weak = mathWeakField();
   card.innerHTML = `
     <div class="vc-top">
-      <div><p class="vc-kicker">今日の数学ⅠA</p><p class="vc-sub">共通テスト形式・1日${MATH_N}問・7分野・レベル${lv}</p></div>
+      <div><p class="vc-kicker">今日の数学ⅠA</p><p class="vc-sub">共通テスト形式・1日${td?.list.length ?? mathN()}問・7分野・レベル${lv}</p></div>
       <span class="vc-badge ${state}">${state === "done" ? "完了" : state === "review" ? "復習中" : state === "doing" ? "とちゅう" : "未実施"}</span>
     </div>
     <div class="vc-today ${state}">
@@ -2939,12 +2970,12 @@ function startMathTrial() {
   if (!mathTrial) mathReal = math;
   mathTrial = true;
   const lv = mathViewLv ?? mathLevel();
-  math = { items: {}, days: {}, level: lv, today: newMathToday(shuffle(mathIdsOf(lv)).slice(0, MATH_N).map(id => ({ id, seed: freshSeed(id) })), lv) };
+  math = { items: {}, days: {}, level: lv, today: newMathToday(shuffle(mathIdsOf(lv)).slice(0, mathN()).map(id => ({ id, seed: freshSeed(id) })), lv) };
   showMathView();
 }
 function openMath() {
   const td = math.today;
-  if (td?.date !== localToday() || (mathUntouched(td) && (td.level ?? 1) !== mathLevel())) { math.today = newMathToday(pickMathDaily()); saveMath(); }
+  if (td?.date !== localToday() || (mathUntouched(td) && ((td.level ?? 1) !== mathLevel() || td.list.length !== mathN()))) { math.today = newMathToday(pickMathDaily()); saveMath(); }
   showMathView();
 }
 function showMathView() {
@@ -3062,7 +3093,7 @@ function renderMath() {
         <p class="vx-rows-h">今日の${n}問（まちがえた問題は、次は別の数値で出ます）</p>
         ${mathRows(td.list, td)}
         <div class="pr-done-actions">
-          ${mathTrial ? `<button type="button" class="primary" data-mq-trial-again>もう一度（別の${MATH_N}問）</button>` : ""}
+          ${mathTrial ? `<button type="button" class="primary" data-mq-trial-again>もう一度（別の${mathN()}問）</button>` : ""}
           <button type="button" class="outline" data-mq-close>閉じる</button></div>
       </div>`;
   }

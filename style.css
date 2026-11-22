@@ -991,3 +991,10 @@ details.form-details[open] > summary::before{transform:rotate(45deg)}
 .vc-more-s{margin-left:auto;color:var(--muted);font-weight:700;font-size:.75rem;text-align:right;white-space:nowrap}
 .vc-more-t{white-space:nowrap}
 #tab-homework .vocab-card .vc-btn{min-height:44px;padding:.6rem 1rem;font-size:.95rem}
+.hw-quota{margin:.5rem 0 0;font-size:.85rem;color:var(--muted)}
+.hw-quota b{color:var(--navy)}
+.hw-day.short{background:var(--warn-soft);border-color:var(--warn-line);color:var(--warn)}
+.hw-day.short b{font-size:.8rem}
+.h-quota-wrap{display:flex;align-items:center;gap:.4rem}
+.h-quota-wrap input{flex:1;min-width:0}
+.h-quota-wrap span{font-weight:800;color:var(--muted)}

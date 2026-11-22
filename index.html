@@ -307,7 +307,8 @@
       </div>
       <div class="grid" id="h-daily-range" hidden>
         <label>開始日<input type="date" id="h-start"></label>
-        <p class="hint left h-daily-note">開始日から提出期限まで、毎日「今日の英単語／数学」をやり切ったら1日分。達成度は自動で記録されます</p>
+        <label>毎日の数<span class="h-quota-wrap"><input type="number" id="h-quota" min="1" max="100" step="1" value="20"><span id="h-quota-unit">語</span></span></label>
+        <p class="hint left h-daily-note">開始日から提出期限まで毎日、決めた数をやり切った日を1日分として数え、全部の日にこなせたら自動で達成100%になります。期間中は、その日の問題数がこの数になります（提出期限を選ぶと、開始日はその6日前＝1週間に自動で入ります）</p>
       </div>
       <label>詳細<textarea id="h-detail" rows="3"></textarea></label>
       <label>提出期限<input type="date" id="h-due" required></label>
