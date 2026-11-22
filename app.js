@@ -489,7 +489,7 @@ function hwDailyHTML(r) {
       const mark = ok ? ICON_CHECK : short ? `<b>${day.total ?? 0}/${q}</b>` : d < t ? ICON_CROSS : "";
       return `<span class="hw-day ${cls}" title="${d}${ok ? " できた" : short ? ` ${day.total ?? 0}${dh.unit}（${q}${dh.unit}に足りない）` : ""}"><small>${m}/${dd}(${wk[new Date(y, m - 1, dd).getDay()]})</small>${mark}</span>`;
     }).join("")}</div>
-    ${role === "student" && todayIn ? `<div class="actions"><button type="button" class="${todayOk ? "small outline" : "primary"}" data-hw-daily="${esc(r.type)}">${todayOk ? `${dh.name}を見直す` : `${dh.name}をはじめる（${q || dh.quota}${dh.unit}）`}</button></div>` : ""}`;
+    ${role === "student" && todayIn ? `<div class="actions"><button type="button" class="${todayOk ? "small outline" : "primary"}" data-hw-daily="${esc(r.type)}">${todayOk ? "見直す" : "はじめる"}</button></div>` : ""}`;
 }
 let editingHwId = null;
 function startEditHomework(r) {
