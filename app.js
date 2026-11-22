@@ -11,6 +11,7 @@ import {
 import { SUBJECTS, subjectLabel, subjectColor, subjectOptionsHTML, subjectPickerHTML } from "./subjects.js";
 import { MOCKS } from "./moshi/catalog.js";
 import { VOCAB } from "./moshi/vocab.js";
+import { SYN } from "./moshi/vocab_syn.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -2107,16 +2108,29 @@ function pickDaily() {
   }
   return shuffle(ids);
 }
-// 選択肢：正しい意味＋同じ品詞の別の意味3つ（似た意味のものは入れない）
+// 選択肢（英検形式）：下線の語に最も意味が近い語＋同じ品詞の別の語3つ（英語）。
+// まぎらわしい語（同じグループ・意味が重なる語・同じつづり）は入れない。各選択肢には解説用に日本語の意味をつける
+const VOCAB_CANDS = VOCAB.flatMap(c => {
+  const id = `${c[0]}:${c[1]}`, s = SYN[id];
+  return [{ t: c[0], ja: c[2], pos: c[1], grp: c[5], src: id }, ...(s ? [{ t: s[0], ja: s[1], pos: c[1], grp: c[5], src: id }] : [])];
+});
+const synOf = (id) => { const s = SYN[id]; return s ? { t: s[0], ja: s[1] } : { t: VOCAB_BY_ID[id][0], ja: VOCAB_BY_ID[id][2] }; };
 function makeChoices(id) {
-  const v = VOCAB_BY_ID[id];
-  const mine = new Set(senses(v[2]));
-  const ok = (c) => c[0] !== v[0] && !(v[5] && c[5] === v[5]) && !senses(c[2]).some(s => mine.has(s));
-  let pool = shuffle(VOCAB.filter(c => c[1] === v[1] && ok(c)));
-  if (pool.length < 3) pool = pool.concat(shuffle(VOCAB.filter(c => c[1] !== v[1] && ok(c))));
+  const v = VOCAB_BY_ID[id], right = synOf(id);
+  const mine = new Set([...senses(v[2]), ...senses(right.ja)]);
+  const bad = new Set([v[0], right.t].map(x => x.toLowerCase()));
+  // 正解と同じ語・この単語を類義語にもつ単語は、その単語ごと（見出し語も類義語も）外す
+  const near = new Set(VOCAB_CANDS.filter(c => bad.has(c.t.toLowerCase())).map(c => c.src));
+  const ok = (c) => c.src !== id && !near.has(c.src) && !bad.has(c.t.toLowerCase()) && !(v[5] && c.grp === v[5]) && !senses(c.ja).some(s => mine.has(s));
+  let pool = shuffle(VOCAB_CANDS.filter(c => c.pos === v[1] && ok(c)));
+  if (pool.length < 3) pool = pool.concat(shuffle(VOCAB_CANDS.filter(c => c.pos !== v[1] && ok(c))));
   const picked = [];
-  for (const c of pool) { if (picked.length === 3) break; if (!picked.some(p => p[2] === c[2])) picked.push(c); }
-  return shuffle([v[2], ...picked.map(c => c[2])]);
+  for (const c of pool) {
+    if (picked.length === 3) break;
+    // 同じ単語から2つ出したり、同じ語を2回出したりしない
+    if (!picked.some(p => p.t === c.t || p.src === c.src || p.ja === c.ja)) picked.push(c);
+  }
+  return shuffle([right, ...picked.map(c => ({ t: c.t, ja: c.ja }))]);
 }
 async function saveVocab() {
   if (role !== "student" || vocabTrial) return;
@@ -2147,7 +2161,7 @@ function renderVocabCard() {
   if (day?.done) { state = "done"; title = "今日は完了"; note = `1回目で ${day.first}/${day.total}問 正解`; prog = 100; }
   else if (td?.phase === "review") { state = "review"; title = "復習が残っています"; note = `まちがえた単語 あと${td.queue.length}語`; prog = 100; }
   else if (td && (td.idx > 0 || td.answered)) { const k = td.idx + (td.answered ? 1 : 0); state = "doing"; title = "とちゅうです"; note = `${k} / ${td.ids.length}問`; prog = Math.round(k / td.ids.length * 100); }
-  else { state = "todo"; title = "今日の10問"; note = "英単語の意味を4つから選びます"; }
+  else { state = "todo"; title = "今日の10問"; note = "例文の下線の語に近い意味の語を4つから選びます"; }
   let btn = "";
   if (role === "student") {
     btn = day?.done ? `<button type="button" class="outline vc-btn" data-vocab-open>今日の単語を見直す</button>`
@@ -2212,6 +2226,12 @@ function highlightWord(sentence, word) {
   const re = new RegExp(`\\b(${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[a-z]*)`, "gi");
   return esc(sentence).replace(re, "<mark>$1</mark>");
 }
+// 問題文：例文の中のその単語に下線を引く（英検の形）
+function underlineWord(sentence, word) {
+  const stem = word.length >= 4 ? word.replace(/(e|y)$/, "") : word;
+  const re = new RegExp(`\\b(${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[a-z]*)`, "i");
+  return esc(sentence).replace(re, `<u class="vq-ul">$1</u>`);
+}
 // 英語の読み上げ（端末の音声。使えない端末ではボタンを出さない）
 const canSpeak = "speechSynthesis" in window;
 // 端末にある英語の声のうち、なめらかな声を優先して選ぶ（がさがさした簡易音声を避ける）
@@ -2257,32 +2277,37 @@ function vocabQuestionHTML(id, answered) {
   const v = VOCAB_BY_ID[id];
   if (!vocabChoices || vocabChoices.id !== id) vocabChoices = { id, list: makeChoices(id) };
   const list = vocabChoices.list;
-  if (answered) return vocabAnswerHTML(v, answered);
+  if (answered) return vocabAnswerHTML(v, answered, list);
   return `<div class="vq">
-      <p class="vq-pos">${esc(POS_NAME[v[1]] ?? v[1])}</p>
-      <div class="vq-wordline"><p class="vq-word">${esc(v[0])}</p>${speakBtn(v[0], "発音")}</div>
-      <p class="vq-ask">この単語の意味として正しいものは？</p>
+      <p class="vq-ask">次の英文の下線部の語に最も意味が近いものを、1から4の中から一つ選びなさい。</p>
+      <div class="vq-sentence"><p class="vq-stem">${underlineWord(v[3], v[0])}</p>${speakBtn(v[3], "例文を聞く")}</div>
       <div class="vq-choices">${list.map((c, i) =>
-        `<button type="button" class="vq-choice" data-vq-pick="${i}"><span class="cnum">${i + 1}</span>${esc(c)}</button>`).join("")}</div>
+        `<button type="button" class="vq-choice en" data-vq-pick="${i}"><span class="cnum">${i + 1}</span>${esc(c.t)}</button>`).join("")}</div>
     </div>`;
 }
 // 解答・解説の画面（問題とは別の画面）
-function vocabAnswerHTML(v, answered) {
+function vocabAnswerHTML(v, answered, list) {
+  const right = synOf(`${v[0]}:${v[1]}`);
   return `<div class="vq vx-page">
       <p class="vx-pagetitle">解答・解説</p>
       <div class="vx-result ${answered.ok ? "ok" : "ng"}">${answered.ok ? ICON_CIRCLE : ICON_CROSS}<span>${answered.ok ? "正解" : "不正解"}</span></div>
       <dl class="vx-answers">
         <div><dt>あなたの答え</dt><dd class="${answered.ok ? "ok" : "ng"}">${esc(answered.pick)}</dd></div>
-        ${answered.ok ? "" : `<div><dt>正しい意味</dt><dd class="ok">${esc(v[2])}</dd></div>`}
+        ${answered.ok ? "" : `<div><dt>正解</dt><dd class="ok">${esc(right.t)}</dd></div>`}
       </dl>
+      <section class="vx-sec">
+        <div class="vx-h"><span>問題文</span>${speakBtn(v[3], "例文を聞く")}</div>
+        <p class="vq-ex">${highlightWord(v[3], v[0])}</p>
+        <p class="vq-exj">${esc(v[4])}</p>
+      </section>
       <div class="vx-main">
         <p class="vx-word">${esc(v[0])}<span class="vx-pos">${esc(POS_NAME[v[1]] ?? v[1])}</span>${speakBtn(v[0], "発音")}</p>
         <p class="vx-mean">${esc(v[2])}</p>
+        <p class="vx-syn">≒ <b>${esc(right.t)}</b>：${esc(right.ja)}</p>
       </div>
       <section class="vx-sec">
-        <div class="vx-h"><span>例文</span>${speakBtn(v[3], "例文を聞く")}</div>
-        <p class="vq-ex">${highlightWord(v[3], v[0])}</p>
-        <p class="vq-exj">${esc(v[4])}</p>
+        <div class="vx-h"><span>選択肢の意味</span></div>
+        <ul class="vx-choices">${list.map((c, i) => `<li class="${c.t === right.t ? "ok" : c.t === answered.pick ? "ng" : ""}"><span class="cnum">${i + 1}</span><b>${esc(c.t)}</b><span>${esc(c.ja)}</span></li>`).join("")}</ul>
       </section>
       ${v[6] ? `<section class="vx-sec tip"><div class="vx-h"><span>覚え方のポイント</span></div><ul class="vx-tips">${tipList(v[6])}</ul></section>` : ""}
     </div>`;
@@ -2358,8 +2383,9 @@ $("vocab-body").addEventListener("click", async (e) => {
   if (pick && !td.answered) {
     const id = td.phase === "main" ? td.ids[td.idx] : td.queue[0];
     const v = VOCAB_BY_ID[id];
-    const choice = vocabChoices.list[Number(pick.dataset.vqPick)];
-    const ok = choice === v[2];
+    const right = synOf(id).t;
+    const choice = vocabChoices.list[Number(pick.dataset.vqPick)].t;
+    const ok = choice === right;
     td.answered = { id, pick: choice, ok };
     if (td.phase === "main") {
       td.results[id] = ok;
@@ -2374,8 +2400,8 @@ $("vocab-body").addEventListener("click", async (e) => {
     navigator.vibrate?.(ok ? 30 : [60, 40, 60]);
     $("vocab-body").querySelectorAll("[data-vq-pick]").forEach(b => {
       b.disabled = true;
-      const c = vocabChoices.list[Number(b.dataset.vqPick)];
-      if (c === v[2]) b.classList.add("correct"); else if (b === pick) b.classList.add("wrong");
+      const c = vocabChoices.list[Number(b.dataset.vqPick)].t;
+      if (c === right) b.classList.add("correct"); else if (b === pick) b.classList.add("wrong");
     });
     saveVocab();
     await showMark(ok);

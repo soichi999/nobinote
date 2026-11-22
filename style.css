@@ -635,6 +635,17 @@ button.ghost-dark{background:#fff;border:1px solid var(--blue-line);color:var(--
 .vq .exp-box{margin-top:1rem}
 .vq-ex{margin:.2rem 0 0;font-family:"Times New Roman",Georgia,serif;font-size:1.02rem}
 .vq-exj{margin:.1rem 0 0;font-size:.85rem;color:var(--muted)}
+.vq-sentence{border:1px solid var(--line);border-radius:var(--r-md);background:var(--input-bg);padding:.8rem .9rem;margin-bottom:.9rem;display:flex;flex-direction:column;gap:.5rem;align-items:flex-start}
+.vq-stem{margin:0;font-family:"Times New Roman",Georgia,serif;font-size:1.25rem;line-height:1.6;color:var(--navy)}
+.vq-ul{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:.2em;font-weight:800}
+.vq-choice.en{font-family:"Times New Roman",Georgia,serif;font-size:1.1rem}
+.vx-syn{margin:.3rem 0 0;font-size:.9rem;color:var(--muted)}
+.vx-syn b{font-family:"Times New Roman",Georgia,serif;font-size:1.05rem;color:var(--ok)}
+.vx-choices{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.35rem}
+.vx-choices li{display:flex;align-items:baseline;gap:.5rem;font-size:.9rem}
+.vx-choices li b{font-family:"Times New Roman",Georgia,serif;font-size:1rem;min-width:6.5em}
+.vx-choices li.ok b{color:var(--ok)}.vx-choices li.ng b{color:var(--err);text-decoration:line-through}
+.vx-choices .cnum{flex:none}
 .vq-review-tag{margin:.4rem 0 0;font-size:.75rem;font-weight:800;color:var(--err)}
 
 /* ---- 単語の解説：例文の強調・豆知識・読み上げ ---- */

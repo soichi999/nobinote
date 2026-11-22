@@ -1,9 +1,9 @@
 // アプリ本体のキャッシュ（オフラインでも起動できるように）
 // CACHE のバージョンは、アプリを更新するたびに必ず変更すること
 // （変えないと、既存ユーザーの端末に古いキャッシュが残り続けて更新が反映されない）
-const CACHE = "tnote-v35";
+const CACHE = "tnote-v36";
 const ASSETS = ["./", "./index.html", "./style.css", "./app.js",
-  "./firebase-config.js", "./subjects.js", "./moshi/catalog.js", "./moshi/vocab.js", "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon-180.png"];
+  "./firebase-config.js", "./subjects.js", "./moshi/catalog.js", "./moshi/vocab.js", "./moshi/vocab_syn.js", "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon-180.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
