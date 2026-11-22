@@ -2311,6 +2311,7 @@ function openVocab() {
   renderVocab();
 }
 function closeVocab() {
+  stopSpeak();
   setTimeout(renderCalendars, 0);
   if (vocabTrial) { vocab = vocabReal ?? { words: {}, days: {}, today: null }; vocabTrial = false; }
   $("vocab-view").hidden = true;
@@ -2355,6 +2356,36 @@ if (canSpeak) {
   bestVoice = pickVoice();
   speechSynthesis.addEventListener?.("voiceschanged", () => { bestVoice = pickVoice(); });
 }
+// 日本語の声（意味の読み上げ用）：高品質で自然な声を優先
+let jaVoice = null;
+function pickJaVoice() {
+  const vs = speechSynthesis.getVoices().filter(v => /^ja[-_]/i.test(v.lang));
+  const score = (v) => (/premium|enhanced|neural|natural/i.test(v.name) ? 50 : 0) + (/Kyoko|O-ren|Otoya|Hattori|Google/i.test(v.name) ? 20 : 0) + (v.localService ? 3 : 0);
+  return vs.sort((a, b) => score(b) - score(a))[0] ?? null;
+}
+if (canSpeak) speechSynthesis.addEventListener?.("voiceschanged", () => { jaVoice = pickJaVoice(); });
+// 英語と日本語をつづけて読む（[文, "en" | "ja"] の並び）
+function speakSeq(parts) {
+  if (!canSpeak) return;
+  speechSynthesis.cancel();
+  bestVoice ??= pickVoice(); jaVoice ??= pickJaVoice();
+  for (const [text, lang] of parts) {
+    const u = new SpeechSynthesisUtterance(text);
+    const vo = lang === "ja" ? jaVoice : bestVoice;
+    if (vo) u.voice = vo;
+    u.lang = vo?.lang ?? (lang === "ja" ? "ja-JP" : "en-US");
+    u.rate = lang === "ja" ? 1 : 0.88;
+    speechSynthesis.speak(u);
+  }
+}
+// 解説に入ったら「単語 → 意味 → 例文」を自動で読み上げる（オフにもできる。端末に記憶）
+const autoSpeakOn = () => { try { return localStorage.getItem("vocabAutoSpeak") !== "0"; } catch { return true; } };
+const jaRead = (m) => String(m).replace(/[（）()～〜]/g, "");
+function autoSpeakVocab(v) {
+  if (!canSpeak || !autoSpeakOn()) return;
+  speakSeq([[v[0], "en"], [jaRead(v[2]), "ja"], [v[3], "en"]]);
+}
+const stopSpeak = () => { if (canSpeak) speechSynthesis.cancel(); };
 function speak(text) {
   if (!canSpeak) return;
   speechSynthesis.cancel();
@@ -2390,6 +2421,7 @@ function vocabAnswerHTML(v, answered, list) {
   const right = synOf(`${v[0]}:${v[1]}`);
   const rightNo = list.findIndex(c => c.t === right.t) + 1;
   return `<div class="vq vx-page">
+      ${canSpeak ? `<button type="button" class="vx-auto${autoSpeakOn() ? " on" : ""}" data-auto-speak aria-pressed="${autoSpeakOn()}">${ICON_SPEAK}<span>自動読み上げ ${autoSpeakOn() ? "オン" : "オフ"}</span></button>` : ""}
       <div class="vx-result ${answered.ok ? "ok" : "ng"}">${answered.ok ? ICON_CIRCLE : ICON_CROSS}<span>${answered.ok ? "正解！" : "不正解"}</span>
         ${answered.ok ? "" : `<small>あなたの答え <s>${esc(answered.pick)}</s>　→　正解は <b>${rightNo} ${esc(right.t)}</b></small>`}</div>
       <div class="vx-card">
@@ -2518,11 +2550,23 @@ $("vocab-body").addEventListener("click", async (e) => {
       if (c === right) b.classList.add("correct"); else if (b === pick) b.classList.add("wrong");
     });
     saveVocab();
+    autoSpeakVocab(v);
     await showMark(ok);
     renderVocab();
     return;
   }
+  const auto = e.target.closest("[data-auto-speak]");
+  if (auto) {
+    const on = !autoSpeakOn();
+    try { localStorage.setItem("vocabAutoSpeak", on ? "1" : "0"); } catch {}
+    auto.classList.toggle("on", on); auto.setAttribute("aria-pressed", on);
+    auto.querySelector("span").textContent = `自動読み上げ ${on ? "オン" : "オフ"}`;
+    const id = td.answered?.id;
+    if (on && id) autoSpeakVocab(VOCAB_BY_ID[id]); else stopSpeak();
+    return;
+  }
   if (e.target.closest("[data-vq-next]") && td.answered) {
+    stopSpeak();
     if (td.phase === "main") td.idx++;
     else {
       // 復習：正解ならその単語は終わり、まちがえたら列の最後へ
