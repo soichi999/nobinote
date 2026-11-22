@@ -8,7 +8,7 @@ import {
   getFirestore, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
   query, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove, getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { SUBJECTS, subjectLabel, subjectColor, subjectOptionsHTML, subjectPickerHTML } from "./subjects.js";
+import { SUBJECTS, SUBJECT_GROUPS, subjectLabel, subjectColor, subjectOptionsHTML, subjectPickerHTML } from "./subjects.js";
 import { MOCKS } from "./moshi/catalog.js";
 import { VOCAB } from "./moshi/vocab.js";
 import { SYN } from "./moshi/vocab_syn.js";
@@ -264,6 +264,7 @@ function homeworkForAchievement() {
   });
 }
 function renderHomework() {
+  renderHwTab();
   const rows = homeworkForAchievement();
   const avgPct = rows.length ? Math.round(rows.reduce((s, r) => s + hwProgress(r), 0) / rows.length) : 0;
   const doneCount = rows.filter(r => hwProgress(r) >= 100).length;
@@ -272,6 +273,73 @@ function renderHomework() {
   $("hw-ring-sub").textContent = rows.length ? `${rows.length}件中 ${doneCount}件 できた` : "まだ宿題がありません。";
 
 }
+/* ---------- 宿題タブ：締め切り前／締め切り済み（または科目別）。やっていないものを上に、終わったものはたたむ ---------- */
+let hwView = "due", hwSubject = "all";
+try { hwView = localStorage.getItem("hwView") === "subject" ? "subject" : "due"; } catch {}
+const hwDone = (r) => hwProgress(r) >= 100;
+const hwLate = (r) => !!r.dueDate && r.dueDate < today();
+const byDueAsc = (a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? "");
+const byDueDesc = (a, b) => (b.dueDate ?? "").localeCompare(a.dueDate ?? "");
+// 1つのかたまり：見出し → やっていない宿題 → 終わった宿題（たたむ）
+function hwGroupHTML(title, rows, { tone = "", note = "", sortTodo = byDueAsc, sortDone = byDueDesc } = {}) {
+  const todo = rows.filter(r => !hwDone(r)).sort(sortTodo), done = rows.filter(hwDone).sort(sortDone);
+  return `<section class="hw-group ${tone}">
+      <div class="hw-group-head"><p class="hw-gtitle">${title}</p>
+        <span class="hw-count">${todo.length ? `<b>まだ ${todo.length}件</b>` : rows.length ? "全部できた" : ""}${done.length ? ` ・ できた ${done.length}件` : ""}</span></div>
+      ${note ? `<p class="hint left">${note}</p>` : ""}
+      ${todo.length ? `<div class="list">${todo.map(homeworkItemHTML).join("")}</div>` : `<div class="hw-empty">${rows.length ? "ここの宿題は全部終わっています" : "宿題はありません"}</div>`}
+      ${done.length ? `<details class="hw-done"><summary>できた宿題 ${done.length}件を見る</summary><div class="list">${done.map(homeworkItemHTML).join("")}</div></details>` : ""}
+    </section>`;
+}
+function renderHwTab() {
+  const box = $("hw-list");
+  if (!box) return;
+  // タブのバッジ：やっていない宿題のうち、期限切れか2日以内のもの
+  const soon = addDays(today(), 2);
+  const urgent = homework.filter(r => !hwDone(r) && r.dueDate && r.dueDate <= soon).length;
+  $("hw-badge").hidden = !urgent || role === "tutor"; $("hw-badge").textContent = urgent;
+  const upcoming = homework.filter(r => !hwLate(r)), past = homework.filter(hwLate);
+  const todoN = homework.filter(r => !hwDone(r)).length, lateN = past.filter(r => !hwDone(r)).length;
+  $("hw-summary").innerHTML = `
+    <div class="${todoN ? "warn" : "ok"}"><b>${todoN}</b><span>まだの宿題</span></div>
+    <div class="${lateN ? "ng" : ""}"><b>${lateN}</b><span>期限切れでまだ</span></div>
+    <div class="ok"><b>${homework.filter(hwDone).length}</b><span>できた宿題</span></div>`;
+  document.querySelectorAll("[data-hw-view]").forEach(b => b.classList.toggle("active", b.dataset.hwView === hwView));
+  const filter = $("hw-subject-filter");
+  if (!homework.length) { filter.hidden = true; box.innerHTML = `<div class="empty">まだ宿題はありません。</div>`; return; }
+  if (hwView === "due") {
+    filter.hidden = true;
+    box.innerHTML = hwGroupHTML("締め切り前", upcoming, { tone: "upcoming", note: "期限の近い順" })
+      + hwGroupHTML("締め切り済み", past, { tone: "past", note: "まだの宿題は新しい順。早めに終わらせよう", sortTodo: byDueDesc });
+    return;
+  }
+  // 科目別（教科ごとにまとめる）：やっていない宿題が多い教科を上に、教科なしは最後
+  const grpOf = (r) => SUBJECTS.find(x => x.id === r.subject)?.group ?? "";
+  const grpLabel = (g) => g ? (SUBJECT_GROUPS.find(x => x.id === g)?.label ?? g) : "教科なし";
+  const grps = [...new Set(homework.map(grpOf))];
+  const todoOf = (g) => homework.filter(r => grpOf(r) === g && !hwDone(r)).length;
+  grps.sort((a, b) => (!a) - (!b) || todoOf(b) - todoOf(a) || SUBJECT_GROUPS.findIndex(x => x.id === a) - SUBJECT_GROUPS.findIndex(x => x.id === b));
+  if (hwSubject !== "all" && !grps.includes(hwSubject)) hwSubject = "all";
+  filter.hidden = false;
+  filter.innerHTML = [["all", "すべて", homework.filter(r => !hwDone(r)).length], ...grps.map(g => [g, grpLabel(g), todoOf(g)])]
+    .map(([g, label, n]) => `<button type="button" class="hw-chip${hwSubject === g ? " active" : ""}" data-hw-subject="${esc(g)}">${esc(label)}${n ? `<b>${n}</b>` : ""}</button>`).join("");
+  box.innerHTML = grps.filter(g => hwSubject === "all" || g === hwSubject).map(g => {
+    const rows = homework.filter(r => grpOf(r) === g);
+    // 期限切れでまだの宿題を先頭に、そのあと期限の近い順
+    const sortTodo = (a, b) => (hwLate(b) - hwLate(a)) || byDueAsc(a, b);
+    return hwGroupHTML(g ? (SUBJECTS.some(x => x.id === g) ? subjectChip(g) : esc(grpLabel(g))) : "教科なし", rows, { tone: "subject", sortTodo });
+  }).join("");
+}
+document.querySelector(".hw-view").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-hw-view]"); if (!b) return;
+  hwView = b.dataset.hwView;
+  try { localStorage.setItem("hwView", hwView); } catch {}
+  renderHwTab();
+});
+$("hw-subject-filter").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-hw-subject]"); if (!b) return;
+  hwSubject = b.dataset.hwSubject; renderHwTab();
+});
 function miniRingSVG(pct) {
   const r = 26, c = 2 * Math.PI * r;
   return `<svg viewBox="0 0 64 64" class="mini-ring">
@@ -746,6 +814,8 @@ async function handleHomeworkFeedChange(e) {
   if (urls.length) await updateDoc(doc(db, "students", currentSid, "homework", input.dataset.photoInput), { photos: arrayUnion(...urls) });
 }
 $("calendar-feed").addEventListener("click", handleHomeworkFeedClick);
+$("hw-list").addEventListener("click", handleHomeworkFeedClick);
+$("hw-list").addEventListener("change", handleHomeworkFeedChange);
 $("calendar-feed").addEventListener("change", handleHomeworkFeedChange);
 $("day-modal-body").addEventListener("click", handleHomeworkFeedClick);
 $("day-modal-body").addEventListener("change", handleHomeworkFeedChange);
@@ -1373,7 +1443,7 @@ function tickMockTimers() {
 }
 const autoSubmitting = new Set();
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && role) { renderCalendarFeed(); renderCalendars(); renderVocabCard(); }
+  if (document.visibilityState === "visible" && role) { renderCalendarFeed(); renderCalendars(); renderVocabCard(); renderHwTab(); }
   if (document.visibilityState === "visible") { tickMockTimers(); updateWakeLock(mocks.some(m => m.status === "started") && role === "student"); }
 });
 // 受験中は画面が自動で消えないようにする（対応している端末だけ）
