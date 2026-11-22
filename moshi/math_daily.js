@@ -1018,6 +1018,286 @@ add("int-euclid", "int", "ユークリッドの互除法", (t, F) => {
   };
 });
 
+/* ---------- レベル3：共通テストの大問の後半・思考力型（場合分け・組み合わせ・条件の読みかえ） ---------- */
+const add3 = (...a) => { add(...a); T[T.length - 1].lv = 3; };
+
+/* 数と式 */
+add3("num3-abs2", "num", "絶対値2つの不等式（場合分け）", (t, F) => {
+  const a = t.ri(-3, 3), b = a + t.ri(1, 5), c = (b - a) + 2 * t.ri(1, 3);
+  const lo = (a + b - c) / 2, hi = (a + b + c) / 2;
+  return {
+    q: `不等式 $\\left|${poly([1, -a])}\\right|+\\left|${poly([1, -b])}\\right|<${c}$ を解け。`,
+    form: `$${F.n(lo)}<x<${F.n(hi)}$`,
+    steps: [
+      `絶対値の中が0になる $x=${a},\\ ${b}$ で場合分けする。`,
+      `$x<${a}$ のとき：$-(${poly([1, -a])})-(${poly([1, -b])})<${c}$ より $-2x${cfn(a + b, "")}<${c}$、$x>${lo}$。合わせて $${lo}<x<${a}$`,
+      `$${a}\\le x<${b}$ のとき：$(${poly([1, -a])})-(${poly([1, -b])})=${b - a}<${c}$ はいつも成り立つ。$${a}\\le x<${b}$`,
+      `$x\\ge ${b}$ のとき：$2x${cfn(-(a + b), "")}<${c}$ より $x<${hi}$。合わせて $${b}\\le x<${hi}$`,
+      `3つを合わせて $${lo}<x<${hi}$`,
+    ],
+    point: `絶対値が2つあるときは、中身が0になる点で数直線を3つに分けて、それぞれ絶対値を外す。各場合の「範囲の条件」と合わせるのを忘れない。数直線上の2点からの距離の和と考えることもできる。`,
+  };
+});
+
+add3("num3-count", "num", "整数解の個数から定数の範囲", (t, F) => {
+  const lo = t.ri(-3, 3), k = t.ri(2, 4), p = t.ri(2, 5), q = t.ri(-6, 6);
+  return {
+    q: `$x$ についての連立不等式 $\\begin{cases} ${poly([p, q])} > ${p * lo + q} \\\\ x < a \\end{cases}$ を満たす整数 $x$ がちょうど $${k}$ 個となるような定数 $a$ の値の範囲を求めよ。`,
+    form: `$${F.n(lo + k)}<a\\le ${F.n(lo + k + 1)}$`,
+    steps: [
+      `1つめの不等式を解くと $x>${lo}$。よって $${lo}<x<a$`,
+      `この範囲の整数は小さい方から $${lo + 1},\\ ${lo + 2},\\ \\dots$。ちょうど $${k}$ 個なら、入るのは $${lo + 1}$ から $${lo + k}$ まで。`,
+      `$${lo + k}$ は入る（$${lo + k}<a$）、$${lo + k + 1}$ は入らない（$a\\le ${lo + k + 1}$）`,
+      `よって $${lo + k}<a\\le ${lo + k + 1}$`,
+    ],
+    point: `「整数がちょうど k 個」は数直線をかき、端の整数が入るか入らないかを考える。$a$ がちょうど整数のとき（$a=${lo + k + 1}$ など）に等号が入るかを、実際に代入して確かめる。`,
+  };
+});
+
+/* 2次関数 */
+add3("quad3-param", "quad", "最小値から定数を決める（場合分け）", (t, F) => {
+  const w = t.ri(2, 4), c = t.ri(-3, 5), inside = t.ri(0, 1) === 1;
+  const a = inside ? t.ri(1, w) : w + t.ri(1, 3);
+  const M = inside ? c - a * a : w * w - 2 * a * w + c;
+  return {
+    q: `$a$ を正の定数とする。関数 $y=x^2-2ax${cfn(c, "")}\\ (0\\le x\\le ${w})$ の最小値が $${M}$ であるとき、$a$ の値を求めよ。`,
+    form: `$a=${F.n(a)}$`,
+    steps: [
+      `$y=(x-a)^2-a^2${cfn(c, "")}$。軸 $x=a$ と範囲 $0\\le x\\le ${w}$ の位置で場合分けする。`,
+      `(i) $0<a\\le ${w}$：軸が範囲内なので最小値は $-a^2${cfn(c, "")}$（$x=a$）`,
+      `(ii) $a>${w}$：軸が範囲の右なので最小値は $x=${w}$ のとき $${w * w}-${2 * w}a${cfn(c, "")}$`,
+      inside ? `(i) で $-a^2${cfn(c, "")}=${M}$ とすると $a^2=${a * a}$、$0<a\\le ${w}$ より $a=${a}$`
+        : `(i) の最小値は $${c - w * w}$ 以上なので $${M}$ にはならない。(ii) で $${w * w}-${2 * w}a${cfn(c, "")}=${M}$ とすると $a=${a}$（$a>${w}$ を満たす）`,
+    ],
+    point: `文字を含む最大・最小は「軸が範囲の中か外か」で場合分け。答えが出たら、その場合分けの条件を満たすか必ず確かめる。`,
+  };
+});
+
+add3("quad3-pos", "quad", "解の配置（2つの正の解）", (t, F) => {
+  const al = t.ri(-4, -1), be = t.ri(1, 6), s = al + be; need(s > 0);
+  const c = -al * be;
+  return {
+    q: `$x$ の2次方程式 $x^2-2mx${cfn(s, "m")}${cfn(c, "")}=0$ が異なる2つの正の解をもつような定数 $m$ の値の範囲を求めよ。`,
+    form: `$m>${F.n(be)}$`,
+    steps: [
+      `$f(x)=x^2-2mx${cfn(s, "m")}${cfn(c, "")}$ のグラフが $x$ 軸の正の部分と2点で交わる条件を考える。`,
+      `① 判別式：$\\dfrac{D}{4}=m^2-(${poly([s, c], "m")})=${xm(al, "m")}${xm(be, "m")}>0$ より $m<${al},\\ ${be}<m$`,
+      `② 軸 $x=m$ が正：$m>0$`,
+      `③ $f(0)>0$：$${poly([s, c], "m")}>0$ より $m>${P().fr(-c, s)}$（負の数）`,
+      `①②③をすべて満たすのは $m>${be}$`,
+    ],
+    point: `解の配置は「判別式・軸の位置・端の値 $f(k)$」の3つの条件で考える。グラフをかいて、どの条件が必要かを確かめる。`,
+  };
+});
+
+/* 図形と計量 */
+add3("trig3-inr", "trig", "3辺から面積と内接円の半径", (t, F) => {
+  const a = t.ri(3, 9), b = t.ri(3, 9), c = t.ri(3, 9);
+  need(a < b + c && b < a + c && c < a + b);
+  const num = b * b + c * c - a * a, D = (2 * b * c) ** 2 - num * num;
+  need(sqf(D)[1] <= 60 && num !== 0);
+  const P2 = a + b + c;
+  const form = `$\\cos A=${F.fr(num, 2 * b * c)}$、$S=${F.rad(1, D, 4)}$、$r=${F.rad(1, D, 2 * P2)}$`;
+  need(F.k <= 11);   // 枠が多すぎる数値は使わない
+  return {
+    q: `$\\triangle ABC$ で $a=${a}$、$b=${b}$、$c=${c}$ である。$\\cos A$、面積 $S$、内接円の半径 $r$ を求めよ。`,
+    form,
+    steps: [
+      `余弦定理：$\\cos A=\\dfrac{${b * b}+${c * c}-${a * a}}{2\\cdot ${b}\\cdot ${c}}=${frEq(num, 2 * b * c)}$`,
+      `$\\sin A=\\sqrt{1-\\cos^2 A}=${P().rad(1, D, 2 * b * c)}$（$\\sin A>0$）`,
+      `$S=\\dfrac{1}{2}bc\\sin A=\\dfrac{1}{2}\\cdot ${b}\\cdot ${c}\\cdot ${P().rad(1, D, 2 * b * c)}=${P().rad(1, D, 4)}$`,
+      `$S=\\dfrac{1}{2}r(a+b+c)$ より $r=\\dfrac{2S}{${P2}}=${P().rad(1, D, 2 * P2)}$`,
+    ],
+    point: `3辺 → 余弦定理で $\\cos$ → $\\sin^2+\\cos^2=1$ で $\\sin$ → 面積 → 内接円の半径、の流れは共通テストの定番。$S=\\dfrac{1}{2}r(a+b+c)$ は「3つの三角形に分ける」と覚える。`,
+  };
+});
+
+add3("trig3-cosR", "trig", "余弦定理と外接円", (t, F) => {
+  const b = t.ri(2, 8), c = t.ri(2, 8), A = t.pick([60, 120]);
+  const a2 = A === 60 ? b * b + c * c - b * c : b * b + c * c + b * c;
+  return {
+    q: `$\\triangle ABC$ で $b=${b}$、$c=${c}$、$A=${A}^\\circ$ である。辺 $a$ の長さと、外接円の半径 $R$ を求めよ。`,
+    form: `$a=${F.rad(1, a2)}$、$R=${F.rad(1, 3 * a2, 3)}$`,
+    steps: [
+      `余弦定理：$a^2=${b * b}+${c * c}-2\\cdot ${b}\\cdot ${c}\\cos ${A}^\\circ=${a2}$、$a=${P().rad(1, a2)}$`,
+      `正弦定理：$2R=\\dfrac{a}{\\sin ${A}^\\circ}=\\dfrac{a}{\\frac{\\sqrt{3}}{2}}$ より $R=\\dfrac{a}{\\sqrt{3}}$`,
+      `$R=\\dfrac{${P().rad(1, a2)}}{\\sqrt{3}}=${P().rad(1, 3 * a2, 3)}$（分母を有理化）`,
+    ],
+    point: `「2辺とその間の角 → 余弦定理で残りの辺 → 正弦定理で外接円」とつなぐ。前の答えを次に使う流れは共通テストの大問でよく出る。`,
+  };
+});
+
+/* データの分析 */
+add3("data3-merge", "data", "2つのグループを合わせた平均と分散", (t, F) => {
+  const n1 = t.ri(2, 8), n2 = t.ri(2, 8), m1 = t.ri(3, 12), m2 = t.ri(3, 12), v1 = t.ri(1, 12), v2 = t.ri(1, 12);
+  const N = n1 + n2, S = n1 * m1 + n2 * m2; need(S % N === 0 && m1 !== m2);
+  const M = S / N, Q = n1 * (v1 + m1 * m1) + n2 * (v2 + m2 * m2); need(Q % N === 0);
+  const V = Q / N - M * M;
+  return {
+    q: `A 組 $${n1}$ 人の得点は平均値 $${m1}$、分散 $${v1}$、B 組 $${n2}$ 人の得点は平均値 $${m2}$、分散 $${v2}$ である。2組を合わせた $${N}$ 人の平均値と分散を求めよ。`,
+    form: `平均値 $${F.n(M)}$、分散 $${F.n(V)}$`,
+    steps: [
+      `合計点：$${n1}\\times ${m1}+${n2}\\times ${m2}=${S}$。平均値 $\\dfrac{${S}}{${N}}=${M}$`,
+      `（分散）＝（2乗の平均）−（平均の2乗）より、2乗の和は A 組 $${n1}(${v1}+${m1}^2)=${n1 * (v1 + m1 * m1)}$、B 組 $${n2}(${v2}+${m2}^2)=${n2 * (v2 + m2 * m2)}$`,
+      `全体の2乗の平均：$\\dfrac{${Q}}{${N}}=${Q / N}$`,
+      `分散：$${Q / N}-${M}^2=${V}$`,
+    ],
+    point: `分散 $=\\overline{x^2}-(\\bar{x})^2$ を使うと、グループの「2乗の和」が $n(v+m^2)$ で出せる。分散どうしをそのまま平均してはいけない。`,
+  };
+});
+
+add3("data3-add", "data", "データを1つ加えたときの分散", (t, F) => {
+  const n = t.pick([4, 5, 7, 9]), m = t.ri(3, 10), v = (n + 1) * t.ri(1, 3);
+  const sq = n * (v + m * m), nv = n * v / (n + 1);
+  return {
+    q: `$${n}$ 個のデータの平均値が $${m}$、分散が $${v}$ である。このデータの2乗の和を求めよ。また、値 $${m}$ のデータを1つ加えた $${n + 1}$ 個のデータの分散を求めよ。`,
+    form: `2乗の和 $${F.n(sq)}$、加えたあとの分散 $${F.n(nv)}$`,
+    steps: [
+      `（分散）＝（2乗の平均）−（平均の2乗）より、2乗の平均は $${v}+${m}^2=${v + m * m}$`,
+      `2乗の和：$${n}\\times ${v + m * m}=${sq}$`,
+      `$${m}$ を加えても合計は $${n * m}+${m}=${(n + 1) * m}$、平均値は $${m}$ のまま。2乗の和は $${sq}+${m * m}=${sq + m * m}$`,
+      `分散：$\\dfrac{${sq + m * m}}{${n + 1}}-${m}^2=${(sq + m * m) / (n + 1)}-${m * m}=${nv}$`,
+    ],
+    point: `平均値と同じ値を加えると、平均は変わらず、偏差の2乗の和も変わらないので、分散は $\\dfrac{n}{n+1}$ 倍に小さくなる。`,
+  };
+});
+
+/* 場合の数と確率 */
+add3("prob3-cond", "prob", "順に取り出す確率と条件付き確率", (t, F) => {
+  const a = t.ri(2, 6), b = t.ri(2, 6), N = a + b, d = N * (N - 1);
+  return {
+    q: `赤玉 $${a}$ 個、白玉 $${b}$ 個の入った袋から、玉を1個ずつ2回取り出す（取り出した玉は戻さない）。2回目が赤玉である確率と、2回目が赤玉であったときに1回目も赤玉である条件付き確率を求めよ。`,
+    form: `2回目が赤 $${F.fr(a, N)}$、条件付き $${F.fr(a - 1, N - 1)}$`,
+    steps: [
+      `赤→赤：$\\dfrac{${a}}{${N}}\\times\\dfrac{${a - 1}}{${N - 1}}=\\dfrac{${a * (a - 1)}}{${d}}$、白→赤：$\\dfrac{${b}}{${N}}\\times\\dfrac{${a}}{${N - 1}}=\\dfrac{${a * b}}{${d}}$`,
+      `2回目が赤：$\\dfrac{${a * (a - 1)}+${a * b}}{${d}}=${frEq(a * (a - 1) + a * b, d)}$（1回目と同じ確率になる）`,
+      `条件付き確率：$\\dfrac{P(\\text{赤→赤})}{P(\\text{2回目が赤})}=\\dfrac{${a * (a - 1)}}{${a * (a - 1) + a * b}}=${P().fr(a - 1, N - 1)}$`,
+    ],
+    point: `くじ引きは順番によらず当たる確率が同じ。条件付き確率は $P_A(B)=\\dfrac{P(A\\cap B)}{P(A)}$。「何が起こったとわかっているか」を分母にする。`,
+  };
+});
+
+add3("prob3-exp", "prob", "期待値", (t, F) => {
+  const k = t.ri(2, 5), p = t.ri(1, 3), q = t.ri(2, 20);
+  const num = p * k * (k + 1) / 2 + q * (6 - k);
+  return {
+    q: `1個のさいころを投げ、出た目が $${k}$ 以下ならその目の $${p}$ 倍の点、$${k + 1}$ 以上なら $${q}$ 点をもらう。もらえる点の期待値を求めよ。`,
+    form: `$${F.fr(num, 6)}$ 点`,
+    steps: [
+      `目が $1$〜$${k}$ のとき、点は $${Array.from({ length: k }, (_, i) => p * (i + 1)).join(",\\ ")}$（それぞれ確率 $\\dfrac{1}{6}$）`,
+      `目が $${k + 1}$〜$6$ のとき $${q}$ 点（確率 $\\dfrac{${6 - k}}{6}$）`,
+      `期待値：$\\dfrac{${p * k * (k + 1) / 2}+${q}\\times ${6 - k}}{6}=${frEq(num, 6)}$`,
+    ],
+    point: `期待値＝（値 × その確率）の和。表を作って「値」と「確率」を並べると間違えにくい。確率の合計が1になるか確かめる。`,
+  };
+});
+
+add3("prob3-max", "prob", "最大値の確率", (t, F) => {
+  const n = t.ri(2, 3), k = t.ri(2, 6), num = k ** n - (k - 1) ** n, den = 6 ** n;
+  return {
+    q: `$${n}$ 個のさいころを同時に投げるとき、出る目の最大値が $${k}$ である確率を求めよ。`,
+    form: `$${F.fr(num, den)}$`,
+    steps: [
+      `「最大値が $${k}$ 以下」＝すべての目が $${k}$ 以下：$\\left(\\dfrac{${k}}{6}\\right)^{${n}}=\\dfrac{${k ** n}}{${den}}$`,
+      `「最大値が $${k - 1}$ 以下」：$\\left(\\dfrac{${k - 1}}{6}\\right)^{${n}}=\\dfrac{${(k - 1) ** n}}{${den}}$`,
+      `最大値がちょうど $${k}$：$\\dfrac{${k ** n}-${(k - 1) ** n}}{${den}}=${frEq(num, den)}$`,
+    ],
+    point: `「最大値がちょうど k」＝「k 以下」−「k−1 以下」。直接数えるより、「以下」の確率の差で考えると速い。`,
+  };
+});
+
+/* 図形の性質 */
+add3("geo3-ratio", "geo", "メネラウスと面積比", (t, F) => {
+  const p = t.ri(1, 5), q = t.ri(1, 5), r = t.ri(1, 5), s = t.ri(1, 5);
+  need(gcd(p, q) === 1 && gcd(r, s) === 1);
+  const ao = p * (r + s), op = q * s;
+  return {
+    q: `$\\triangle ABC$ の辺 AB を $${p}:${q}$ に分ける点を R、辺 BC を $${r}:${s}$ に分ける点を P とし、AP と CR の交点を O とする。$AO:OP$ と、$\\triangle OBC$ の面積は $\\triangle ABC$ の何倍かを求めよ。`,
+    form: `$AO:OP=${F.ratio(ao, op)}$、$${F.fr(op, ao + op)}$ 倍`,
+    steps: [
+      `$\\triangle ABP$ と直線 RC でメネラウスの定理：$\\dfrac{AR}{RB}\\cdot\\dfrac{BC}{CP}\\cdot\\dfrac{PO}{OA}=1$`,
+      `$\\dfrac{${p}}{${q}}\\cdot\\dfrac{${r + s}}{${s}}\\cdot\\dfrac{PO}{OA}=1$ より $AO:OP=${ao}:${op}${gcd(ao, op) > 1 ? `=${P().ratio(ao, op)}` : ""}$`,
+      `$\\triangle OBC$ と $\\triangle ABC$ は底辺 BC が共通。高さの比は $OP:AP=${op}:${ao + op}$`,
+      `よって $${frEq(op, ao + op)}$ 倍`,
+    ],
+    point: `交点の比はメネラウスの定理で、「どの三角形」と「どの直線」を使うかを決めるのがカギ。面積比は「底辺が共通なら高さの比」に言いかえる。`,
+  };
+});
+
+add3("geo3-cyclic", "geo", "円に内接する四角形と対角線", (t, F) => {
+  const a = t.ri(2, 8), b = t.ri(2, 8), c = t.ri(2, 8), d = t.ri(2, 8);
+  const num = a * a + b * b - c * c - d * d, den = 2 * (a * b + c * d); need(num !== 0 && Math.abs(num) < den);
+  const g = gcd(num, den), cn = num / g, cd = den / g;
+  // AC² = a² + b² − 2ab cosB = X/Y
+  let X = (a * a + b * b) * cd - 2 * a * b * cn, Y = cd; const gg = gcd(X, Y); X /= gg; Y /= gg;
+  need(Y <= 9 && sqf(X * Y)[1] <= 99);
+  return {
+    q: `円に内接する四角形 ABCD で、$AB=${a}$、$BC=${b}$、$CD=${c}$、$DA=${d}$ である。$\\cos\\angle ABC$ と対角線 $AC$ の長さを求めよ。`,
+    form: `$\\cos\\angle ABC=${F.fr(num, den)}$、$AC=${F.rad(1, X * Y, Y)}$`,
+    steps: [
+      `$\\angle ABC=\\theta$ とすると、内接四角形なので $\\angle ADC=180^\\circ-\\theta$、$\\cos\\angle ADC=-\\cos\\theta$`,
+      `$\\triangle ABC$ で $AC^2=${a * a}+${b * b}-2\\cdot ${a}\\cdot ${b}\\cos\\theta$、$\\triangle ADC$ で $AC^2=${c * c}+${d * d}+2\\cdot ${c}\\cdot ${d}\\cos\\theta$`,
+      `2式を等しいとおく：$${2 * (a * b + c * d)}\\cos\\theta=${num}$、$\\cos\\theta=${frEq(num, den)}$`,
+      `$AC^2=${a * a + b * b}-${2 * a * b}\\cdot\\left(${P().fr(num, den)}\\right)=${P().fr(X, Y)}$、$AC=${P().rad(1, X * Y, Y)}$`,
+    ],
+    point: `内接四角形は「向かい合う角の和が $180^\\circ$」から $\\cos$ の符号が逆になる。対角線を2つの三角形で余弦定理に入れ、等しいとおく。`,
+  };
+});
+
+/* 整数 */
+add3("int3-count", "int", "不定方程式の正の整数解", (t, F) => {
+  const a = t.ri(2, 9), b = t.ri(2, 9), c = t.ri(25, 90); need(a !== b && gcd(a, b) === 1);
+  const sols = []; for (let x = 1; a * x < c; x++) if ((c - a * x) % b === 0 && (c - a * x) / b >= 1) sols.push([x, (c - a * x) / b]);
+  need(sols.length >= 2);
+  const [x0, y0] = sols[0];
+  return {
+    q: `方程式 $${a}x+${b}y=${c}$ を満たす正の整数の組 $(x,\\ y)$ は何組あるか。また、そのうち $x$ が最も小さい組を求めよ。`,
+    form: `$${F.n(sols.length)}$ 組、$(x,\\ y)=(${F.n(x0)},\\ ${F.n(y0)})$`,
+    steps: [
+      `$x=1,2,\\dots$ と調べると $(x,y)=(${x0},${y0})$ が解。`,
+      `$${a}(x-${x0})=-${b}(y-${y0})$。$${a}$ と $${b}$ は互いに素なので $x=${x0}+${b}k$、$y=${y0}-${a}k$（$k$ は整数）`,
+      `$x\\ge 1$、$y\\ge 1$ となる $k$ は $0\\le k\\le ${sols.length - 1}$。解は $${sols.map(([x, y]) => `(${x},${y})`).join(",\\ ")}$`,
+      `よって $${sols.length}$ 組`,
+    ],
+    point: `1組の解から一般解を作り、「正の整数」という条件を $k$ の不等式に直す。$x$ が $b$ ずつ増えると $y$ は $a$ ずつ減る。`,
+  };
+});
+
+add3("int3-cycle", "int", "累乗の余りの周期", (t, F) => {
+  const a = t.pick([2, 3, 5]), m = t.pick([5, 7, 9, 11, 13]), n = t.ri(20, 99); need(gcd(a, m) === 1);
+  const rs = []; let v = 1; do { v = (v * a) % m; rs.push(v); } while (v !== 1);
+  const L = rs.length; need(L >= 3 && L <= 6);
+  const r = rs[(n - 1) % L];
+  return {
+    q: `$${a}^{${n}}$ を $${m}$ で割った余りを求めよ。`,
+    form: `$${F.n(r)}$`,
+    steps: [
+      `$${a}^1, ${a}^2, \\dots$ を $${m}$ で割った余りを順に求める：$${rs.join(",\\ ")}$（$${a}^{${L}}$ の余りが1）`,
+      `余りは $${L}$ 個ごとにくり返す。$${n}=${L}\\times ${Math.floor(n / L)}+${n % L}$`,
+      n % L === 0 ? `$${a}^{${n}}=(${a}^{${L}})^{${n / L}}$ の余りは $1^{${n / L}}=1$` : `$${a}^{${n}}=(${a}^{${L}})^{${Math.floor(n / L)}}\\cdot ${a}^{${n % L}}$ の余りは $${a}^{${n % L}}$ の余りと同じで $${r}$`,
+    ],
+    point: `累乗の余りは必ずくり返す（周期がある）。余りが1になる累乗を見つけ、指数をその周期で割った余りを見る。`,
+  };
+});
+
+/* ---------- レベル ---------- */
+// レベル1＝教科書の基本（公式をそのまま使う）、レベル2＝共通テストの小問・標準、レベル3＝共通テストの大問の後半・思考力型
+export const MATH_LEVELS = {
+  1: { name: "基本", note: "教科書の公式をそのまま使う問題" },
+  2: { name: "標準", note: "共通テストの小問レベル" },
+  3: { name: "発展", note: "共通テストの大問の後半・場合分けや組み合わせ" },
+};
+const LEVEL1 = new Set([
+  "num-expand", "num-factor", "num-rational", "num-ineq",
+  "quad-vertex", "quad-ineq", "quad-shift",
+  "trig-value", "trig-cos", "trig-area", "trig-eq",
+  "data-var", "data-median",
+  "prob-select", "prob-letters", "prob-path",
+  "geo-bisect", "geo-circle",
+  "int-gcd", "int-divisor", "int-base", "int-mod",
+]);
+T.forEach(x => { x.lv ??= LEVEL1.has(x.id) ? 1 : 2; });
+
 /* ---------- 外から使う ---------- */
 export const MATH_TYPES = T;
 export const MATH_BY_ID = Object.fromEntries(T.map(x => [x.id, x]));
@@ -1040,7 +1320,7 @@ export function makeProblem(id, seed) {
     try {
       const out = tpl.gen(t, F);
       const labels = Object.keys(F.ans);
-      const p = { id, seed, f: tpl.f, field: MATH_FIELDS[tpl.f], title: tpl.title, ...out, labels, key: F.ans, sig: out.q + "|" + out.form };
+      const p = { id, seed, f: tpl.f, lv: tpl.lv, field: MATH_FIELDS[tpl.f], title: tpl.title, ...out, labels, key: F.ans, sig: out.q + "|" + out.form };
       cache.set(key, p);
       return p;
     } catch (e) { if (!(e instanceof Retry)) throw e; }

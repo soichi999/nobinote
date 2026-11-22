@@ -12,7 +12,7 @@ import { SUBJECTS, SUBJECT_GROUPS, subjectLabel, subjectColor, subjectOptionsHTM
 import { MOCKS } from "./moshi/catalog.js";
 import { VOCAB } from "./moshi/vocab.js";
 import { SYN } from "./moshi/vocab_syn.js";
-import { MATH_TYPES, MATH_BY_ID, MATH_FIELDS, MARK_OPTS, makeProblem } from "./moshi/math_daily.js";
+import { MATH_TYPES, MATH_BY_ID, MATH_FIELDS, MATH_LEVELS, MARK_OPTS, makeProblem } from "./moshi/math_daily.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -225,7 +225,7 @@ function watchAll() {
   }));
   unsubs.push(onSnapshot(doc(db, "students", currentSid, "math", "state"), snap => {
     const d = snap.exists() ? snap.data() : {};
-    const data = { items: d.items ?? {}, days: d.days ?? {}, today: d.today ?? null };
+    const data = { items: d.items ?? {}, days: d.days ?? {}, today: d.today ?? null, level: d.level ?? 1 };
     if (mathTrial) { mathReal = data; return; }
     // 自分が解いている最中は、画面の内容を上書きしない
     if (role === "student" && !$("math-view").hidden) return;
@@ -2698,7 +2698,12 @@ const MATH_IDS = (() => {
   for (let i = 0; out.length < MATH_TYPES.length; i++) keys.forEach(k => { if (by[k][i]) out.push(by[k][i]); });
   return out;
 })();
-let math = { items: {}, days: {}, today: null };
+let math = { items: {}, days: {}, today: null, level: 1 };
+// レベル（1 基本／2 標準／3 発展）。新しい問題は選んだレベルから、復習は全レベルから出す。
+// 生徒が選ぶと記録する。先生・保護者は見るだけ（mathViewLv で表示だけ切りかえる）
+const mathLevel = () => ([1, 2, 3].includes(math.level) ? math.level : 1);
+let mathViewLv = null;
+const mathIdsOf = (lv) => MATH_IDS.filter(id => MATH_BY_ID[id].lv === lv);
 let mathMarks = {};                       // いま解いている問題のマーク
 let mathTrial = false, mathReal = null;   // 先生のお試し（記録しない）
 const mathRef = () => doc(db, "students", currentSid, "math", "state");
@@ -2713,22 +2718,27 @@ function freshSeed(id, avoid = []) {
 }
 const mathProb = (e) => makeProblem(e.id, e.seed);
 const mathEntry = (td) => (td.phase === "main" ? td.list[td.idx] : td.queue[0]);
-// 今日の5問：復習の時期が来た型（最大3つ）→ まだ出していない型。どちらも前回とは別の数値で出す
-function pickMathDaily() {
+// 今日の5問：復習の時期が来た問題（全レベルから最大3つ）→ 選んだレベルのまだ出していない問題。どちらも前回とは別の数値で出す
+// 選んだレベルを出しつくしたら、そのレベルの定着していない問題 → ほかのレベルのまだの問題 の順で補う
+function pickMathDaily(lv = mathLevel()) {
   const t = localToday();
   const due = Object.entries(math.items).filter(([id, w]) => MATH_BY_ID[id] && w.due <= t)
     .sort((a, b) => a[1].due.localeCompare(b[1].due) || (a[1].box ?? 0) - (b[1].box ?? 0)).map(([id]) => id);
-  const fresh = MATH_IDS.filter(id => !math.items[id]);
+  const fresh = mathIdsOf(lv).filter(id => !math.items[id]);
   const reviewN = Math.min(due.length, fresh.length ? 3 : MATH_N);
   let ids = [...due.slice(0, reviewN), ...fresh.slice(0, MATH_N - reviewN)];
   if (ids.length < MATH_N) {
-    const extra = Object.entries(math.items).filter(([id]) => MATH_BY_ID[id] && !ids.includes(id))
-      .sort((a, b) => (a[1].box ?? 0) - (b[1].box ?? 0) || (a[1].last ?? "").localeCompare(b[1].last ?? "")).map(([id]) => id);
-    ids = [...ids, ...extra].slice(0, MATH_N);
+    const byBox = (a, b) => (math.items[a].box ?? 0) - (math.items[b].box ?? 0) || (math.items[a].last ?? "").localeCompare(math.items[b].last ?? "");
+    const sameLv = mathIdsOf(lv).filter(id => math.items[id] && !ids.includes(id)).sort(byBox);
+    const otherFresh = [1, 2, 3].filter(l => l !== lv).sort((a, b) => Math.abs(a - lv) - Math.abs(b - lv) || a - b)
+      .flatMap(l => mathIdsOf(l).filter(id => !math.items[id]));
+    const rest = Object.keys(math.items).filter(id => MATH_BY_ID[id] && !ids.includes(id)).sort(byBox);
+    ids = [...new Set([...ids, ...sameLv, ...otherFresh, ...rest])].slice(0, MATH_N);
   }
   return shuffle(ids).map(id => ({ id, seed: freshSeed(id, [math.items[id]?.sig].filter(Boolean)) }));
 }
-const newMathToday = (list) => ({ date: localToday(), list, idx: 0, results: {}, phase: "main", queue: [], answered: null });
+const newMathToday = (list, level = mathLevel()) => ({ date: localToday(), level, list, idx: 0, results: {}, phase: "main", queue: [], answered: null });
+const mathUntouched = (td) => td && td.phase === "main" && td.idx === 0 && !td.answered;
 async function saveMath() {
   if (role !== "student" || mathTrial) return;
   try { await setDoc(mathRef(), math); } catch {}
@@ -2750,9 +2760,15 @@ function mathWeakField() {
     .sort((a, b) => a.rate - b.rate);
   return list[0] && list[0].rate < .8 ? list[0] : null;
 }
-// 習得率の円グラフ（英単語カードと同じ見た目）：定着＝間をあけて3回つづけて正解した型、学習中、まだ出ていない型
-function mathProgressHTML(seen, mastered) {
-  const total = MATH_TYPES.length, doing = seen - mastered, rest = total - seen;
+// レベルごとの数：出た問題・定着した問題（定着＝間をあけて3回つづけて正解）
+function mathLvStats(lv) {
+  const ids = mathIdsOf(lv);
+  const seen = ids.filter(id => math.items?.[id]).length, mastered = ids.filter(id => (math.items?.[id]?.box ?? 0) >= 3).length;
+  return { total: ids.length, seen, mastered, pct: Math.round(mastered / ids.length * 100) };
+}
+// 習得率の円グラフ（英単語カードと同じ見た目）：定着・学習中・まだ出ていない問題
+function mathProgressHTML(lv) {
+  const { total, seen, mastered } = mathLvStats(lv), doing = seen - mastered, rest = total - seen;
   const pct = Math.round(mastered / total * 100);
   const C = 2 * Math.PI * 40, seg = (n) => n / total * C;
   const arc = (cls, len, off) => len > 0 ? `<circle class="${cls}" cx="50" cy="50" r="40" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}"/>` : "";
@@ -2767,7 +2783,7 @@ function mathProgressHTML(seen, mastered) {
         <p><i class="m"></i>定着<b>${mastered}</b>問</p>
         <p><i class="l"></i>学習中<b>${doing}</b>問</p>
         <p><i class="u"></i>未出題<b>${rest}</b>問</p>
-        <p class="vc-total">全${total}問のうち <b>${Math.round(seen / total * 100)}%</b> が出題済み</p>
+        <p class="vc-total">レベル${lv}の${total}問のうち <b>${Math.round(seen / total * 100)}%</b> が出題済み</p>
       </div>
     </div>
     <p class="vc-hint">定着＝間をあけて3回つづけて正解した問題（数値は毎回変わります）</p>`;
@@ -2778,8 +2794,7 @@ function renderMathCard() {
   if (!currentSid) { card.hidden = true; return; }
   card.hidden = false;
   const t = localToday(), td = math.today?.date === t ? math.today : null, day = math.days?.[t];
-  const seen = Object.keys(math.items ?? {}).filter(id => MATH_BY_ID[id]).length;
-  const mastered = Object.entries(math.items ?? {}).filter(([id, w]) => MATH_BY_ID[id] && (w.box ?? 0) >= 3).length;
+  const lv = role === "student" ? mathLevel() : (mathViewLv ?? mathLevel());
   const week = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
   const wk = ["日", "月", "火", "水", "木", "金", "土"];
   const weekRow = `<div class="vc-week">${week.map(d => {
@@ -2799,7 +2814,7 @@ function renderMathCard() {
   const weak = mathWeakField();
   card.innerHTML = `
     <div class="vc-top">
-      <div><p class="vc-kicker">今日の数学ⅠA</p><p class="vc-sub">共通テスト形式・1日${MATH_N}問・7分野</p></div>
+      <div><p class="vc-kicker">今日の数学ⅠA</p><p class="vc-sub">共通テスト形式・1日${MATH_N}問・7分野・レベル${lv}</p></div>
       <span class="vc-badge ${state}">${state === "done" ? "完了" : state === "review" ? "復習中" : state === "doing" ? "とちゅう" : "未実施"}</span>
     </div>
     <div class="vc-today ${state}">
@@ -2808,7 +2823,12 @@ function renderMathCard() {
       <div class="vc-bar"><div style="width:${prog}%"></div></div>
     </div>
     ${btn}
-    ${mathProgressHTML(seen, mastered)}
+    <div class="mc-levels" role="group" aria-label="レベル">${[1, 2, 3].map(l => {
+      const st = mathLvStats(l);
+      return `<button type="button" class="mc-lv${l === lv ? " on" : ""}" data-math-level="${l}" aria-pressed="${l === lv}"><b>レベル${l}</b><span>${MATH_LEVELS[l].name}</span><span>定着 ${st.pct}%</span></button>`;
+    }).join("")}</div>
+    <p class="mc-lv-note">${esc(MATH_LEVELS[lv].note)}。${role === "student" ? "新しい問題はこのレベルから、復習は全レベルから出ます" : "（表示だけ切りかえ。レベルは生徒が選びます）"}</p>
+    ${mathProgressHTML(lv)}
     <div class="vc-stats two">
       <div><b>${mathStreak()}</b><span>日連続</span></div>
       <div><b>${week.filter(d => math.days?.[d]?.done).length}<small> / 7日</small></b><span>この1週間</span></div>
@@ -2820,15 +2840,28 @@ function renderMathCard() {
 $("math-card")?.addEventListener("click", (e) => {
   if (e.target.closest("[data-math-open]")) openMath();
   if (e.target.closest("[data-math-trial]")) startMathTrial();
+  const lb = e.target.closest("[data-math-level]");
+  if (lb) {
+    const l = Number(lb.dataset.mathLevel);
+    if (role === "student") {
+      math.level = l;
+      // まだ1問も解いていなければ、今日の問題を新しいレベルで作り直す（開いたときに作る）
+      if (math.today?.date === localToday() && mathUntouched(math.today) && math.today.level !== l) math.today = null;
+      saveMath();
+    } else mathViewLv = l;
+    renderMathCard();
+  }
 });
 function startMathTrial() {
   if (!mathTrial) mathReal = math;
   mathTrial = true;
-  math = { items: {}, days: {}, today: newMathToday(shuffle(MATH_IDS).slice(0, MATH_N).map(id => ({ id, seed: freshSeed(id) }))) };
+  const lv = mathViewLv ?? mathLevel();
+  math = { items: {}, days: {}, level: lv, today: newMathToday(shuffle(mathIdsOf(lv)).slice(0, MATH_N).map(id => ({ id, seed: freshSeed(id) })), lv) };
   showMathView();
 }
 function openMath() {
-  if (math.today?.date !== localToday()) { math.today = newMathToday(pickMathDaily()); saveMath(); }
+  const td = math.today;
+  if (td?.date !== localToday() || (mathUntouched(td) && (td.level ?? 1) !== mathLevel())) { math.today = newMathToday(pickMathDaily()); saveMath(); }
   showMathView();
 }
 function showMathView() {
@@ -2839,7 +2872,7 @@ function showMathView() {
 }
 function closeMath() {
   setTimeout(renderCalendars, 0);
-  if (mathTrial) { math = mathReal ?? { items: {}, days: {}, today: null }; mathTrial = false; }
+  if (mathTrial) { math = mathReal ?? { items: {}, days: {}, today: null, level: 1 }; mathTrial = false; }
   $("math-view").hidden = true;
   document.body.classList.remove("exam-open");
   renderMathCard(); renderTodayCard();
@@ -2860,7 +2893,7 @@ function mathFormHTML(p, vals) {
     return esc(seg).replace(/[、。]\s*/g, "<br>").replace(MQ_BLANK, (m, l) => (p.labels.includes(l) ? `<span class="blank">${esc(vals?.[l] || l)}</span>` : m));
   }).join("");
 }
-const mqHead = (p) => `<div class="mq-head"><span class="mq-field">${esc(p.field)}</span><span class="mq-title">${esc(p.title)}</span></div>`;
+const mqHead = (p) => `<div class="mq-head"><span class="mq-field">${esc(p.field)}</span><span class="mq-lv">レベル${p.lv}</span><span class="mq-title">${esc(p.title)}</span></div>`;
 function mathMarkRows(p, vals, locked) {
   return p.labels.map(l => `<div class="mark-row">
       <span class="mark-label">${esc(l)}</span>
