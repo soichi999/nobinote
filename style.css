@@ -937,3 +937,6 @@ details.form-details[open] > summary::before{transform:rotate(45deg)}
 }
 /* マークしながら答えの形が見えるように、出題中は上に固定する */
 .mq #mq-form{position:sticky;top:0;z-index:3;background:var(--card);border-style:solid;box-shadow:var(--shadow)}
+/* 数学カードの円グラフ：学習中は数学の色 */
+.math-card .vc-donut .l{stroke:var(--c-math-mid)}
+.math-card .vc-legend i.l{background:var(--c-math-mid)}

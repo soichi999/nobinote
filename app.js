@@ -2678,6 +2678,28 @@ function mathWeakField() {
     .sort((a, b) => a.rate - b.rate);
   return list[0] && list[0].rate < .8 ? list[0] : null;
 }
+// 習得率の円グラフ（英単語カードと同じ見た目）：定着＝間をあけて3回つづけて正解した型、学習中、まだ出ていない型
+function mathProgressHTML(seen, mastered) {
+  const total = MATH_TYPES.length, doing = seen - mastered, rest = total - seen;
+  const pct = Math.round(mastered / total * 100);
+  const C = 2 * Math.PI * 40, seg = (n) => n / total * C;
+  const arc = (cls, len, off) => len > 0 ? `<circle class="${cls}" cx="50" cy="50" r="40" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}"/>` : "";
+  return `<div class="vc-progress">
+      <svg viewBox="0 0 100 100" class="vc-donut" role="img" aria-label="定着 ${pct}%">
+        <circle class="bg" cx="50" cy="50" r="40"/>
+        ${arc("m", seg(mastered), 0)}${arc("l", seg(doing), seg(mastered))}
+        <text x="50" y="45" class="pct">${pct}<tspan class="unit">%</tspan></text>
+        <text x="50" y="67" class="cap">定着</text>
+      </svg>
+      <div class="vc-legend">
+        <p><i class="m"></i>定着<b>${mastered}</b>型</p>
+        <p><i class="l"></i>学習中<b>${doing}</b>型</p>
+        <p><i class="u"></i>未出題<b>${rest}</b>型</p>
+        <p class="vc-total">全${total}型のうち <b>${Math.round(seen / total * 100)}%</b> が出題済み</p>
+      </div>
+    </div>
+    <p class="vc-hint">定着＝間をあけて3回つづけて正解した問題の型（数値は毎回変わります）</p>`;
+}
 function renderMathCard() {
   const card = $("math-card");
   if (!card) return;
@@ -2714,10 +2736,10 @@ function renderMathCard() {
       <div class="vc-bar"><div style="width:${prog}%"></div></div>
     </div>
     ${btn}
-    <div class="vc-stats">
+    ${mathProgressHTML(seen, mastered)}
+    <div class="vc-stats two">
       <div><b>${mathStreak()}</b><span>日連続</span></div>
-      <div><b>${seen}<small>/${MATH_TYPES.length}</small></b><span>解いた型</span></div>
-      <div><b>${mastered}</b><span>定着した型</span></div>
+      <div><b>${week.filter(d => math.days?.[d]?.done).length}<small> / 7日</small></b><span>この1週間</span></div>
     </div>
     ${weak ? `<p class="mc-weak">苦手な分野：<b>${esc(MATH_FIELDS[weak.f])}</b>（正答率 ${Math.round(weak.rate * 100)}%）</p>` : ""}
     <p class="vc-label">この1週間</p>
