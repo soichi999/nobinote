@@ -11,6 +11,8 @@ export const MATH_FIELDS = {
   prob: "場合の数と確率", geo: "図形の性質", int: "整数",
 };
 export const MARK_OPTS = ["−", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+// 選択肢の番号（⓪①②…）。選ぶ問題の枠は "0"〜 の値で記録し、画面ではこの字で見せる
+export const CIRC = [..."⓪①②③④⑤⑥⑦⑧⑨"];
 const LBL = [..."アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモ"];
 
 /* ---------- 道具 ---------- */
@@ -52,8 +54,65 @@ class Form {
   }
   // 比 p:q（最も簡単な整数の比）
   ratio(p, q) { const g = gcd(p, q); return `${this.n(p / g)}:${this.n(q / g)}`; }
+  // 選ぶ問題の枠：⓪〜 の n 個から i 番を選ぶ
+  ch(i, n) {
+    if (this.plain) return CIRC[i];
+    const l = LBL[this.k++];
+    this.ans[l] = String(i);
+    (this.opts ??= {})[l] = Array.from({ length: n }, (_, j) => String(j));
+    return `[${l}]`;
+  }
 }
 
+// 図（SVG）を作る道具。色は style.css の .mfig で決める（線＝navy、強調＝数学の色、補助線＝muted）
+const f1 = (n) => Math.round(n * 10) / 10;
+const sv = {
+  svg: (w, h, body, label = "図") => `<svg viewBox="0 0 ${w} ${h}" class="mfig" role="img" aria-label="${label}">${body}</svg>`,
+  line: (x1, y1, x2, y2, c = "") => `<line x1="${f1(x1)}" y1="${f1(y1)}" x2="${f1(x2)}" y2="${f1(y2)}" class="${c}"/>`,
+  poly: (pts, c = "", closed = false) => `<${closed ? "polygon" : "polyline"} points="${pts.map(([x, y]) => `${f1(x)},${f1(y)}`).join(" ")}" class="${c}"/>`,
+  circ: (x, y, r, c = "") => `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(r)}" class="${c}"/>`,
+  rect: (x, y, w, h, c = "") => `<rect x="${f1(x)}" y="${f1(y)}" width="${f1(w)}" height="${f1(h)}" class="${c}"/>`,
+  text: (x, y, s, c = "", a = "middle") => `<text x="${f1(x)}" y="${f1(y)}" text-anchor="${a}" class="${c}">${s}</text>`,
+  // 角の印（中心 cx,cy、半径 r、角度は数学の向き＝反時計回り・度）
+  arc: (cx, cy, r, a1, a2, c = "ang") => {
+    const P = (a) => [cx + r * Math.cos(a * Math.PI / 180), cy - r * Math.sin(a * Math.PI / 180)];
+    const [x1, y1] = P(a1), [x2, y2] = P(a2);
+    return `<path d="M${f1(x1)},${f1(y1)} A${r},${r} 0 ${a2 - a1 > 180 ? 1 : 0} 0 ${f1(x2)},${f1(y2)}" class="${c}"/>`;
+  },
+};
+// 箱ひげ図：five＝[最小, Q1, 中央値, Q3, 最大]、目盛りは lo〜hi を step ごと
+function boxSVG(five, lo, hi, step, { w = 320, h = 96, grid = true, label = "箱ひげ図" } = {}) {
+  const X = (v) => 16 + (v - lo) / (hi - lo) * (w - 32);
+  const y0 = 10, y1 = h - 40, my = (y0 + y1) / 2, ay = h - 24;
+  let b = "";
+  if (grid) for (let v = lo; v <= hi; v += step / 2) b += sv.line(X(v), y0 - 4, X(v), ay, "grid");
+  b += sv.line(X(lo), ay, X(hi), ay, "ax");
+  for (let v = lo; v <= hi; v += step) b += sv.line(X(v), ay, X(v), ay + 4, "ax") + sv.text(X(v), ay + 16, v, "sm");
+  const [mn, q1, q2, q3, mx] = five;
+  b += sv.line(X(mn), my, X(q1), my) + sv.line(X(q3), my, X(mx), my);
+  b += sv.line(X(mn), y0 + 8, X(mn), y1 - 8) + sv.line(X(mx), y0 + 8, X(mx), y1 - 8);
+  b += sv.rect(X(q1), y0, X(q3) - X(q1), y1 - y0, "box") + sv.line(X(q2), y0, X(q2), y1, "hi");
+  return sv.svg(w, h, b, label);
+}
+// 座標平面の放物線 y=a(x-p)^2+q。unit＝1目盛りの大きさ、R＝見せる範囲（−R〜R）
+function parabolaSVG(a, p, q, { unit = 22, R = 4.5, grid = false, vertex = false, label = "グラフ" } = {}) {
+  const W = 2 * R * unit + 16, c = W / 2, X = (x) => c + x * unit, Y = (y) => c - y * unit;
+  let b = "";
+  if (grid) for (let k = -Math.floor(R); k <= Math.floor(R); k++) b += sv.line(X(k), Y(R), X(k), Y(-R), "grid") + sv.line(X(-R), Y(k), X(R), Y(k), "grid");
+  b += sv.line(X(-R), Y(0), X(R), Y(0), "ax") + sv.line(X(0), Y(R), X(0), Y(-R), "ax");
+  b += sv.text(X(R) - 2, Y(0) - 5, "x", "sm", "end") + sv.text(X(0) + 6, Y(R) + 10, "y", "sm", "start") + sv.text(X(0) - 4, Y(0) + 12, "O", "sm", "end");
+  let seg = [];
+  for (let x = -R; x <= R + 1e-9; x += 0.05) {
+    const y = a * (x - p) ** 2 + q;
+    if (Math.abs(y) <= R) seg.push([X(x), Y(y)]);
+    else { if (seg.length > 1) b += sv.poly(seg, "hi"); seg = []; }
+  }
+  if (seg.length > 1) b += sv.poly(seg, "hi");
+  if (vertex) b += sv.circ(X(p), Y(q), 3, "dot");
+  return sv.svg(W, W, b, label);
+}
+// 会話：[["太郎", "…"], ["花子", "…"]]
+const talk = (...lines) => lines;
 // 式を書く道具（TeX）
 const cf1 = (a, v) => (a === 1 && v ? v : a === -1 && v ? `-${v}` : `${a}${v}`);           // 先頭の項
 const cfn = (a, v) => (a === 0 ? "" : (a > 0 ? "+" : "-") + (Math.abs(a) === 1 && v ? "" : Math.abs(a)) + v); // 2つめ以降の項
@@ -1280,6 +1339,353 @@ add3("int3-cycle", "int", "累乗の余りの周期", (t, F) => {
   };
 });
 
+/* ---------- 追加（2026-11-24）：図の問題・完全順列・会話や日常の形式・幾何 ---------- */
+/* データの分析（図） */
+add("data-boxread", "data", "箱ひげ図を読む", (t, F) => {
+  const vs = t.shuffle(Array.from({ length: 21 }, (_, i) => i * 5)).slice(0, 5).sort((a, b) => a - b);
+  need(vs[4] - vs[0] >= 40 && vs[3] - vs[1] >= 10);
+  const [mn, q1, q2, q3, mx] = vs;
+  return {
+    q: `次の箱ひげ図は、あるクラスの小テスト（100点満点）の得点を表したものである。中央値、四分位範囲、範囲を求めよ。`,
+    fig: boxSVG(vs, 0, 100, 10),
+    form: `中央値 $${F.n(q2)}$ 点、四分位範囲 $${F.n(q3 - q1)}$ 点、範囲 $${F.n(mx - mn)}$ 点`,
+    steps: [
+      `箱の中の線が中央値：$${q2}$ 点`,
+      `箱の左端が第1四分位数 $Q_1=${q1}$、右端が第3四分位数 $Q_3=${q3}$。四分位範囲は $${q3}-${q1}=${q3 - q1}$`,
+      `ひげの両端が最小値 $${mn}$ と最大値 $${mx}$。範囲は $${mx}-${mn}=${mx - mn}$`,
+    ],
+    point: `箱ひげ図は左から「最小値・$Q_1$・中央値・$Q_3$・最大値」。箱の長さが四分位範囲（真ん中の約半分のデータのちらばり）。平均値は箱ひげ図からは読めない。`,
+  };
+});
+
+add("data-boxmatch", "data", "データに合う箱ひげ図", (t, F) => {
+  const v = [t.ri(2, 8)]; for (let i = 1; i < 11; i++) v.push(v[i - 1] + t.ri(1, 5));
+  need(v[10] <= 50);
+  const five = [v[0], v[2], v[5], v[8], v[10]];
+  // まちがいの図：Q1・中央値・Q3・最大値のどれか1つを、見て分かるだけずらす
+  const make = (k) => {
+    const f = five.slice(), d = t.pick([-1, 1]) * t.ri(3, 6);
+    f[k] += d;
+    return f.every((x, i) => i === 0 || x >= f[i - 1]) && f[4] <= 50 && f[0] >= 0 ? f : null;
+  };
+  const wrong = [];
+  for (const k of t.shuffle([1, 2, 3, 4, 1, 3])) {
+    const f = make(k);
+    if (f && !wrong.some(w => w.join() === f.join()) && f.join() !== five.join()) wrong.push(f);
+    if (wrong.length === 3) break;
+  }
+  need(wrong.length === 3);
+  const all = t.shuffle([five, ...wrong]), ans = all.findIndex(f => f === five);
+  return {
+    q: `次の11個のデータの箱ひげ図として正しいものを、⓪〜③のうちから一つ選べ。<br>$${t.shuffle(v).join(",\\ ")}$`,
+    choices: all.map(f => boxSVG(f, 0, 50, 10, { w: 300, h: 78, grid: false, label: "箱ひげ図の選択肢" })),
+    form: `正しいのは ${F.ch(ans, 4)}`,
+    steps: [
+      `小さい順に並べる：$${v.join(",\\ ")}$`,
+      `11個なので中央値は6番目 $${five[2]}$。下の5個の中央値（3番目）$Q_1=${five[1]}$、上の5個の中央値（9番目）$Q_3=${five[3]}$`,
+      `最小値 $${five[0]}$、最大値 $${five[4]}$。5つの値がすべて合うのは ${CIRC[ans]}`,
+    ],
+    point: `選ぶ問題は「5つの値」を先に求め、選択肢の図をひとつずつ消していく。ちがいが出やすいのは $Q_1$・$Q_3$（箱の端）と中央値。`,
+  };
+});
+
+add("data-scatter", "data", "散布図と相関係数", (t, F) => {
+  const targets = [-0.9, -0.5, 0, 0.5, 0.9], ti = t.ri(0, 4), rho = targets[ti];
+  const nrm = () => Math.sqrt(-2 * Math.log(1 - t.rand())) * Math.cos(2 * Math.PI * t.rand());
+  const pts = Array.from({ length: 24 }, () => { const x = nrm(); return [x, rho * x + Math.sqrt(1 - rho * rho) * nrm()]; });
+  const mx = pts.reduce((s, p) => s + p[0], 0) / 24, my = pts.reduce((s, p) => s + p[1], 0) / 24;
+  let sxy = 0, sxx = 0, syy = 0; pts.forEach(([x, y]) => { sxy += (x - mx) * (y - my); sxx += (x - mx) ** 2; syy += (y - my) ** 2; });
+  const r = sxy / Math.sqrt(sxx * syy); need(Math.abs(r - rho) < 0.08);
+  const W = 240, X = (x) => 20 + (x + 2.8) / 5.6 * (W - 30), Y = (y) => W - 20 - (y + 2.8) / 5.6 * (W - 30);
+  need(pts.every(([x, y]) => Math.abs(x) < 2.7 && Math.abs(y) < 2.7));
+  let b = sv.line(20, W - 20, W - 10, W - 20, "ax") + sv.line(20, 10, 20, W - 20, "ax") + sv.text(W - 10, W - 6, "x", "sm", "end") + sv.text(12, 16, "y", "sm");
+  pts.forEach(([x, y]) => { b += sv.circ(X(x), Y(y), 3.2, "dot"); });
+  const desc = rho > 0 ? "右上がり" : rho < 0 ? "右下がり" : "右上がりでも右下がりでもない";
+  return {
+    q: `次の散布図は、ある24人の2つの変量 $x, y$ の値を表したものである。$x$ と $y$ の相関係数に最も近い値を、⓪〜④のうちから一つ選べ。`,
+    fig: sv.svg(W, W, b, "散布図"),
+    choices: targets.map(v => `$${v}$`),
+    form: `最も近いのは ${F.ch(ti, 5)}`,
+    steps: [
+      `点の並び方は${desc}。${rho > 0 ? "正の相関なので $r>0$" : rho < 0 ? "負の相関なので $r<0$" : "相関はほとんどないので $r$ は $0$ に近い"}`,
+      rho === 0 ? `よって ${CIRC[ti]}（$0$）` : `点が直線のまわりに${Math.abs(rho) > 0.7 ? "ぎゅっと集まっている" : "ある程度ちらばっている"}ので、$|r|$ は${Math.abs(rho) > 0.7 ? "1に近い" : "中くらい"}。よって ${CIRC[ti]}（$${rho}$）`,
+    ],
+    point: `相関係数は「向き（＋か−か）」と「直線への集まり具合（$|r|$ の大きさ）」の2つで読む。$|r|$ が1に近いほど直線に近い。`,
+  };
+});
+
+add("data-talk", "data", "記録のまちがいと平均値（会話）", (t, F) => {
+  const n = 10, m = t.ri(52, 78), a = t.ri(30, 90), j = t.pick([-3, -2, -1, 1, 2, 3]), b = a + 10 * j; need(b >= 0 && b <= 100);
+  return {
+    talk: talk(["花子", `10人の小テストの平均値を計算したら $${m}$ 点だったよ。`], ["太郎", `あれ、ぼくの点は $${b}$ 点なのに、表には $${a}$ 点と書いてある。`], ["花子", `じゃあ、平均値を直さないといけないね。`]),
+    q: `正しい平均値と、正しい合計点を求めよ。`,
+    form: `平均値 $${F.n(m + j)}$ 点、合計 $${F.n(n * m + 10 * j)}$ 点`,
+    steps: [
+      `まちがった合計：$${m}\\times 10=${n * m}$ 点`,
+      `正しい合計：$${n * m}${cfn(b - a, "")}=${n * m + 10 * j}$ 点（$${b}-${a}=${b - a}$ 点の差を直す）`,
+      `正しい平均値：$${n * m + 10 * j}\\div 10=${m + j}$ 点`,
+    ],
+    point: `平均値の直しは「合計にもどして直す」。1人の点が $d$ 点ずれると、$n$ 人の平均値は $\\dfrac{d}{n}$ だけずれる。`,
+  };
+});
+
+/* 2次関数（図） */
+add("quad-sign", "quad", "グラフから係数の符号", (t, F) => {
+  const a = t.pick([1, 0.5, -1, -0.5]), p = t.pick([-2, -1.5, -1, 1, 1.5, 2]), q = t.pick([-3, -2, -1.5, 1.5, 2, 3]);
+  const b = -2 * a * p, c = a * p * p + q; need(Math.abs(c) >= 0.5 && Math.abs(c) <= 3.8);   // y 軸との交点が図の中に入るように
+  const sg = (v) => (v > 0 ? ">" : "<");
+  const combo = (sa, sb, sc) => `$a${sa}0,\\ b${sb}0,\\ c${sc}0$`;
+  const right = combo(sg(a), sg(b), sg(c));
+  const all8 = [];
+  for (const x of [">", "<"]) for (const y of [">", "<"]) for (const z of [">", "<"]) all8.push(combo(x, y, z));
+  const choices = t.shuffle([right, ...t.shuffle(all8.filter(s => s !== right)).slice(0, 3)]), ans = choices.indexOf(right);
+  return {
+    q: `2次関数 $y=ax^2+bx+c$ のグラフが下の図のようになるとき、$a, b, c$ の符号の組として正しいものを、⓪〜③のうちから一つ選べ。`,
+    fig: parabolaSVG(a, p, q, { label: "放物線のグラフ" }),
+    choices,
+    form: `正しいのは ${F.ch(ans, 4)}`,
+    steps: [
+      `グラフが${a > 0 ? "下に凸" : "上に凸"}なので $a${sg(a)}0$`,
+      `$y$ 軸との交点（$x=0$ のときの $y=c$）が $y$ 軸の${c > 0 ? "正" : "負"}の部分にあるので $c${sg(c)}0$`,
+      `軸 $x=-\\dfrac{b}{2a}$ が $y$ 軸の${p > 0 ? "右" : "左"}にあるので $-\\dfrac{b}{2a}${p > 0 ? ">" : "<"}0$。$a${sg(a)}0$ だから $b${sg(b)}0$`,
+      `よって ${CIRC[ans]}`,
+    ],
+    point: `$a$ は「凸の向き」、$c$ は「$y$ 切片」、$b$ は「軸の位置と $a$ の符号」で決まる。$b$ は $a$ と軸の位置の両方を見るのがコツ。`,
+  };
+});
+
+add("quad-graph", "quad", "式に合うグラフ", (t, F) => {
+  const a = t.pick([1, -1]), p = t.pick([-2, -1, 1, 2]), q = t.pick([-2, -1, 1, 2]);
+  const sets = [[a, p, q], [-a, p, q], [a, -p, q], [a, p, -q]];
+  const order = t.shuffle([0, 1, 2, 3]), ans = order.indexOf(0);
+  return {
+    q: `2次関数 $y=${cf1(a, `${xm(p)}^2`)}${cfn(q, "")}$ のグラフを、⓪〜③のうちから一つ選べ。（1目盛りは1）`,
+    choices: order.map(k => parabolaSVG(...sets[k], { unit: 15, R: 4, grid: true, vertex: true, label: "グラフの選択肢" })),
+    form: `正しいのは ${F.ch(ans, 4)}`,
+    steps: [
+      `$y=a(x-p)^2+q$ の形なので、頂点は $(${p},\\ ${q})$`,
+      `$x^2$ の係数が${a > 0 ? "正なので下に凸" : "負なので上に凸"}`,
+      `頂点が $(${p},\\ ${q})$ で${a > 0 ? "下に凸" : "上に凸"}のグラフは ${CIRC[ans]}`,
+    ],
+    point: `グラフを選ぶときは「頂点の位置」と「凸の向き」を先に決める。$(x-p)$ の符号は頂点の $x$ 座標と逆になることに注意。`,
+  };
+});
+
+add3("quad-sales", "quad", "売上を最大にする値段（会話）", (t, F) => {
+  const k = t.pick([2, 4, 5, 10]), ts = t.ri(1, 8), p0 = 10 * t.ri(8, 20), n0 = k * (2 * ts + p0 / 10);
+  const price = p0 + 10 * ts, cnt = n0 - k * ts, R = price * cnt;
+  return {
+    talk: talk(["太郎", `文化祭の模擬店で、ジュースを1杯 $${p0}$ 円で売ると $${n0}$ 杯売れそうなんだ。`], ["花子", `去年の記録だと、10円値上げするごとに $${k}$ 杯ずつ売れる数が減っていたよ。`], ["太郎", `売上（値段×杯数）がいちばん多くなる値段を考えよう。`]),
+    q: `10円ずつ値上げするとして、売上が最大になる1杯の値段と、そのときの売上を求めよ。`,
+    form: `値段 $${F.n(price)}$ 円、売上 $${F.n(R)}$ 円`,
+    steps: [
+      `$x$ 回（$10x$ 円）値上げすると、値段は $${p0}+10x$ 円、杯数は $${n0}-${k}x$ 杯`,
+      `売上 $y=(${p0}+10x)(${n0}-${k}x)=${poly([-10 * k, 10 * n0 - k * p0, p0 * n0])}$`,
+      `平方完成：$y=-${10 * k}(x-${ts})^2+${R}$。$x=${ts}$ のとき最大`,
+      `値段は $${p0}+${10 * ts}=${price}$ 円、杯数は $${cnt}$ 杯、売上は $${R}$ 円`,
+    ],
+    point: `文章題は「何を $x$ にするか」を決めて2次関数を作り、平方完成で最大を見る。$x$ が整数（値上げの回数）であることも確かめる。`,
+  };
+});
+
+/* 図形と計量（日常・図） */
+add("trig-height", "trig", "木の高さを測る（会話）", (t, F) => {
+  const th = t.pick([30, 45, 60]), d = th === 30 ? 3 * t.ri(2, 8) : t.ri(4, 15);
+  const W = 320, gy = 176, ix = 40, iy = gy - 22, tx = 270, ty = 46;
+  const ang = Math.atan2(iy - ty, tx - ix) * 180 / Math.PI;
+  let b = sv.line(10, gy, W - 10, gy, "ax") + sv.line(ix, gy, ix, iy) + sv.line(tx, gy, tx, ty) + sv.circ(tx, ty - 8, 10)
+    + sv.line(ix, iy, tx, ty, "hi") + sv.line(ix, iy, tx, iy, "ax dash") + sv.arc(ix, iy, 30, 0, ang)
+    + sv.text(ix + 46, iy - 6, `${th}°`, "") + sv.text((ix + tx) / 2, gy + 16, `${d} m`, "") + sv.text(ix - 6, gy - 8, "1 m", "sm", "end") + sv.text(tx + 8, (gy + ty) / 2, "木", "", "start");
+  const formAns = th === 45 ? `$${F.n(d + 1)}$` : `$${F.rad(th === 30 ? d / 3 : d, 3)}+1$`;
+  const top = th === 45 ? `${d}` : th === 30 ? `${d}\\times\\dfrac{1}{\\sqrt{3}}=${P().rad(d / 3, 3)}` : `${d}\\sqrt{3}`;
+  return {
+    talk: talk(["太郎", `木の高さを、木に登らずに測る方法はないかな。`], ["花子", `木から $${d}$ m はなれた所に、高さ $1$ m の台を置いて、木のてっぺんを見上げた角を測ったよ。$${th}^\\circ$ だった。`]),
+    q: `木の高さを求めよ。ただし、地面は水平で、木はまっすぐ立っているものとする。`,
+    fig: sv.svg(W, 196, b, "木の高さを測る図"),
+    form: `${formAns} m`,
+    steps: [
+      `台の高さ（地面から $1$ m）の水平な線より上の部分を考える。直角三角形で、底辺 $${d}$ m、見上げた角 $${th}^\\circ$`,
+      `高さ＝底辺 × $\\tan ${th}^\\circ$：$${top}$ m`,
+      `台の高さ $1$ m を足す：$${th === 45 ? `${d}+1=${d + 1}` : `${top.split("=").pop()}+1`}$ m`,
+    ],
+    point: `「見上げた角」と「水平の距離」がわかれば、$\\tan$ で高さが出る。測る人（台）の高さを足すのを忘れない。`,
+  };
+});
+
+add3("trig-survey", "trig", "2地点から塔の高さ（会話）", (t, F) => {
+  const d = 2 * t.ri(5, 30);
+  const gy = 176, ax = 40, bx = 170, hx = 300, py = 40;
+  const a1 = Math.atan2(gy - py, hx - ax) * 180 / Math.PI, a2 = Math.atan2(gy - py, hx - bx) * 180 / Math.PI;
+  const b = sv.line(10, gy, 330, gy, "ax") + sv.line(hx, gy, hx, py) + sv.line(ax, gy, hx, py, "hi") + sv.line(bx, gy, hx, py, "hi")
+    + sv.arc(ax, gy, 34, 0, a1) + sv.arc(bx, gy, 26, 0, a2) + sv.text(ax + 48, gy - 6, "30°") + sv.text(bx + 38, gy - 8, "60°")
+    + sv.text(ax, gy + 16, "A") + sv.text(bx, gy + 16, "B") + sv.text(hx, gy + 16, "H") + sv.text(hx + 8, py + 4, "P", "", "start")
+    + sv.text((ax + bx) / 2, gy + 16, `${d} m`, "sm");
+  return {
+    talk: talk(["花子", `塔のふもとの H までは川があって行けないね。`], ["太郎", `H に向かってまっすぐ進みながら2回見上げよう。A では $30^\\circ$、そこから $${d}$ m 進んだ B では $60^\\circ$ だった。`]),
+    q: `塔の高さ $PH$ と、B から塔のふもとまでの距離 $BH$ を求めよ（目の高さは考えない）。`,
+    fig: sv.svg(340, 196, b, "塔の高さを測る図"),
+    form: `$PH=${F.rad(d, 3, 2)}$ m、$BH=${F.n(d / 2)}$ m`,
+    steps: [
+      `$\\triangle ABP$ で、$\\angle PBH=60^\\circ$ は外角なので $\\angle APB=60^\\circ-30^\\circ=30^\\circ$`,
+      `$\\angle PAB=\\angle APB=30^\\circ$ より、二等辺三角形で $BP=AB=${d}$ m`,
+      `直角三角形 $PBH$ で $PH=BP\\sin 60^\\circ=${d}\\times\\dfrac{\\sqrt{3}}{2}=${P().rad(d, 3, 2)}$、$BH=BP\\cos 60^\\circ=${d / 2}$`,
+    ],
+    point: `2地点から見上げる問題は、外角で「間の三角形の角」を出すと二等辺三角形が見つかることが多い。見つからなければ $BH=x$ とおいて $\\tan$ の式を2つ立てる。`,
+  };
+});
+
+/* 場合の数と確率（完全順列・日常） */
+const DER = [1, 0, 1, 2, 9, 44, 265, 1854];
+add("prob-derange", "prob", "完全順列（プレゼント交換）", (t, F) => {
+  const n = t.ri(3, 6);
+  return {
+    talk: talk(["花子", `${n}人でプレゼントを1つずつ持ち寄って、交換会をしよう。`], ["太郎", `自分のプレゼントが自分に戻ってきたらつまらないね。`]),
+    q: `${n}人全員が自分以外の人のプレゼントを受け取るような受け取り方は何通りか。`,
+    form: `$${F.n(DER[n])}$ 通り`,
+    steps: [
+      `全員が自分のもの以外を受け取る並べ方を「完全順列」という。人数ごとに $1$人：$0$、$2$人：$1$、$3$人：$2$ 通り`,
+      `$n$ 人の数を $W_n$ とすると $W_n=(n-1)(W_{n-1}+W_{n-2})$（1人目が受け取る相手を $n-1$ 通り選び、その相手が1人目のものを受け取るかどうかで分ける）`,
+      ...[4, 5, 6].filter(k => k <= n).map(k => `$W_${k}=${k - 1}\\times(${DER[k - 1]}+${DER[k - 2]})=${DER[k]}$`),
+      `よって $${DER[n]}$ 通り`,
+    ],
+    point: `完全順列の数 $2,\\ 9,\\ 44,\\ 265$（3〜6人）は覚えておくと速い。4人までなら樹形図でも数えられる。`,
+  };
+});
+
+add3("prob-derange2", "prob", "ちょうど k 人が自分のものを受け取る", (t, F) => {
+  const n = t.ri(4, 6), k = t.ri(1, n - 2), ways = comb(n, k) * DER[n - k];
+  return {
+    talk: talk(["太郎", `${n}人のプレゼント交換で、くじで受け取るプレゼントを決めたよ。`], ["花子", `自分のプレゼントが戻ってきた人が、ちょうど ${k} 人いたね。`]),
+    q: `くじの引き方は全部で $${n}!$ 通りで、どれも同じ確からしさとする。ちょうど ${k} 人が自分のプレゼントを受け取る受け取り方は何通りか。また、その確率を求めよ。`,
+    form: `$${F.n(ways)}$ 通り、確率 $${F.fr(ways, fact(n))}$`,
+    steps: [
+      `自分のものを受け取る ${k} 人の選び方：$_{${n}}\\mathrm{C}_{${k}}=${comb(n, k)}$ 通り`,
+      `残りの ${n - k} 人は全員が自分以外を受け取る（完全順列）：$${DER[n - k]}$ 通り`,
+      `$${comb(n, k)}\\times ${DER[n - k]}=${ways}$ 通り。確率は $\\dfrac{${ways}}{${fact(n)}}=${P().fr(ways, fact(n))}$`,
+    ],
+    point: `「ちょうど $k$ 人」は、その $k$ 人を選んでから、残りを完全順列にする。残りに自分のものを受け取る人が出ないようにするのがポイント。`,
+  };
+});
+
+add("prob-janken", "prob", "じゃんけんの確率（会話）", (t, F) => {
+  const n = t.ri(2, 4), one = t.ri(0, 1) === 1;
+  const all = 3 ** n, win1 = n * 3, decided = 3 * (2 ** n - 2), aiko = all - decided;
+  return {
+    talk: talk(["太郎", `${n}人で1回じゃんけんをして、そうじ当番を決めよう。`], ["花子", `${one ? "1人だけが勝ったら、その人は当番なしにしよう。" : "あいこになったら、もう1回だね。"}`]),
+    q: `${n}人が1回じゃんけんをするとき、${one ? "1人だけが勝つ" : "あいこになる"}確率を求めよ。ただし、どの手を出すことも同様に確からしいとする。`,
+    form: `$${F.fr(one ? win1 : aiko, all)}$`,
+    steps: [
+      `手の出し方は全部で $3^{${n}}=${all}$ 通り`,
+      one ? `勝つ人の選び方 $${n}$ 通り × 勝つ手（グー・チョキ・パー）$3$ 通り $=${win1}$ 通り（他の人はみんな負ける手）`
+        : `勝負がつくのは「2種類の手だけが出る」とき。手の2種類の選び方 $3$ 通り × その2種類の出し方 $2^{${n}}-2$ 通り $=${decided}$ 通り`,
+      one ? `確率：$${frEq(win1, all)}$` : `あいこは $${all}-${decided}=${aiko}$ 通り。確率：$${frEq(aiko, all)}$`,
+    ],
+    point: `じゃんけんは「どの手で、だれが勝つか」で数える。あいこは「全部同じ手」か「3種類全部出る」ときで、余事象（勝負がつく）から求めると速い。`,
+  };
+});
+
+/* 整数（日常） */
+add("int-calendar", "int", "何日後の曜日（日常）", (t, F) => {
+  const WD = ["日", "月", "火", "水", "木", "金", "土"], w = t.ri(0, 6), n = t.ri(50, 400), r = n % 7, ans = (w + r) % 7;
+  return {
+    talk: talk(["花子", `今日は${WD[w]}曜日だね。`], ["太郎", `ちょうど $${n}$ 日後が試験日なんだ。何曜日になるかな。`]),
+    q: `$${n}$ 日後は何曜日か。⓪〜⑥のうちから一つ選べ。`,
+    choices: WD.map(x => `${x}曜日`),
+    form: `${F.ch(ans, 7)}`,
+    steps: [
+      `曜日は7日ごとにくり返す。$${n}=7\\times ${Math.floor(n / 7)}+${r}$`,
+      `$${n}$ 日後は、$${r}$ 日後と同じ曜日`,
+      `${WD[w]}曜日の $${r}$ 日後は${WD[ans]}曜日。よって ${CIRC[ans]}`,
+    ],
+    point: `くり返すものは「割った余り」で考える。曜日なら7、時計なら12や24で割る。`,
+  };
+});
+
+/* 図形の性質（図） */
+add("geo-fig-angle", "geo", "円周角と中心角（図）", (t, F) => {
+  const x = 5 * t.ri(5, 15), cx = 120, cy = 112, R = 84;
+  const Pt = (a) => [cx + R * Math.cos(a * Math.PI / 180), cy - R * Math.sin(a * Math.PI / 180)];
+  const A = Pt(125), D = Pt(55), B = Pt(-90 - x), C = Pt(-90 + x);
+  const lab = (pt, s, a) => sv.text(pt[0] + 14 * Math.cos(a * Math.PI / 180), pt[1] - 14 * Math.sin(a * Math.PI / 180) + 4, s);
+  const b = sv.circ(cx, cy, R) + sv.line(...A, ...B) + sv.line(...A, ...C) + sv.line(...D, ...B, "hi") + sv.line(...D, ...C, "hi")
+    + sv.line(cx, cy, ...B, "ax") + sv.line(cx, cy, ...C, "ax") + sv.circ(cx, cy, 2.5, "dot")
+    + lab(A, "A", 125) + lab(D, "D", 55) + lab(B, "B", -90 - x) + lab(C, "C", -90 + x) + sv.text(cx, cy + 16, "O", "sm")
+    // 角の大きさは、A から BC の中点へ向かう向き（∠BAC の内側）に置く
+    + (() => { const mx = (B[0] + C[0]) / 2 - A[0], my = (B[1] + C[1]) / 2 - A[1], L = Math.hypot(mx, my); return sv.text(A[0] + mx / L * 34, A[1] + my / L * 34 + 4, `${x}°`, "sm"); })();
+  return {
+    q: `図のように、円 O の周上に4点 A、B、C、D がある。$\\angle BAC=${x}^\\circ$ のとき、$\\angle BDC$ と $\\angle BOC$ を求めよ。`,
+    fig: sv.svg(240, 224, b, "円周角の図"),
+    form: `$\\angle BDC=${F.n(x)}^\\circ$、$\\angle BOC=${F.n(2 * x)}^\\circ$`,
+    steps: [
+      `$\\angle BAC$ と $\\angle BDC$ は、どちらも弧 BC に対する円周角なので等しい：$${x}^\\circ$`,
+      `$\\angle BOC$ は弧 BC に対する中心角。円周角の2倍：$${2 * x}^\\circ$`,
+    ],
+    point: `同じ弧に対する円周角はすべて等しく、中心角はその2倍。図の中で「どの弧を見ている角か」を確かめる。`,
+  };
+});
+
+add("geo-fig-parallel", "geo", "平行線と線分の比（図）", (t, F) => {
+  const a = t.ri(2, 7), bb = t.ri(1, 6), c = t.ri(4, 15), e = t.ri(2, 9);
+  const A = [160, 18], B = [30, 196], C = [300, 196], k = a / (a + bb);
+  const D = [A[0] + (B[0] - A[0]) * k, A[1] + (B[1] - A[1]) * k], E = [A[0] + (C[0] - A[0]) * k, A[1] + (C[1] - A[1]) * k];
+  const mid = (P1, P2, dx, dy, s) => sv.text((P1[0] + P2[0]) / 2 + dx, (P1[1] + P2[1]) / 2 + dy, s, "sm");
+  const b = sv.poly([A, B, C], "", true) + sv.line(...D, ...E, "hi")
+    + sv.text(A[0], A[1] - 4, "A") + sv.text(B[0] - 10, B[1] + 4, "B") + sv.text(C[0] + 10, C[1] + 4, "C") + sv.text(D[0] - 10, D[1] + 4, "D") + sv.text(E[0] + 10, E[1] + 4, "E")
+    + mid(A, D, -14, 0, a) + mid(D, B, -14, 0, bb) + mid(B, C, 0, 16, c) + mid(A, E, 14, 0, e);
+  return {
+    q: `図の $\\triangle ABC$ で、辺 AB 上の点 D と辺 AC 上の点 E について $DE\\parallel BC$ である。$AD=${a}$、$DB=${bb}$、$BC=${c}$、$AE=${e}$ のとき、$DE$ と $EC$ の長さを求めよ。`,
+    fig: sv.svg(330, 212, b, "平行線と三角形の図"),
+    form: `$DE=${F.fr(a * c, a + bb)}$、$EC=${F.fr(e * bb, a)}$`,
+    steps: [
+      `$DE\\parallel BC$ より $\\triangle ADE$ と $\\triangle ABC$ は相似で、相似比は $AD:AB=${a}:${a + bb}$`,
+      `$DE=BC\\times\\dfrac{${a}}{${a + bb}}=${c}\\times\\dfrac{${a}}{${a + bb}}=${P().fr(a * c, a + bb)}$`,
+      `$AE:EC=AD:DB=${a}:${bb}$ より $EC=${e}\\times\\dfrac{${bb}}{${a}}=${P().fr(e * bb, a)}$`,
+    ],
+    point: `平行線があれば相似な三角形が見つかる。$DE:BC$ は $AD:AB$（全体との比）、$AE:EC$ は $AD:DB$（分けた比）。どちらの比を使うかを取りちがえない。`,
+  };
+});
+
+add("geo-fig-centroid", "geo", "重心と面積（図）", (t, F) => {
+  const k = t.ri(2, 7), S = 6 * t.ri(2, 12);
+  const A = [130, 18], B = [24, 196], C = [290, 196], M = [(B[0] + C[0]) / 2, (B[1] + C[1]) / 2];
+  const G = [A[0] + (M[0] - A[0]) * 2 / 3, A[1] + (M[1] - A[1]) * 2 / 3];
+  const b = sv.poly([G, B, M], "shade", true) + sv.poly([A, B, C], "", true) + sv.line(...A, ...M) + sv.line(...G, ...B, "ax") + sv.line(...G, ...C, "ax") + sv.circ(...G, 3, "dot")
+    + sv.text(A[0], A[1] - 4, "A") + sv.text(B[0] - 10, B[1] + 4, "B") + sv.text(C[0] + 10, C[1] + 4, "C") + sv.text(M[0], M[1] + 16, "M") + sv.text(G[0] + 12, G[1] - 2, "G", "", "start");
+  return {
+    q: `図の $\\triangle ABC$ で、M は辺 BC の中点、G は重心である。$AM=${3 * k}$、$\\triangle ABC$ の面積が $${S}$ のとき、$AG$ の長さと、色のついた $\\triangle GBM$ の面積を求めよ。`,
+    fig: sv.svg(314, 212, b, "重心の図"),
+    form: `$AG=${F.n(2 * k)}$、$\\triangle GBM=${F.n(S / 6)}$`,
+    steps: [
+      `重心は中線を $2:1$ に分ける：$AG=${3 * k}\\times\\dfrac{2}{3}=${2 * k}$`,
+      `$\\triangle ABM=\\dfrac{1}{2}\\triangle ABC=${S / 2}$（BM と MC が等しい）`,
+      `$\\triangle GBM$ と $\\triangle ABM$ は底辺 BM が共通で、高さの比は $GM:AM=1:3$。$\\triangle GBM=${S / 2}\\times\\dfrac{1}{3}=${S / 6}$`,
+    ],
+    point: `重心は中線を頂点側から $2:1$ に分ける。重心と3頂点を結ぶと面積は3等分、さらに中点で分けると6等分になる。`,
+  };
+});
+
+add("geo-fig-tangent", "geo", "2本の接線と角（図）", (t, F) => {
+  const x = 2 * t.ri(15, 50), cx = 92, cy = 110, half = x / 2 * Math.PI / 180;
+  const R = Math.min(64, 220 * Math.sin(half)), dd = R / Math.sin(half), Pp = [cx + dd, cy], phi = Math.acos(R / dd);
+  const A = [cx + R * Math.cos(phi), cy - R * Math.sin(phi)], B = [cx + R * Math.cos(phi), cy + R * Math.sin(phi)], C = [cx - R, cy];
+  const b = sv.circ(cx, cy, R) + sv.line(...Pp, ...A) + sv.line(...Pp, ...B) + sv.line(cx, cy, ...A, "ax") + sv.line(cx, cy, ...B, "ax")
+    + sv.line(...C, ...A, "hi") + sv.line(...C, ...B, "hi") + sv.circ(cx, cy, 2.5, "dot") + sv.arc(...Pp, 22, 180 - x / 2, 180 + x / 2)
+    + sv.text(A[0], A[1] - 8, "A") + sv.text(B[0], B[1] + 16, "B") + sv.text(C[0] - 10, C[1] + 4, "C") + sv.text(Pp[0] + 10, Pp[1] + 4, "P", "", "start")
+    + sv.text(cx - 6, cy - 6, "O", "sm", "end") + sv.text(Pp[0] - 30, Pp[1] + 4, `${x}°`, "sm", "end");
+  const W = Math.ceil(Pp[0] + 26);
+  return {
+    q: `図のように、円 O の外の点 P から2本の接線を引き、接点を A、B とする。$\\angle APB=${x}^\\circ$ のとき、$\\angle AOB$ と、円周上の点 C（A、B を除く、大きい方の弧の上）に対する $\\angle ACB$ を求めよ。`,
+    fig: sv.svg(W, 220, b, "接線と円の図"),
+    form: `$\\angle AOB=${F.n(180 - x)}^\\circ$、$\\angle ACB=${F.n((180 - x) / 2)}^\\circ$`,
+    steps: [
+      `接線は接点を通る半径に垂直：$\\angle OAP=\\angle OBP=90^\\circ$`,
+      `四角形 OAPB の内角の和 $360^\\circ$ より $\\angle AOB=360^\\circ-90^\\circ-90^\\circ-${x}^\\circ=${180 - x}^\\circ$`,
+      `$\\angle ACB$ は弧 AB（小さい方）に対する円周角なので、中心角の半分：$${(180 - x) / 2}^\\circ$`,
+    ],
+    point: `接線と半径は垂直。円外の点から引いた2本の接線では、四角形 OAPB の向かい合う角の和が $180^\\circ$ になる。`,
+  };
+});
+
 /* ---------- レベル ---------- */
 // レベル1＝教科書の基本（公式をそのまま使う）、レベル2＝共通テストの小問・標準、レベル3＝共通テストの大問の後半・思考力型
 export const MATH_LEVELS = {
@@ -1295,6 +1701,8 @@ const LEVEL1 = new Set([
   "prob-select", "prob-letters", "prob-path",
   "geo-bisect", "geo-circle",
   "int-gcd", "int-divisor", "int-base", "int-mod",
+  // 図・会話の問題（2026-11-24 追加）
+  "data-boxread", "data-talk", "quad-graph", "trig-height", "int-calendar", "geo-fig-angle", "geo-fig-parallel",
 ]);
 T.forEach(x => { x.lv ??= LEVEL1.has(x.id) ? 1 : 2; });
 
@@ -1302,6 +1710,7 @@ T.forEach(x => { x.lv ??= LEVEL1.has(x.id) ? 1 : 2; });
 export const MATH_TYPES = T;
 export const MATH_BY_ID = Object.fromEntries(T.map(x => [x.id, x]));
 
+const hashStr = (str) => { let x = 5381; for (const ch of str) x = (Math.imul(x, 33) + ch.codePointAt(0)) | 0; return "h" + (x >>> 0).toString(36) + str.length; };
 // 型 id と seed から問題を作る。条件に合わない数値のときは、同じ seed から決まる次の候補を使う
 const cache = new Map();
 export function makeProblem(id, seed) {
@@ -1313,14 +1722,16 @@ export function makeProblem(id, seed) {
     const r = rng((seed + k * 7919) >>> 0);
     const ri = (a, b) => a + Math.floor(r() * (b - a + 1));
     const t = {
-      ri, pick: (arr) => arr[Math.floor(r() * arr.length)],
+      ri, rand: r, pick: (arr) => arr[Math.floor(r() * arr.length)],
       shuffle: (arr) => { const b = arr.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; },
     };
     const F = new Form(false);
     try {
       const out = tpl.gen(t, F);
       const labels = Object.keys(F.ans);
-      const p = { id, seed, f: tpl.f, lv: tpl.lv, field: MATH_FIELDS[tpl.f], title: tpl.title, ...out, labels, key: F.ans, sig: out.q + "|" + out.form };
+      // sig：同じ問題かどうかの目じるし（図・選択肢・会話も含めた短い文字列）
+      const sig = hashStr([out.q, out.form, out.fig ?? "", (out.choices ?? []).join("|"), JSON.stringify(out.talk ?? [])].join("|"));
+      const p = { id, seed, f: tpl.f, lv: tpl.lv, field: MATH_FIELDS[tpl.f], title: tpl.title, ...out, labels, key: F.ans, opts: F.opts ?? {}, sig };
       cache.set(key, p);
       return p;
     } catch (e) { if (!(e instanceof Retry)) throw e; }

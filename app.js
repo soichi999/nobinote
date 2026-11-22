@@ -13,7 +13,7 @@ import { MOCKS } from "./moshi/catalog.js";
 import { VOCAB as VOCAB_BASE } from "./moshi/vocab.js";
 import { SYN as SYN_BASE } from "./moshi/vocab_syn.js";
 import { MORE, EX as EX_BASE } from "./moshi/vocab_more.js";
-import { MATH_TYPES, MATH_BY_ID, MATH_FIELDS, MATH_LEVELS, MARK_OPTS, makeProblem } from "./moshi/math_daily.js";
+import { MATH_TYPES, MATH_BY_ID, MATH_FIELDS, MATH_LEVELS, MARK_OPTS, CIRC, makeProblem } from "./moshi/math_daily.js";
 // 英単語：レベル2＝vocab.js（英検2級の中心）、レベル1・3＝vocab_more.js（MORE）。ひとつの並びにまとめて使う
 // EX：英検の空所補充用（例文中の形 form と、まちがいの選択肢 d）
 const VOCAB = [...VOCAB_BASE, ...MORE.map(o => [o.w, o.pos, o.ja, o.ex, o.exj, o.grp, o.tip])];
@@ -3079,26 +3079,40 @@ $("math-close").addEventListener("click", closeMath);
 
 // 答えの形：[ア] を枠にする。マークした枠には数字を入れ、まだの枠は記号（ア・イ…）のまま
 const MQ_BLANK = /\[([^\]\s]{1,4})\]/g;
+// 枠に入れた値の見せ方：選ぶ問題の枠は ⓪①…、ほかは数字・符号のまま
+const mqShow = (p, l, v) => (v !== undefined && v !== "" && p.opts?.[l] ? CIRC[Number(v)] : v);
 function mathFormHTML(p, vals) {
   // 枠の大きさをそろえる：幅は全角1文字分で中身を中央に、高さは「ア」と数字の両方が入る分。中身は \smash で高さを0にして、
   // − のように上下の出っ張りがちがう文字でも枠が伸びないようにする（ア・3・− のどれでも同じ大きさ）
   const box = (x) => `\\boxed{\\vphantom{\\text{ア}0}\\kern0.55em\\mathclap{\\smash{${x}}}\\kern0.55em}`;
-  const boxTeX = (l) => { const v = vals?.[l]; return box(v ? (v === "−" ? "{-}" : `\\mathbf{${v}}`) : `\\text{${l}}`); };
+  const boxTeX = (l) => { const v = vals?.[l]; return box(v ? (v === "−" ? "{-}" : p.opts?.[l] ? `\\text{${mqShow(p, l, v)}}` : `\\mathbf{${v}}`) : `\\text{${l}}`); };
   return String(p.form).split("$").map((seg, i) => {
     if (i % 2) return renderTex(seg.replace(MQ_BLANK, (m, l) => (p.labels.includes(l) ? boxTeX(l) : m)));
     // 答えが2つ以上あるときは「、」「。」で行を分け、式の途中で折り返さないようにする
-    return esc(seg).replace(/[、。]\s*/g, "<br>").replace(MQ_BLANK, (m, l) => (p.labels.includes(l) ? `<span class="blank">${esc(vals?.[l] || l)}</span>` : m));
+    return esc(seg).replace(/[、。]\s*/g, "<br>").replace(MQ_BLANK, (m, l) => (p.labels.includes(l) ? `<span class="blank${p.opts?.[l] ? " ch" : ""}">${esc(mqShow(p, l, vals?.[l]) || l)}</span>` : m));
   }).join("");
 }
 const mqHead = (p) => `<div class="mq-head"><span class="mq-field">${esc(p.field)}</span><span class="mq-lv">レベル${p.lv}</span><span class="mq-title">${esc(p.title)}</span></div>`;
 function mathMarkRows(p, vals, locked) {
   return p.labels.map(l => `<div class="mark-row">
       <span class="mark-label">${esc(l)}</span>
-      <div class="bubbles">${MARK_OPTS.map(o => {
+      <div class="bubbles${p.opts?.[l] ? " ch" : ""}">${(p.opts?.[l] ?? MARK_OPTS).map(o => {
         const cls = ["bubble", vals[l] === o ? "on" : "", locked && p.key[l] === o ? "correct" : "", locked && vals[l] === o && p.key[l] !== o ? "wrong" : ""].filter(Boolean).join(" ");
-        return `<button type="button" class="${cls}" ${locked ? "disabled" : ""} data-mq-label="${esc(l)}" data-mq-opt="${esc(o)}" aria-label="${esc(l)} に ${esc(o)}">${esc(o)}</button>`;
+        return `<button type="button" class="${cls}" ${locked ? "disabled" : ""} data-mq-label="${esc(l)}" data-mq-opt="${esc(o)}" aria-label="${esc(l)} に ${esc(mqShow(p, l, o))}">${esc(mqShow(p, l, o))}</button>`;
       }).join("")}</div>
     </div>`).join("");
+}
+// 会話（太郎・花子）、図、⓪①… の選択肢。図と選択肢の図はアプリが作った SVG なのでそのまま入れる
+function mqBodyHTML(p, sm = false) {
+  const talkHTML = p.talk?.length ? `<div class="mq-talk">${p.talk.map(([who, txt]) => `<p class="mq-say ${who === "太郎" ? "a" : "b"}"><b>${esc(who)}</b><span>${richText(txt)}</span></p>`).join("")}</div>` : "";
+  const isSvg = (c) => String(c).startsWith("<svg");
+  // 図の選択肢：横長の図（箱ひげ図など）は1列で大きく、正方形に近い図（グラフ）は2列
+  const wide = (c) => { const v = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(c); return !!v && v[1] / v[2] > 2; };
+  // 短い文字の選択肢（曜日・数値など）は横に並べて場所をとらない
+  const figCls = p.choices?.some(isSvg) ? (p.choices.some(wide) ? " fig wide" : " fig")
+    : p.choices?.every(c => String(c).length <= 14) ? " short" : "";
+  const choicesHTML = p.choices?.length ? `<ol class="mq-choices${figCls}">${p.choices.map((c, k) => `<li><span class="mq-cn">${CIRC[k]}</span><div>${isSvg(c) ? c : richText(c)}</div></li>`).join("")}</ol>` : "";
+  return `${talkHTML}<div class="mq-text${sm ? " sm" : ""}">${richText(p.q)}</div>${p.fig ? `<div class="mq-fig">${p.fig}</div>` : ""}${choicesHTML}`;
 }
 const mqMissing = (p) => p.labels.filter(l => !mathMarks[l]).length;
 const mqCheckLabel = (n) => (n ? `あと${n}か所マークすると答え合わせ` : "答え合わせ");
@@ -3107,7 +3121,7 @@ function mathQuestionHTML(p) {
   return `<div class="vq mq">
       ${mqHead(p)}
       ${mqTimeHTML(p)}
-      <div class="mq-text">${richText(p.q)}</div>
+      ${mqBodyHTML(p)}
       <p class="mq-label">答えの形 <small>（枠ごとにマーク・もう一度押すと取り消し）</small></p>
       <div class="exam-t mq-form" id="mq-form">${mathFormHTML(p, mathMarks)}</div>
       <div class="marks mq-marks">${mathMarkRows(p, mathMarks, false)}</div>
@@ -3119,11 +3133,11 @@ function mathAnswerHTML(p, a) {
   const wrong = p.labels.filter(l => a.marks[l] !== p.key[l]);
   return `<div class="vq vx-page mq-ans">
       <div class="vx-result ${a.ok ? "ok" : "ng"}">${a.ok ? ICON_CIRCLE : ICON_CROSS}<span>${a.ok ? "正解！" : "不正解"}</span>
-        ${a.ok ? "" : `<small>まちがえた枠：${wrong.map(l => `<span class="mq-miss">${esc(l)}　<s>${esc(a.marks[l] ?? "")}</s> → <b>${esc(p.key[l])}</b></span>`).join("")}</small>`}</div>
+        ${a.ok ? "" : `<small>まちがえた枠：${wrong.map(l => `<span class="mq-miss">${esc(l)}　<s>${esc(mqShow(p, l, a.marks[l]) ?? "")}</s> → <b>${esc(mqShow(p, l, p.key[l]))}</b></span>`).join("")}</small>`}</div>
       ${a.sec != null ? (() => { const tg = mathTargetOf(p.id), over = a.sec > tg; return `<p class="mq-took ${over ? "over" : "ok"}">かかった時間 <b>${fmtSec(a.sec)}</b>／目安 ${fmtSec(tg)}${over ? "<small>目安より長め。解き方の流れを見直して、次は速く解こう</small>" : ""}</p>`; })() : ""}
       <section class="mq-card">
         ${mqHead(p)}
-        <div class="mq-text sm">${richText(p.q)}</div>
+        ${mqBodyHTML(p, true)}
         <p class="mq-label ok">正しい答え</p>
         <div class="exam-t mq-form key">${mathFormHTML(p, p.key)}</div>
         ${a.ok ? "" : `<p class="mq-label ng">あなたの答え</p><div class="exam-t mq-form mine">${mathFormHTML(p, a.marks)}</div>`}
