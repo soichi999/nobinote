@@ -2384,8 +2384,8 @@ function renderVocabCard() {
   } else if (role === "tutor") btn = `<button type="button" class="outline vc-btn" data-vocab-trial>お試しで解く（記録されません）</button>`;
   card.innerHTML = `
     ${cardHead("今日の英単語", state, prog, gtext)}
-    ${btn}
     ${levelRow}
+    ${btn}
     ${vocabProgressHTML(cur.learned, cur.mastered, cur.total)}
     ${moreDetails("vocab", `${vocabStreak()}日連続・この1週間 ${week.filter(d => vocab.days?.[d]?.done).length}/7日`, `
     <div class="vc-stats two">
