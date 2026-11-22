@@ -238,6 +238,7 @@ function watchAll() {
     renderVocabCard();
     renderTodayCard();
     renderCalendars();
+    renderWeakCard();
     if (homework.some(r => r.type === "daily-vocab")) { renderHomework(); renderCalendarFeed(); }
   }));
   unsubs.push(onSnapshot(doc(db, "students", currentSid, "math", "state"), snap => {
@@ -250,6 +251,7 @@ function watchAll() {
     renderMathCard();
     renderTodayCard();
     renderCalendars();
+    renderWeakCard();
     if (homework.some(r => r.type === "daily-math")) { renderHomework(); renderCalendarFeed(); }
   }));
   sub("mocks", "dueDate", "desc", rows => { mocks = rows; renderMocks(); renderCalendars(); renderCalendarFeed(); renderTests(); });
@@ -2340,6 +2342,33 @@ function vocabProgressHTML(learned, mastered, total = VOCAB_IDS.length) {
       </div>
     </div>
 `;
+}
+// 苦手まとめ（成績タブの一番上。先生・保護者だけ）：指導で何を教えるかすぐ決められるように
+// 英単語：レベル別の定着・1回目の正答率・何回もまちがえた単語。数学：mathWeakHTML()（数学の部分が作る）
+function vocabWeakHTML() {
+  const ws = Object.entries(vocab.words ?? {}).filter(([id]) => VOCAB_BY_ID[id]);
+  if (!ws.length) return "";
+  const ok = ws.reduce((a, [, w]) => a + (w.ok ?? 0), 0), ng = ws.reduce((a, [, w]) => a + (w.ng ?? 0), 0);
+  const lvPct = [1, 2, 3].map(l => { const ids = idsOfLevel(l); return ids.length ? Math.round(ids.filter(id => (vocab.words?.[id]?.box ?? 0) >= 3).length / ids.length * 100) : 0; });
+  const weak = ws.filter(([, w]) => (w.ng ?? 0) >= 1).sort((a, b) => (b[1].ng ?? 0) - (a[1].ng ?? 0) || (a[1].box ?? 0) - (b[1].box ?? 0)).slice(0, 15);
+  return `<section class="wk-sec">
+      <p class="wk-h">英単語</p>
+      <div class="wk-stats">
+        <div><b>${ws.length}</b><span>出た単語</span></div>
+        <div><b>${ok + ng ? Math.round(ok / (ok + ng) * 100) : 0}<small>%</small></b><span>1回目の正答率</span></div>
+        ${lvPct.map((p, i) => `<div><b>${p}<small>%</small></b><span>レベル${i + 1} 定着</span></div>`).join("")}
+      </div>
+      ${weak.length ? `<p class="wk-sub">まちがえた回数が多い単語</p>
+      <ul class="wk-list">${weak.map(([id, w]) => { const v = VOCAB_BY_ID[id]; return `<li><span class="wk-w">${esc(v[0])}</span><span class="wk-j">${esc(v[2])}</span><span class="wk-n">${w.ng}回</span><span class="wk-s ${(w.box ?? 0) >= 3 ? "ok" : ""}">${(w.box ?? 0) >= 3 ? "定着" : `L${LEVEL_OF[id]}`}</span></li>`; }).join("")}</ul>` : `<p class="wk-sub">まちがえた単語はまだありません</p>`}
+    </section>`;
+}
+function renderWeakCard() {
+  const card = $("weak-card");
+  if (!card) return;
+  if (!currentSid || role === "student") { card.hidden = true; return; }
+  const v = vocabWeakHTML(), m = typeof mathWeakHTML === "function" ? mathWeakHTML() : "";
+  card.hidden = false;
+  card.innerHTML = `<h3 class="h3-plain">苦手まとめ</h3>${v}${m}${v || m ? "" : `<p class="hint left">英単語・数学を解くと、ここに苦手がまとまります。</p>`}`;
 }
 // 英語・数学カードの見出し：タイトルの横に今日の分の横ゲージ（未実施 0/20 → とちゅう 7/20 → 復習 あと3 → 完了）
 function cardHead(name, state, prog, text) {

@@ -122,3 +122,28 @@ exports.tuitionReminder = onSchedule(
     }));
   }
 );
+
+// 毎晩20時（日本時間）に、今日の英単語・数学ⅠAがまだ終わっていない生徒にだけ通知する（毎日続けるための声かけ）
+// 対象：その教科を使い始めている（記録がある）か、今日が期間に入っている「毎日の英単語／数学」の宿題がある生徒
+exports.dailyStudyReminder = onSchedule(
+  { schedule: "0 20 * * *", timeZone: "Asia/Tokyo" },
+  async () => {
+    const db = admin.firestore();
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }); // YYYY-MM-DD
+    const students = await db.collection("students").get();
+    await Promise.all(students.docs.map(async (st) => {
+      const sid = st.id;
+      const [vocab, math, hw] = await Promise.all([
+        st.ref.collection("vocab").doc("state").get(),
+        st.ref.collection("math").doc("state").get(),
+        st.ref.collection("homework").where("dueDate", ">=", today).get(),
+      ]);
+      const dailyHw = (type) => hw.docs.some(d => { const h = d.data(); return h.type === type && (h.startDate ?? h.dueDate) <= today; });
+      const left = [];
+      if ((vocab.exists || dailyHw("daily-vocab")) && !vocab.data()?.days?.[today]?.done) left.push("英単語");
+      if ((math.exists || dailyHw("daily-math")) && !math.data()?.days?.[today]?.done) left.push("数学ⅠA");
+      if (!left.length) return;
+      await notifyRole(sid, `今日の${left.join("・")}がまだです`, "寝る前に終わらせよう。毎日続けるのがいちばんの近道です", "student");
+    }));
+  }
+);

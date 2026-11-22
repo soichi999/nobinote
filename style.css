@@ -1009,3 +1009,19 @@ details.form-details[open] > summary::before{transform:rotate(45deg)}
 .mc-levels.vocab .mc-lv.on b{color:var(--c-vocab)}
 .mc-lv:disabled{opacity:1;cursor:default}
 .mc-lv span{font-size:.85rem}
+/* 苦手まとめ（成績タブ・先生と保護者） */
+.weak-card .wk-sec{margin-top:.8rem}
+.wk-h{margin:0 0 .4rem;font-weight:800;color:var(--navy);border-left:var(--accent-w) solid var(--c-vocab-mid);padding-left:.5rem}
+.wk-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:.4rem}
+.wk-stats div{background:var(--bg);border-radius:var(--r-md);padding:.45rem .3rem;text-align:center;display:flex;flex-direction:column}
+.wk-stats b{font-size:1.2rem;color:var(--navy)}
+.wk-stats b small{font-size:.75rem}
+.wk-stats span{font-size:.75rem;color:var(--muted);font-weight:700}
+.wk-sub{margin:.7rem 0 .3rem;font-size:.8rem;font-weight:800;color:var(--muted)}
+.wk-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.3rem}
+.wk-list li{display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;border:1px solid var(--line);border-radius:var(--r-md);background:#fff}
+.wk-w{font-family:"Times New Roman",Georgia,serif;font-weight:800;color:var(--navy);min-width:6.5em}
+.wk-j{flex:1;min-width:0;font-size:.8rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wk-n{font-size:.8rem;font-weight:800;color:var(--err);white-space:nowrap}
+.wk-s{font-size:.75rem;font-weight:800;color:var(--muted);background:var(--bg);border-radius:var(--r-pill);padding:.05rem .45rem;white-space:nowrap}
+.wk-s.ok{color:var(--ok);background:var(--ok-soft)}
