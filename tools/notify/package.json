@@ -1,0 +1,9 @@
+{
+  "name": "nobinote-notify",
+  "private": true,
+  "type": "module",
+  "description": "GitHub Actions から送る通知（Firebase の Blaze プランなしで動かす）",
+  "dependencies": {
+    "firebase-admin": "^12.1.0"
+  }
+}

@@ -1,0 +1,31 @@
+# 毎晩20時（日本時間）に「今日の英単語・数学がまだ」の生徒へ通知する（tools/notify/daily_reminder.mjs）
+# Firebase の Blaze プランなしで通知を送るため、GitHub Actions の定時実行を使う
+# 必要な Secret：FIREBASE_SERVICE_ACCOUNT（Firebase のサービスアカウントの鍵 JSON の中身）
+# 手で試すとき：Actions タブ →「夜20時の学習リマインド」→ Run workflow（dry_run を true にすると送らずに確認だけ）
+name: 夜20時の学習リマインド
+on:
+  schedule:
+    - cron: "0 11 * * *"   # 世界標準時 11:00 ＝ 日本時間 20:00（GitHub が混んでいると数分〜十数分おくれることがある）
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "送らずに、誰に送るかだけ表示する"
+        type: boolean
+        default: true
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: tools/notify
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: node daily_reminder.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '0' }}

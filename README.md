@@ -44,8 +44,15 @@
 - 文字は .75rem 以上（カレンダーの予定バッジだけ例外）。ボタンなど押す所は高さ44px以上。絵文字は使わない（アイコンはSVGの線画）
 
 ### 学習を続ける・苦手をつかむしくみ
-- **やっていない日の通知**：毎晩20時（日本時間）、今日の英単語・数学ⅠAがまだ終わっていない生徒にだけ通知（`functions/index.js` の `dailyStudyReminder`。
-  その教科の記録があるか、今日が期間の「毎日の英単語／数学」の宿題がある生徒が対象）。**Cloud Functions のデプロイが必要**（`firebase deploy --only functions`）
+- **やっていない日の通知**：毎晩20時（日本時間）、今日の英単語・数学ⅠAがまだ終わっていない生徒にだけ通知。
+  その教科の記録があるか、今日が期間の「毎日の英単語／数学」の宿題がある生徒が対象。
+  Firebase が無料の Spark プランで Cloud Functions を使えないため、**GitHub Actions の定時実行**で送る
+  （`.github/workflows/daily-reminder.yml` → `tools/notify/daily_reminder.mjs`）。
+  - 必要な準備：Firebase コンソール →（歯車）プロジェクトの設定 → サービスアカウント →「新しい秘密鍵を生成」で JSON を作り、
+    GitHub の Secret `FIREBASE_SERVICE_ACCOUNT` に中身を登録（`gh secret set FIREBASE_SERVICE_ACCOUNT --repo soichi999/nobinote < 鍵.json`）。鍵のファイルは登録後に消す。リポジトリには入れない
+  - 試すとき：GitHub の Actions タブ →「夜20時の学習リマインド」→ Run workflow（dry_run が true なら送らずに対象だけ表示）
+  - 注意：公開リポジトリの定時実行は、60日間リポジトリに更新がないと GitHub に止められる（Actions タブから再開できる）
+  - `functions/index.js` の `dailyStudyReminder` は Blaze プランにしたとき用（同じ中身）
 - **苦手まとめ**（成績タブの一番上。先生・保護者だけ）：英単語は出た単語数・1回目の正答率・レベル別の定着％・まちがえた回数が多い単語（上位15）。
   数学は `mathWeakHTML()`（数学の部分が作る：分野ごとの正答率・何回もまちがえた問題など）
 
