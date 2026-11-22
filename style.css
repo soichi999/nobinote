@@ -996,3 +996,16 @@ details.form-details[open] > summary::before{transform:rotate(45deg)}
 .h-quota-wrap{display:flex;align-items:center;gap:.4rem}
 .h-quota-wrap input{flex:1;min-width:0}
 .h-quota-wrap span{font-weight:800;color:var(--muted)}
+/* 英語・数学カードの見出し：タイトル＋今日の横ゲージ */
+.vc-head{display:flex;align-items:center;gap:.7rem;margin-bottom:.6rem}
+.vc-head .vc-kicker{margin:0;flex:none}
+.vc-gauge{flex:1;min-width:0;display:flex;align-items:center;gap:.45rem}
+.vc-gauge .vc-bar{flex:1;margin:0}
+.vc-gauge span{flex:none;font-size:.8rem;font-weight:800;color:var(--muted);white-space:nowrap}
+.vc-gauge.done .vc-bar div{background:var(--ok)}.vc-gauge.review .vc-bar div{background:var(--err)}.vc-gauge.doing .vc-bar div{background:var(--warn)}
+.vc-gauge.done span{color:var(--ok)}.vc-gauge.review span{color:var(--err)}.vc-gauge.doing span{color:var(--warn)}
+.math-card .vc-gauge.done .vc-bar div{background:var(--ok)}.math-card .vc-gauge.review .vc-bar div{background:var(--err)}.math-card .vc-gauge.doing .vc-bar div{background:var(--warn)}
+.mc-levels.vocab .mc-lv.on{border-color:var(--c-vocab-mid);background:var(--c-vocab-soft);color:var(--c-vocab);box-shadow:inset 0 -3px 0 var(--c-vocab-mid)}
+.mc-levels.vocab .mc-lv.on b{color:var(--c-vocab)}
+.mc-lv:disabled{opacity:1;cursor:default}
+.mc-lv span{font-size:.85rem}

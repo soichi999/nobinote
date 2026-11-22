@@ -2339,13 +2339,21 @@ function vocabProgressHTML(learned, mastered, total = VOCAB_IDS.length) {
         <p class="vc-total">全${total}語のうち <b>${Math.round(learned / total * 100)}%</b> が出題済み</p>
       </div>
     </div>
-    <p class="vc-hint">定着＝間をあけて3回つづけて正解した単語</p>`;
+`;
 }
+// 英語・数学カードの見出し：タイトルの横に今日の分の横ゲージ（未実施 0/20 → とちゅう 7/20 → 復習 あと3 → 完了）
+function cardHead(name, state, prog, text) {
+  return `<div class="vc-head"><p class="vc-kicker">${name}</p>
+      <div class="vc-gauge ${state}" role="img" aria-label="${esc(text)}"><div class="vc-bar"><div style="width:${prog}%"></div></div><span>${esc(text)}</span></div></div>`;
+}
+// レベルのボタン：「レベル1」と定着％だけ（英語・数学で同じ形）
+const levelButtons = (kind, cur, pcts, disabled) => `<div class="mc-levels ${kind}" role="group" aria-label="レベル">${[1, 2, 3].map(l =>
+  `<button type="button" class="mc-lv${l === cur ? " on" : ""}" data-${kind}-level="${l}" aria-pressed="${l === cur}" ${disabled ? "disabled" : ""}><b>レベル${l}</b><span>${pcts[l - 1]}%</span></button>`).join("")}</div>`;
 // 英語・数学カードの「レベル・定着・この1週間」をたたむ。開いたかどうかは描き直しても残す
 const cardMoreOpen = { vocab: false, math: false };
 document.addEventListener("toggle", (e) => { const k = e.target?.dataset?.more; if (k) cardMoreOpen[k] = e.target.open; }, true);
 const moreDetails = (key, label, html) => `<details class="vc-more" data-more="${key}" ${cardMoreOpen[key] ? "open" : ""}>
-    <summary><span class="vc-more-t">くわしく</span><span class="vc-more-s">${label}</span></summary>${html}</details>`;
+    <summary><span class="vc-more-t">くわしく見る</span><span class="vc-more-s">${label}</span></summary>${html}</details>`;
 function renderVocabCard() {
   const card = $("vocab-card");
   if (!card) return;
@@ -2355,41 +2363,31 @@ function renderVocabCard() {
   // 円グラフは選んでいるレベルの単語で数える。レベルのボタンにも各レベルの定着％
   const lv = vocabLevel(), statOf = (x) => { const ids = idsOfLevel(x); return { total: ids.length, learned: ids.filter(id => vocab.words?.[id]).length, mastered: ids.filter(id => (vocab.words?.[id]?.box ?? 0) >= 3).length }; };
   const cur = statOf(lv);
-  const levelRow = `<div class="vc-levels" role="tablist" aria-label="レベル">${VOCAB_LEVELS.map(L => {
-    const st = statOf(L.lv);
-    return `<button type="button" class="vc-level${L.lv === lv ? " active" : ""}" data-vocab-level="${L.lv}" ${role === "parent" ? "disabled" : ""} aria-pressed="${L.lv === lv}"><b>${L.name}</b><small>${L.sub}</small><span>${st.total ? Math.round(st.mastered / st.total * 100) : 0}%</span></button>`;
-  }).join("")}</div>`;
+  const levelRow = levelButtons("vocab", lv, [1, 2, 3].map(x => { const st = statOf(x); return st.total ? Math.round(st.mastered / st.total * 100) : 0; }), role === "parent");
   const week = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
   const wk = ["日", "月", "火", "水", "木", "金", "土"];
   const weekRow = `<div class="vc-week">${week.map(d => {
     const [y, m, dd] = d.split("-").map(Number);
     return `<span class="vc-day${vocab.days?.[d]?.done ? " done" : ""}${d === t ? " today" : ""}"><small>${wk[new Date(y, m - 1, dd).getDay()]}</small>${vocab.days?.[d]?.done ? ICON_CHECK : "・"}</span>`;
   }).join("")}</div>`;
-  // 今日の状態：見出し・説明・進み具合
-  let state, title, note, prog = 0;
-  if (day?.done) { state = "done"; title = "今日は完了"; note = `1回目で ${day.first}/${day.total}問 正解`; prog = 100; }
-  else if (td?.phase === "review") { state = "review"; title = "復習が残っています"; note = `まちがえた単語 あと${td.queue.length}語`; prog = 100; }
-  else if (td && (td.idx > 0 || td.answered)) { const k = td.idx + (td.answered ? 1 : 0); state = "doing"; title = "とちゅうです"; note = `${k} / ${td.ids.length}問`; prog = Math.round(k / td.ids.length * 100); }
-  else { state = "todo"; title = `今日の${vocabN()}問`; note = "英検の形式：（　）に入る語を4つから選びます"; }
+  // 今日の状態と横ゲージ
+  const n = td?.ids.length ?? vocabN();
+  let state, prog = 0, gtext;
+  if (day?.done) { state = "done"; prog = 100; gtext = "完了"; }
+  else if (td?.phase === "review") { state = "review"; prog = 100; gtext = `復習 あと${td.queue.length}`; }
+  else if (td && (td.idx > 0 || td.answered)) { const k = td.idx + (td.answered ? 1 : 0); state = "doing"; prog = Math.round(k / n * 100); gtext = `${k}/${n}`; }
+  else { state = "todo"; gtext = `0/${n}`; }
   let btn = "";
   if (role === "student") {
     btn = day?.done ? `<button type="button" class="outline vc-btn" data-vocab-open>今日の単語を見直す</button>`
       : `<button type="button" class="primary vc-btn" data-vocab-open>${state === "review" ? "復習を続ける" : state === "doing" ? "続きから" : `今日の${vocabN()}問をはじめる`}</button>`;
   } else if (role === "tutor") btn = `<button type="button" class="outline vc-btn" data-vocab-trial>お試しで解く（記録されません）</button>`;
   card.innerHTML = `
-    <div class="vc-top">
-      <div><p class="vc-kicker">今日の英単語</p><p class="vc-sub">${VOCAB_LEVELS[lv - 1].name}（${VOCAB_LEVELS[lv - 1].sub}）・今日${td?.ids.length ?? vocabN()}問${hwQuotaToday("daily-vocab") ? "（宿題）" : ""}</p></div>
-      <span class="vc-badge ${state}">${state === "done" ? "完了" : state === "review" ? "復習中" : state === "doing" ? "とちゅう" : "未実施"}</span>
-    </div>
-    <div class="vc-today ${state}">
-      <p class="vc-title">${title}</p>
-      <p class="vc-note">${note}</p>
-      <div class="vc-bar"><div style="width:${prog}%"></div></div>
-    </div>
+    ${cardHead("今日の英単語", state, prog, gtext)}
     ${btn}
-    ${moreDetails("vocab", `${VOCAB_LEVELS[lv - 1].name}・定着${cur.total ? Math.round(cur.mastered / cur.total * 100) : 0}%・${vocabStreak()}日連続`, `
     ${levelRow}
     ${vocabProgressHTML(cur.learned, cur.mastered, cur.total)}
+    ${moreDetails("vocab", `${vocabStreak()}日連続・この1週間 ${week.filter(d => vocab.days?.[d]?.done).length}/7日`, `
     <div class="vc-stats two">
       <div><b>${vocabStreak()}</b><span>日連続</span></div>
       <div><b>${week.filter(d => vocab.days?.[d]?.done).length}<small> / 7日</small></b><span>この1週間</span></div>
@@ -2899,7 +2897,7 @@ function mathProgressHTML(lv) {
         <p class="vc-total">レベル${lv}の${total}問のうち <b>${Math.round(seen / total * 100)}%</b> が出題済み</p>
       </div>
     </div>
-    <p class="vc-hint">定着＝間をあけて3回つづけて正解した問題（数値は毎回変わります）</p>`;
+`;
 }
 function renderMathCard() {
   const card = $("math-card");
@@ -2914,11 +2912,12 @@ function renderMathCard() {
     const [y, m, dd] = d.split("-").map(Number);
     return `<span class="vc-day${math.days?.[d]?.done ? " done" : ""}${d === t ? " today" : ""}"><small>${wk[new Date(y, m - 1, dd).getDay()]}</small>${math.days?.[d]?.done ? ICON_CHECK : "・"}</span>`;
   }).join("")}</div>`;
-  let state, title, note, prog = 0;
-  if (day?.done) { state = "done"; title = "今日は完了"; note = `1回目で ${day.first}/${day.total}問 正解`; prog = 100; }
-  else if (td?.phase === "review") { state = "review"; title = "復習が残っています"; note = `まちがえた問題 あと${td.queue.length}問（数値を変えて出ます）`; prog = 100; }
-  else if (td && (td.idx > 0 || td.answered)) { const k = td.idx + (td.answered ? 1 : 0); state = "doing"; title = "とちゅうです"; note = `${k} / ${td.list.length}問`; prog = Math.round(k / td.list.length * 100); }
-  else { state = "todo"; title = `今日の${(td && !mathUntouched(td) ? td.list.length : mathN())}問`; note = "ア・イ…の枠に、数字や符号「−」をマークして答えます"; }
+  const n = td && !mathUntouched(td) ? td.list.length : mathN();
+  let state, prog = 0, gtext;
+  if (day?.done) { state = "done"; prog = 100; gtext = "完了"; }
+  else if (td?.phase === "review") { state = "review"; prog = 100; gtext = `復習 あと${td.queue.length}`; }
+  else if (td && (td.idx > 0 || td.answered)) { const k = td.idx + (td.answered ? 1 : 0); state = "doing"; prog = Math.round(k / td.list.length * 100); gtext = `${k}/${td.list.length}`; }
+  else { state = "todo"; gtext = `0/${n}`; }
   let btn = "";
   if (role === "student") {
     btn = day?.done ? `<button type="button" class="outline vc-btn" data-math-open>今日の問題を見直す</button>`
@@ -2926,23 +2925,11 @@ function renderMathCard() {
   } else if (role === "tutor") btn = `<button type="button" class="outline vc-btn" data-math-trial>お試しで解く（記録されません）</button>`;
   const weak = mathWeakField();
   card.innerHTML = `
-    <div class="vc-top">
-      <div><p class="vc-kicker">今日の数学ⅠA</p><p class="vc-sub">共通テスト形式・1日${(td && !mathUntouched(td) ? td.list.length : mathN())}問・7分野・レベル${lv}</p></div>
-      <span class="vc-badge ${state}">${state === "done" ? "完了" : state === "review" ? "復習中" : state === "doing" ? "とちゅう" : "未実施"}</span>
-    </div>
-    <div class="vc-today ${state}">
-      <p class="vc-title">${title}</p>
-      <p class="vc-note">${note}</p>
-      <div class="vc-bar"><div style="width:${prog}%"></div></div>
-    </div>
+    ${cardHead("今日の数学ⅠA", state, prog, gtext)}
     ${btn}
-    ${moreDetails("math", `レベル${lv}・定着${mathLvStats(lv).pct}%・${mathStreak()}日連続`, `
-    <div class="mc-levels" role="group" aria-label="レベル">${[1, 2, 3].map(l => {
-      const st = mathLvStats(l);
-      return `<button type="button" class="mc-lv${l === lv ? " on" : ""}" data-math-level="${l}" aria-pressed="${l === lv}"><b>レベル${l}</b><span>${MATH_LEVELS[l].name}</span><span>定着 ${st.pct}%</span></button>`;
-    }).join("")}</div>
-    <p class="mc-lv-note">${esc(MATH_LEVELS[lv].note)}。${role === "student" ? "新しい問題はこのレベルから、復習は全レベルから出ます" : "（表示だけ切りかえ。レベルは生徒が選びます）"}</p>
+    ${levelButtons("math", lv, [1, 2, 3].map(l => mathLvStats(l).pct), false)}
     ${mathProgressHTML(lv)}
+    ${moreDetails("math", `${mathStreak()}日連続・この1週間 ${week.filter(d => math.days?.[d]?.done).length}/7日`, `
     <div class="vc-stats two">
       <div><b>${mathStreak()}</b><span>日連続</span></div>
       <div><b>${week.filter(d => math.days?.[d]?.done).length}<small> / 7日</small></b><span>この1週間</span></div>
