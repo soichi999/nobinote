@@ -976,3 +976,18 @@ details.form-details[open] > summary::before{transform:rotate(45deg)}
 .mc-lv.on b{color:var(--c-math)}
 .mc-lv-note{margin:0;font-size:.75rem;color:var(--muted)}
 .mq-lv{font-size:.75rem;font-weight:800;color:var(--navy);border:1px solid var(--line);border-radius:var(--r-pill);padding:.1rem .55rem}
+/* 英語・数学カード（宿題タブ）をコンパクトに：ふだんは見出し・今日の状態・ボタンだけ。くわしくは「レベル・定着・この1週間」に */
+#tab-homework .vocab-card{padding:.8rem .9rem}
+#tab-homework .vocab-card .vc-today{margin:.5rem 0;padding:.5rem .7rem}
+#tab-homework .vocab-card .vc-title{font-size:.95rem}
+#tab-homework .vocab-card .vc-note{font-size:.8rem}
+#tab-homework .vocab-card .vc-bar{margin-top:.35rem}
+#tab-homework .vocab-card .vc-btn{margin:0}
+.vc-more{margin-top:.5rem;border-top:1px solid var(--line)}
+.vc-more summary{display:flex;align-items:center;gap:.5rem;min-height:44px;cursor:pointer;list-style:none;font-size:.8rem;font-weight:800;color:var(--blue)}
+.vc-more summary::-webkit-details-marker{display:none}
+.vc-more summary::before{content:"";width:.45rem;height:.45rem;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .2s;flex:none}
+.vc-more[open] summary::before{transform:rotate(45deg)}
+.vc-more-s{margin-left:auto;color:var(--muted);font-weight:700;font-size:.75rem;text-align:right;white-space:nowrap}
+.vc-more-t{white-space:nowrap}
+#tab-homework .vocab-card .vc-btn{min-height:44px;padding:.6rem 1rem;font-size:.95rem}

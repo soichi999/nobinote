@@ -2315,6 +2315,11 @@ function vocabProgressHTML(learned, mastered, total = VOCAB_IDS.length) {
     </div>
     <p class="vc-hint">定着＝間をあけて3回つづけて正解した単語</p>`;
 }
+// 英語・数学カードの「レベル・定着・この1週間」をたたむ。開いたかどうかは描き直しても残す
+const cardMoreOpen = { vocab: false, math: false };
+document.addEventListener("toggle", (e) => { const k = e.target?.dataset?.more; if (k) cardMoreOpen[k] = e.target.open; }, true);
+const moreDetails = (key, label, html) => `<details class="vc-more" data-more="${key}" ${cardMoreOpen[key] ? "open" : ""}>
+    <summary><span class="vc-more-t">くわしく</span><span class="vc-more-s">${label}</span></summary>${html}</details>`;
 function renderVocabCard() {
   const card = $("vocab-card");
   if (!card) return;
@@ -2356,6 +2361,7 @@ function renderVocabCard() {
       <div class="vc-bar"><div style="width:${prog}%"></div></div>
     </div>
     ${btn}
+    ${moreDetails("vocab", `${VOCAB_LEVELS[lv - 1].name}・定着${cur.total ? Math.round(cur.mastered / cur.total * 100) : 0}%・${vocabStreak()}日連続`, `
     ${levelRow}
     ${vocabProgressHTML(cur.learned, cur.mastered, cur.total)}
     <div class="vc-stats two">
@@ -2363,7 +2369,7 @@ function renderVocabCard() {
       <div><b>${week.filter(d => vocab.days?.[d]?.done).length}<small> / 7日</small></b><span>この1週間</span></div>
     </div>
     <p class="vc-label">この1週間</p>
-    ${weekRow}`;
+    ${weekRow}`)}`;
 }
 $("vocab-card")?.addEventListener("click", (e) => {
   if (e.target.closest("[data-vocab-open]")) openVocab();
@@ -2899,6 +2905,7 @@ function renderMathCard() {
       <div class="vc-bar"><div style="width:${prog}%"></div></div>
     </div>
     ${btn}
+    ${moreDetails("math", `レベル${lv}・定着${mathLvStats(lv).pct}%・${mathStreak()}日連続`, `
     <div class="mc-levels" role="group" aria-label="レベル">${[1, 2, 3].map(l => {
       const st = mathLvStats(l);
       return `<button type="button" class="mc-lv${l === lv ? " on" : ""}" data-math-level="${l}" aria-pressed="${l === lv}"><b>レベル${l}</b><span>${MATH_LEVELS[l].name}</span><span>定着 ${st.pct}%</span></button>`;
@@ -2911,7 +2918,7 @@ function renderMathCard() {
     </div>
     ${weak ? `<p class="mc-weak">苦手な分野：<b>${esc(MATH_FIELDS[weak.f])}</b>（正答率 ${Math.round(weak.rate * 100)}%）</p>` : ""}
     <p class="vc-label">この1週間</p>
-    ${weekRow}`;
+    ${weekRow}`)}`;
 }
 $("math-card")?.addEventListener("click", (e) => {
   if (e.target.closest("[data-math-open]")) openMath();
