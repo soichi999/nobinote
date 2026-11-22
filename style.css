@@ -9,7 +9,7 @@
   --c-vocab:#0f766e; --c-vocab-mid:#2bb3a3; --c-vocab-soft:#e6fffb;
   --input-bg:var(--input-bg); --accent-w:4px;
   --r-sm:6px; --r-md:10px; --r-lg:16px; --r-pill:999px;
-  --vocab-day:#fff4bf; --vocab-day-line:#f1d36b;
+  --vocab-day:#fff4bf; --vocab-day-line:#f1d36b; --math-day:#dbeafe; --math-day-line:#93c5fd;
   --c-math:#4338ca; --c-math-mid:#6366f1; --c-math-soft:#eef2ff; --c-math-line:#c7d2fe;
   --shadow-pop:0 12px 32px rgba(11,42,91,.25);
   --shadow:0 1px 2px rgba(11,42,91,.06),0 4px 14px rgba(11,42,91,.06);
@@ -899,9 +899,11 @@ details.form-details[open] > summary::before{transform:rotate(45deg)}
 .mc-weak{margin:0 0 .7rem;font-size:.85rem;color:var(--fg);background:var(--warn-soft);border-left:var(--accent-w) solid var(--warn-mid);border-radius:0 var(--r-md) var(--r-md) 0;padding:.45rem .7rem}
 .mc-weak b{color:var(--warn)}
 .td-row.math .td-dot{background:var(--c-math);border-radius:0;clip-path:polygon(50% 0,100% 100%,0 100%)}
-.cal-cell.math-done{box-shadow:inset 0 -4px 0 var(--c-math-mid)}
+/* 完了日の色：英語だけ＝薄黄、数学だけ＝薄青、両方＝右肩上がりの斜め線で左上が薄黄・右下が薄青 */
+.cal-cell.math-done,.cal-cell.math-done.today{background:var(--math-day)}
+.cal-cell.vocab-done.math-done,.cal-cell.vocab-done.math-done.today{background:linear-gradient(to bottom right,var(--vocab-day) 50%,var(--math-day) 50%)}
 .legend-math{display:inline-flex;align-items:center;gap:.35rem;font-size:.75rem;font-weight:700;color:var(--muted)}
-.legend-math::before{content:"";width:.95rem;height:.95rem;border-radius:var(--r-sm);background:var(--bg);box-shadow:inset 0 -4px 0 var(--c-math-mid);border:1px solid var(--line)}
+.legend-math::before{content:"";width:.95rem;height:.95rem;border-radius:var(--r-sm);background:var(--math-day);border:1px solid var(--math-day-line)}
 
 .mq-head{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem}
 .mq-field{font-size:.75rem;font-weight:800;color:var(--c-math);background:var(--c-math-soft);border:1px solid var(--c-math-line);border-radius:var(--r-pill);padding:.1rem .65rem}
@@ -953,3 +955,5 @@ details.form-details[open] > summary::before{transform:rotate(45deg)}
 .h-daily-note{grid-column:1/-1;margin:0}
 .hw-section-label{margin:.4rem 0 .5rem;font-size:.8rem;font-weight:800;color:var(--muted);letter-spacing:.05em}
 #tab-homework .vocab-card{margin-bottom:.8rem}
+.legend-both{display:inline-flex;align-items:center;gap:.35rem;font-size:.75rem;font-weight:700;color:var(--muted)}
+.legend-both::before{content:"";width:.95rem;height:.95rem;border-radius:var(--r-sm);background:linear-gradient(to bottom right,var(--vocab-day) 50%,var(--math-day) 50%);border:1px solid var(--line)}
